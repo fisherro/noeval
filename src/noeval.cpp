@@ -109,37 +109,10 @@ Prefer abbreviated templates, especially when naming the type is unnecessary
 #include <variant>
 #include <vector>
 
+#include "debug.hpp"
 #include "noeval.hpp"
 #include "tests.hpp"
 #include "utils.hpp"
-
-// Currently, the only data here is the color.
-// But this also defines what choices there are.
-std::unordered_map<std::string, std::string> debug_categories{
-    {"eval", "\033[36m"},        // Cyan
-    {"env_lookup", "\033[32m"},  // Green
-    {"env_binding", "\033[33m"}, // Yellow
-    {"env_dump", "\033[35m"},    // Magenta
-    {"operative", "\033[34m"},   // Blue
-    {"builtin", "\033[90m"},     // Dark gray
-    {"parse", "\033[31m"},       // Red
-    {"library", "\033[95m"},     // Light magenta
-    {"error", "\033[91m"},       // Light red
-    {"all", "\033[0m"},          // Reset
-    {"none", "\033[0m"}          // Reset
-};
-
-// Global debug controller
-inline debug_controller& get_debug()
-{
-    static debug_controller instance;
-    return instance;
-}
-
-// Convenience macros
-// Why are these not inline functions?
-#define VAU_DEBUG(category, ...) get_debug().log(#category, __VA_ARGS__)
-#define VAU_DEBUG_ENABLED(category) get_debug().is_enabled(#category)
 
 std::string token_type_to_string(token_type type)
 {
