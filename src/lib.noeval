@@ -16,91 +16,32 @@
                 (vau () _ (eval alternate env))) 
               ()))))
 
-#skip
-(define cond
-  (vau clauses env
-    (define process-clauses
-      (lambda (remaining)
-        ((nil? remaining)
-         ()
-         (do
-           (define clause (first remaining))
-           (define test (first clause))
-           (define result (first (rest clause)))
-           (define test-value (eval test env))
-           (test-value
-             (eval result env)
-             (process-clauses (rest remaining)))))))
-    (process-clauses clauses)))
-#end
+; TODO cond
+; (cond (test1 exp1 exp2)
+;       (test2 exp3 exp4)
+;       (test3 exp5 exp6))
+; ...becomes...
+; (test1 (vau () _ (do exp1 exp2))
+;        (test2 (vau () _ (do exp3 exp4)))
+;               (test3 (vau () _ (do exp5 exp6))))
 
-; TODO: Once we implement macros, we should probably migrate cond to a macro
-;       instead of an operative.
-#skip
-(define cond
+; This does the syntax transformation of turning the arguments passed to cond
+; into chained Church booleans.
+; Although at the moment we only have a stub implementation.
+(define cond-macro
   (vau (clauses) env
-    (do
-      (define process-clauses
-        (lambda (remaining)
-          ((nil? remaining)
-           ()
-           (do
-             (define clause (first remaining))
-             (define test (first clause))
-             (define result (first (rest clause)))
-             (define test-value (eval test env))
-             (test-value
-               (eval result env)
-               (process-clauses (rest remaining)))))))
-      (process-clauses clauses))))
-#end
+    (do (define clause (first clauses))
+        (define test (first clause))
+        (define then (first (rest clause)))
+        (define else (first (rest clauses)))
+        (test then else))))
 
-#skip
+; This forwards its arguments to cond-macro to do the syntax transformation.
+; Then it evaluates the transformed syntax.
 (define cond
   (vau clauses env
-    (do
-      (define process-clauses
-        (vau (remaining) _
-          ((nil? remaining)
-           ()
-           (do
-             (display "Remaining: ")(display remaining)(newline)
-             (define clause (first remaining))
-             (define test (first clause))
-             (define result (first (rest clause)))
-             (define test-value (eval test env))
-             ; Use Church boolean to select which branch to take
-             (test-value
-               ; True branch: evaluate the result
-               (lambda () (eval result env))
-               ; False branch: process remaining clauses
-               (lambda () (process-clauses (rest remaining))))))))
-      (define evaluated-clauses (eval clauses env))
-      (process-clauses evaluated-clauses))))
-#end
+    (eval (cond-macro (eval clauses env) env))))
 
-(define cond
-  (vau clauses env
-    (do
-      (define process-clauses
-        (vau (remaining) _
-          ((nil? remaining)
-           ()
-           (do
-             (display "Remaining: ")(display remaining)(newline)
-             (define clause (first remaining))
-             (define test (first clause))
-             (define result (first (rest clause)))
-             (define test-value (eval test env))
-             ; Use Church boolean to select which branch to take
-             (invoke (test-value
-               ; True branch: return a vau that evaluates the result
-               (vau () _ (eval result env))
-               ; False branch: return a vau that processes remaining clauses
-               (vau () _ (process-clauses (rest remaining))))
-             ())))))
-      (process-clauses clauses))))
-      
 ; list evaluates its arguments and returns them as a list
 ; TODO: Now that we have lambda, we might replace this with a fold.
 (define list

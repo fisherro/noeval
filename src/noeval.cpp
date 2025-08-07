@@ -48,6 +48,7 @@ binding, which can then be modified with the `set!` form.
 
 /*
 TODO:
+Implement cond
 TCO
 Use demangle in value_to_string?
 Revisit the uses of std::visit
@@ -60,7 +61,6 @@ Different keyword than `vau`?
 What about `(vau env (params ...) body)`?
 Replace lists with arrays?
 Add GNU readline support
-Command to reload the library?
 Consider adding an equivalent to Kernel's #ignore
 Stack trace support
 Add expansion-time macros (see https://axisofeval.blogspot.com/2012/09/having-both-fexprs-and-macros.html )
@@ -75,7 +75,6 @@ FFI and POSIX support
 Create vau* that supports multiple expression bodies
 Create lambda* that supports multiple expression bodies
 Create let
-Create cond
 Look for places we can use string_view
 Consider whether to adopt Kernel's $ naming convention
 Would it make sense to implement `if` in terms of `cond`?
@@ -1223,14 +1222,8 @@ int run_library_tests(env_ptr env)
     }
 }
 
-int main()
+env_ptr reload_global_environment(bool run_tests)
 {
-    if (!run_tests()) {
-        return EXIT_FAILURE;
-    }
-
-    int failures = 0;
-
     // Create global environment and load library
     auto global_env = create_global_environment();
     global_env->define("env", std::make_shared<value>(global_env));
@@ -1240,21 +1233,35 @@ int main()
     bool library_ok = load_library_file("src/lib.noeval", global_env);
     if (not library_ok) {
         std::println("Loading the library failed!");
+        return nullptr;
+    }
+
+    if (run_tests) {
+        int failures{0};
+        // Run library tests after loading
+        std::println("\n{}", std::string(60, '='));
+        std::println("Running library tests...");
+        failures += run_library_tests(global_env);
+        std::println("{}", std::string(60, '='));
+        if (failures != 0) {
+            println_red("\n✗ {} test(s) failed in library tests!", failures);
+            return nullptr;
+        }
+        std::println("\n✓ All tests passed!");
+    }
+
+    return global_env;
+}
+
+int main()
+{
+    if (!run_tests()) {
         return EXIT_FAILURE;
     }
 
-#if 1
-    // Run library tests after loading
-    std::println("\n{}", std::string(60, '='));
-    std::println("Running library tests...");
-    failures += run_library_tests(global_env);
-    std::println("{}", std::string(60, '='));
-    if (failures != 0) {
-        println_red("\n✗ {} test(s) failed in library tests!", failures);
-        return EXIT_FAILURE;
-    }
-    std::println("\n✓ All tests passed!");
-#endif
+    // Create global environment and load library
+    auto global_env = reload_global_environment(true);
+    if (not global_env) return EXIT_FAILURE;
 
     std::println("Starting REPL...");
     repl(global_env);

@@ -226,6 +226,7 @@ bool handle_special_command(const std::string& input)
     if (input == ":help") {
         std::println("Special commands:");
         std::println("  :help          - Show this help");
+        std::println("  :reload        - Recreate the global environment and reload the library");
         std::println("  :debug ...     - Debug control commands (:debug help for details)");
         std::println("  quit, exit     - Exit the REPL");
         std::println("");
@@ -272,6 +273,12 @@ void repl(env_ptr global_env)
         
         // Handle special commands first
         if (is_special_command(input)) {
+            // Handle reload command specially
+            if (input == ":reload") {
+                global_env = reload_global_environment();
+                continue;
+            }
+
             if (handle_special_command(input)) {
                 continue; // Command was handled
             }

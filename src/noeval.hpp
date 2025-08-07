@@ -148,6 +148,9 @@ std::vector<value_ptr> list_to_vector(value_ptr list);
 // Core evaluation functions
 value_ptr eval(value_ptr expr, env_ptr env);
 env_ptr create_global_environment();
+// This creates a new global environment, loads the library, and runs the
+// library tests if specified.
+env_ptr reload_global_environment(bool run_tests = true);
 
 // String conversion functions
 std::string to_string(int value);
