@@ -109,25 +109,9 @@ Prefer abbreviated templates, especially when naming the type is unnecessary
 #include <variant>
 #include <vector>
 
-#include <cxxabi.h>
-
 #include "noeval.hpp"
 #include "tests.hpp"
-
-std::string demangle(std::type_info const& type)
-{
-    int status = 0;
-    char* name = abi::__cxa_demangle(type.name(), nullptr, nullptr, &status);
-    std::string result(name? name: type.name());
-    std::free(name);
-    return result;
-}
-
-template <typename T>
-std::string demangle()
-{
-    return demangle(typeid(T));
-}
+#include "utils.hpp"
 
 // Currently, the only data here is the color.
 // But this also defines what choices there are.
@@ -1731,19 +1715,6 @@ void repl(env_ptr global_env)
             print_error(e);
         }
     }
-}
-
-// Helper function to read file content
-std::string read_file_content(const std::string& filename)
-{
-    std::ifstream file(filename);
-    if (!file.is_open()) {
-        throw std::runtime_error("Could not open library file: " + filename);
-    }
-
-    std::ostringstream buffer;
-    buffer << file.rdbuf();
-    return buffer.str();
 }
 
 bool load_library_file(const std::string& filename, env_ptr env)

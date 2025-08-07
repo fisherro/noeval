@@ -248,16 +248,6 @@ debug_controller& get_debug();
 #define VAU_DEBUG(category, ...) get_debug().log(#category, __VA_ARGS__)
 #define VAU_DEBUG_ENABLED(category) get_debug().is_enabled(#category)
 
-// Utility functions
-std::string demangle(std::type_info const& type);
-template <typename T> std::string demangle();
-void println_red(std::string_view format_str, auto&&... args)
-{
-    std::println("\033[31m{}\033[0m",
-        std::vformat(format_str,
-            std::make_format_args(args...)));
-}
-
 // Helper functions
 std::string value_to_string(const value_ptr& val);
 std::string value_type_string(const value_ptr& val);

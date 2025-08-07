@@ -6,6 +6,7 @@
 
 #include "tests.hpp"
 #include "noeval.hpp"
+#include "utils.hpp"
 
 // Helper function for running tests
 struct test_runner {
