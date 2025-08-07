@@ -55,14 +55,16 @@
       (process-clauses clauses))))
 #end
 
+#skip
 (define cond
-  (vau (clauses) env
+  (vau clauses env
     (do
       (define process-clauses
-        (vau (remaining) _  ; <-- Change from lambda to vau
+        (vau (remaining) _
           ((nil? remaining)
            ()
            (do
+             (display "Remaining: ")(display remaining)(newline)
              (define clause (first remaining))
              (define test (first clause))
              (define result (first (rest clause)))
@@ -73,8 +75,32 @@
                (lambda () (eval result env))
                ; False branch: process remaining clauses
                (lambda () (process-clauses (rest remaining))))))))
-      (process-clauses clauses))))
+      (define evaluated-clauses (eval clauses env))
+      (process-clauses evaluated-clauses))))
+#end
 
+(define cond
+  (vau clauses env
+    (do
+      (define process-clauses
+        (vau (remaining) _
+          ((nil? remaining)
+           ()
+           (do
+             (display "Remaining: ")(display remaining)(newline)
+             (define clause (first remaining))
+             (define test (first clause))
+             (define result (first (rest clause)))
+             (define test-value (eval test env))
+             ; Use Church boolean to select which branch to take
+             (invoke (test-value
+               ; True branch: return a vau that evaluates the result
+               (vau () _ (eval result env))
+               ; False branch: return a vau that processes remaining clauses
+               (vau () _ (process-clauses (rest remaining))))
+             ())))))
+      (process-clauses clauses))))
+      
 ; list evaluates its arguments and returns them as a list
 ; TODO: Now that we have lambda, we might replace this with a fold.
 (define list

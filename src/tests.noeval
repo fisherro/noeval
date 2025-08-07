@@ -209,7 +209,6 @@
   (= (double-then-add-one 5) 11)
   "lambda composition should work")
 
-#skip
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Cond tests
 
@@ -218,6 +217,7 @@
   (= (cond (((= 1 1) 42))) 42)
   "cond should return value when first condition is true")
 
+#skip
 ; Test 2: Basic cond with false first condition, true second
 (test-assert 
   (= (cond (((= 1 2) 10) ((= 2 2) 20))) 20)

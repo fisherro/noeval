@@ -1082,26 +1082,36 @@ value_ptr eval_operation(const cons_cell& cell, env_ptr env)
     );
 }
 
-// Add call stack depth tracking
-class eval_depth_tracker {
-    static thread_local int depth;
+struct call_stack {
+private:
+    inline static thread_local std::vector<std::string> stack;
 public:
-    eval_depth_tracker() { ++depth; }
-    ~eval_depth_tracker() { --depth; }
-    static int get_depth() { return depth; }
-    static std::string indent() { return std::string(depth * 2, ' '); }
+    struct guard {
+        guard(value_ptr expr)
+        {
+            stack.push_back(value_to_string(expr));
+        }
+        ~guard()
+        {
+            if (!stack.empty()) {
+                stack.pop_back();
+            }
+        }
+    };
+
+    static std::string format()
+    {
+        std::string result;
+        for (const auto& [index, line] : stack | std::views::enumerate) {
+            result += std::format("{}: {}\n", index, line);
+        }
+        return result;
+    }
 };
-thread_local int eval_depth_tracker::depth = 0;
 
 value_ptr eval(value_ptr expr, env_ptr env)
 {
-    eval_depth_tracker tracker;
-    VAU_DEBUG(eval, "{}[{}] Evaluating({}): {}", 
-            eval_depth_tracker::indent(), 
-            eval_depth_tracker::get_depth(),
-            value_type_string(expr),
-            value_to_string(expr));
-    
+    call_stack::guard g(expr);
     try {
         value_ptr result = std::visit([&](const auto& v) -> value_ptr {
             using T = std::decay_t<decltype(v)>;
@@ -1121,24 +1131,13 @@ value_ptr eval(value_ptr expr, env_ptr env)
                 );
             }
         }, expr->data);
-        
-        VAU_DEBUG(eval, "{}[{}] Result: {}", 
-                eval_depth_tracker::indent(),
-                eval_depth_tracker::get_depth(), 
-                value_to_string(result));
         return result;
     } catch (const evaluation_error& e) {
-        VAU_DEBUG(error, "{}[{}] Evaluation error: {}", 
-                  eval_depth_tracker::indent(),
-                  eval_depth_tracker::get_depth(),
-                  e.what());
+        // If it is already an evaluation error,
+        // rethrow before the following catch grabs it.
         throw;
     } catch (const std::exception& e) {
-        VAU_DEBUG(error, "{}[{}] Unexpected error: {}", 
-                  eval_depth_tracker::indent(),
-                  eval_depth_tracker::get_depth(),
-                  e.what());
-        throw evaluation_error(e.what(), expr_context(expr));
+        throw evaluation_error(e.what(), expr_context(expr), call_stack::format());
     }
 }
 

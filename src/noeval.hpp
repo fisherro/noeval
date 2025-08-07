@@ -109,17 +109,27 @@ class evaluation_error: public std::runtime_error {
 public:
     std::string original_message;
     std::string context;
+    std::string stack_trace;
     
-    evaluation_error(const std::string& msg, const std::string& ctx = "") 
-        : std::runtime_error(format_message(msg, ctx)), original_message(msg), context(ctx) {}
-    
+    evaluation_error(
+        const std::string& msg,
+        const std::string& ctx = "",
+        const std::string& stack = "")
+        : std::runtime_error(format_message(msg, ctx, stack)),
+          original_message(msg),
+          context(ctx),
+          stack_trace(stack) {}
+
 private:
-    static std::string format_message(const std::string& msg, const std::string& ctx)
+    static std::string format_message(
+        const std::string& msg,
+        const std::string& ctx,
+        const std::string& stack)
     {
-        if (ctx.empty()) {
-            return msg;
-        }
-        return msg + "\n  while evaluating: " + ctx;
+        std::string message = msg;
+        if (!ctx.empty()) message += "\n while evaluating: " + ctx;
+        if (!stack.empty()) message += "\n stack trace:\n" + stack;
+        return message;
     }
 };
 
