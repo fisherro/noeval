@@ -59,7 +59,6 @@ Different keyword than `vau`?
     Others?
 What about `(vau env (params ...) body)`?
 Replace lists with arrays?
-Make the changes to my VS Code setup to enable making this its own workspace
 Add GNU readline support
 Command to reload the library?
 Consider adding an equivalent to Kernel's #ignore
@@ -145,12 +144,6 @@ std::unordered_map<std::string, std::string> debug_categories{
     {"all", "\033[0m"},          // Reset
     {"none", "\033[0m"}          // Reset
 };
-
-// Enum with symbolic name and bit value
-// get_prefix function
-// get_color function
-// parse debug category
-// status
 
 // Global debug controller
 inline debug_controller& get_debug()
