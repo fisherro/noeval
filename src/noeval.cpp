@@ -112,6 +112,9 @@ Prefer abbreviated templates, especially when naming the type is unnecessary
 
 #include <cxxabi.h>
 
+#include "noeval.hpp"
+#include "tests.hpp"
+
 std::string demangle(std::type_info const& type)
 {
     int status = 0;
@@ -125,14 +128,6 @@ template <typename T>
 std::string demangle()
 {
     return demangle(typeid(T));
-}
-
-// Could make a more generalized version that takes a color parameter
-void println_red(std::string_view format_str, auto&&... args)
-{
-    std::println("\033[31m{}\033[0m",
-        std::vformat(format_str,
-            std::make_format_args(args...)));
 }
 
 // Currently, the only data here is the color.
@@ -157,72 +152,6 @@ std::unordered_map<std::string, std::string> debug_categories{
 // parse debug category
 // status
 
-// Debug controller class
-class debug_controller {
-private:
-    std::unordered_set<std::string> enabled_categories;
-    bool use_colors = true;
-    
-public:
-    void enable(const std::string& category)
-    { enabled_categories.insert(category); }
-
-    void disable(const std::string& category)
-    { enabled_categories.erase(category); }
-
-    auto get_enabled_categories() const
-    { return enabled_categories; }
-
-    void set_enabled_categories(const std::unordered_set<std::string>& categories)
-    { enabled_categories = categories; }
-
-    void enable_all()
-    { enabled_categories = std::views::keys(debug_categories) | std::ranges::to<std::unordered_set>(); }
-
-    void disable_all()
-    { enabled_categories.clear(); }
-
-    bool is_enabled(const std::string& category) const
-    { return enabled_categories.contains(category); }
-
-    void set_colors(bool enable) { use_colors = enable; }
-    bool are_colors_enabled() const { return use_colors; }
-    
-    // Formatted debug output
-    template<typename... Args>
-    void log(const std::string& category,
-        const std::string& format_str, Args&&... args)
-    {
-        if (!is_enabled(category)) return;
-        
-        std::string prefix = get_prefix(category);
-        if (use_colors) {
-            prefix = get_color(category) + prefix + "\033[0m";
-        }
-        
-        // Use std::vformat instead of std::format with runtime format string
-        std::string message = std::vformat(format_str, std::make_format_args(args...));
-        std::println("{} {}", prefix, message);
-    }
-    
-private:
-    // The parameter cannot (yet) be a string_view because unordered_map
-    // doesn't (yet) support heterogeneous lookups.
-    std::string get_prefix(const std::string& category) const
-    {
-        if (not debug_categories.contains(category)) {
-            throw std::runtime_error("Unknown debug category: " + category);
-        }
-        //TODO: Do we want to make this uppercase?
-        return std::format("[{}]", category);
-    }
-
-    std::string get_color(const std::string& category) const
-    {
-        return debug_categories.at(category);
-    }
-};
-
 // Global debug controller
 inline debug_controller& get_debug()
 {
@@ -234,35 +163,6 @@ inline debug_controller& get_debug()
 // Why are these not inline functions?
 #define VAU_DEBUG(category, ...) get_debug().log(#category, __VA_ARGS__)
 #define VAU_DEBUG_ENABLED(category) get_debug().is_enabled(#category)
-
-// Custom exception class with context
-class evaluation_error : public std::runtime_error {
-public:
-    std::string original_message;
-    std::string context;
-    
-    evaluation_error(const std::string& msg, const std::string& ctx = "") 
-        : std::runtime_error(format_message(msg, ctx)), original_message(msg), context(ctx) {}
-    
-private:
-    static std::string format_message(const std::string& msg, const std::string& ctx)
-    {
-        if (ctx.empty()) {
-            return msg;
-        }
-        return msg + "\n  while evaluating: " + ctx;
-    }
-};
-
-// Token types for lexical analysis
-enum class token_type {
-    left_paren,
-    right_paren,
-    symbol,
-    integer,
-    string_literal,
-    eof
-};
 
 std::string token_type_to_string(token_type type)
 {
@@ -277,157 +177,145 @@ std::string token_type_to_string(token_type type)
     }
 }
 
-struct token {
-    token_type type;
-    std::string value;
+token::token(token_type t, std::string v): type(t), value(std::move(v)) {}
+
+std::string token::to_string() const
+{
+    return std::format("Token({}, '{}')", token_type_to_string(type), value);
+}
+
+bool lexer::matches_keyword(const std::string& keyword)
+{
+    if (pos + keyword.length() > input.size()) return false;
     
-    token(token_type t, std::string v = "") : type(t), value(std::move(v)) {}
-
-    std::string to_string() const
-    {
-        return std::format("Token({}, '{}')", token_type_to_string(type), value);
+    // Check if the keyword matches
+    for (size_t i = 0; i < keyword.length(); ++i) {
+        if (input[pos + i] != keyword[i]) return false;
     }
-};
+    
+    // Ensure it's followed by whitespace, end of input, or newline
+    size_t next_pos = pos + keyword.length();
+    return next_pos >= input.size() || 
+            std::isspace(input[next_pos]) || 
+            input[next_pos] == '\n';
+}
 
-class lexer {
-private:
-    std::string input;
-    size_t pos;
-
-    bool matches_keyword(const std::string& keyword)
-    {
-        if (pos + keyword.length() > input.size()) return false;
-        
-        // Check if the keyword matches
-        for (size_t i = 0; i < keyword.length(); ++i) {
-            if (input[pos + i] != keyword[i]) return false;
-        }
-        
-        // Ensure it's followed by whitespace, end of input, or newline
-        size_t next_pos = pos + keyword.length();
-        return next_pos >= input.size() || 
-               std::isspace(input[next_pos]) || 
-               input[next_pos] == '\n';
-    }
-
-    void skip_disabled_block()
-    {
-        pos += 5; // skip "#skip"
-        
-        // Skip until #end
-        while (pos + 4 <= input.size()) {
-            if (pos + 4 <= input.size() && 
-                input.substr(pos, 4) == "#end") {
-                // Check if it's followed by whitespace or end of input
-                if (pos + 4 >= input.size() || 
-                    std::isspace(input[pos + 4]) || 
-                    input[pos + 4] == '\n') {
-                    pos += 4; // skip "#end"
-                    return;
-                }
+void lexer::skip_disabled_block()
+{
+    pos += 5; // skip "#skip"
+    
+    // Skip until #end
+    while (pos + 4 <= input.size()) {
+        if (pos + 4 <= input.size() && 
+            input.substr(pos, 4) == "#end") {
+            // Check if it's followed by whitespace or end of input
+            if (pos + 4 >= input.size() || 
+                std::isspace(input[pos + 4]) || 
+                input[pos + 4] == '\n') {
+                pos += 4; // skip "#end"
+                return;
             }
-            ++pos;
         }
-        throw std::runtime_error("Unterminated #skip block - missing #end");
+        ++pos;
     }
+    throw std::runtime_error("Unterminated #skip block - missing #end");
+}
 
-    void skip_whitespace_and_comments()
-    {
-        while (pos < input.size()) {
-            if (std::isspace(input[pos])) {
+void lexer::skip_whitespace_and_comments()
+{
+    while (pos < input.size()) {
+        if (std::isspace(input[pos])) {
+            ++pos;
+        } else if (input[pos] == ';') {
+            // Skip comment - everything until newline or end of input
+            while (pos < input.size() && input[pos] != '\n') {
                 ++pos;
-            } else if (input[pos] == ';') {
-                // Skip comment - everything until newline or end of input
-                while (pos < input.size() && input[pos] != '\n') {
-                    ++pos;
-                }
-                // pos now points to newline or end, will be incremented in next iteration
-            } else if (pos + 5 <= input.size() && input.substr(pos, 5) == "#skip") {
-                // Check if #skip is followed by whitespace or end of input
-                if (pos + 5 >= input.size() || std::isspace(input[pos + 5]) || input[pos + 5] == '\n') {
-                    skip_disabled_block();
-                } else {
-                    break; // Not a skip directive, treat as regular token
-                }
-            } else {
-                break;  // Found non-whitespace, non-comment character
             }
-        }
-    }
-
-    std::string read_symbol()
-    {
-        std::string result;
-        while (pos < input.size() && 
-               !std::isspace(input[pos]) && 
-               input[pos] != '(' && 
-               input[pos] != ')' &&
-               input[pos] != ';') {  // Stop at semicolon to prevent comments in symbols
-            result += input[pos++];
-        }
-        return result;
-    }
-    
-    std::string read_string()
-    {
-        std::string result;
-        ++pos; // skip opening quote
-        while (pos < input.size() && input[pos] != '"') {
-            if (input[pos] == '\\' && pos + 1 < input.size()) {
-                ++pos; // skip backslash
-                switch (input[pos]) {
-                    case 'n' : result += '\n';       break;
-                    case 't' : result += '\t';       break;
-                    case '\\': result += '\\';       break;
-                    case '"' : result += '"';        break;
-                    case 'e' : result += '\033';     break;
-                    default  : result += input[pos]; break;
-                }
+            // pos now points to newline or end, will be incremented in next iteration
+        } else if (pos + 5 <= input.size() && input.substr(pos, 5) == "#skip") {
+            // Check if #skip is followed by whitespace or end of input
+            if (pos + 5 >= input.size() || std::isspace(input[pos + 5]) || input[pos + 5] == '\n') {
+                skip_disabled_block();
             } else {
-                result += input[pos];
+                break; // Not a skip directive, treat as regular token
             }
-            ++pos;
+        } else {
+            break;  // Found non-whitespace, non-comment character
         }
-        if (pos < input.size()) ++pos; // skip closing quote
-        return result;
     }
-    
-public:
-    explicit lexer(std::string text) : input(std::move(text)), pos(0) {}
-    
-    token next_token()
-    {
-        skip_whitespace_and_comments();
+}
 
-        if (pos >= input.size()) {
-            return token(token_type::eof);
-        }
-        
-        char ch = input[pos];
-        
-        if (ch == '(') {
-            ++pos;
-            return token(token_type::left_paren);
-        }
-        
-        if (ch == ')') {
-            ++pos;
-            return token(token_type::right_paren);
-        }
-        
-        if (ch == '"') {
-            return token(token_type::string_literal, read_string());
-        }
-        
-        if (std::isdigit(ch) || (ch == '-' && pos + 1 < input.size() && std::isdigit(input[pos + 1]))) {
-            std::string num_str = read_symbol();
-            return token(token_type::integer, num_str);
-        }
-        
-        // Everything else is a symbol
-        return token(token_type::symbol, read_symbol());
+std::string lexer::read_symbol()
+{
+    std::string result;
+    while (pos < input.size() && 
+            !std::isspace(input[pos]) && 
+            input[pos] != '(' && 
+            input[pos] != ')' &&
+            input[pos] != ';') {  // Stop at semicolon to prevent comments in symbols
+        result += input[pos++];
     }
-};
+    return result;
+}
+
+std::string lexer::read_string()
+{
+    std::string result;
+    ++pos; // skip opening quote
+    while (pos < input.size() && input[pos] != '"') {
+        if (input[pos] == '\\' && pos + 1 < input.size()) {
+            ++pos; // skip backslash
+            switch (input[pos]) {
+                case 'n' : result += '\n';       break;
+                case 't' : result += '\t';       break;
+                case '\\': result += '\\';       break;
+                case '"' : result += '"';        break;
+                case 'e' : result += '\033';     break;
+                default  : result += input[pos]; break;
+            }
+        } else {
+            result += input[pos];
+        }
+        ++pos;
+    }
+    if (pos < input.size()) ++pos; // skip closing quote
+    return result;
+}
+
+lexer::lexer(std::string text) : input(std::move(text)), pos(0) {}
+    
+token lexer::next_token()
+{
+    skip_whitespace_and_comments();
+
+    if (pos >= input.size()) {
+        return token(token_type::eof);
+    }
+    
+    char ch = input[pos];
+    
+    if (ch == '(') {
+        ++pos;
+        return token(token_type::left_paren);
+    }
+    
+    if (ch == ')') {
+        ++pos;
+        return token(token_type::right_paren);
+    }
+    
+    if (ch == '"') {
+        return token(token_type::string_literal, read_string());
+    }
+    
+    if (std::isdigit(ch) || (ch == '-' && pos + 1 < input.size() && std::isdigit(input[pos + 1]))) {
+        std::string num_str = read_symbol();
+        return token(token_type::integer, num_str);
+    }
+    
+    // Everything else is a symbol
+    return token(token_type::symbol, read_symbol());
+}
 
 // Forward declarations
 struct environment;
@@ -462,212 +350,107 @@ std::string to_string(const env_ptr& env)
 
 std::string to_string(std::nullptr_t) { return "()"; }
 
-// Core value types
-struct symbol {
-    std::string name;
-    explicit symbol(std::convertible_to<std::string_view> auto&& n):
-        name{std::forward<decltype(n)>(n)} {}
-    std::string to_string() const { return name; }
-};
-
-struct cons_cell {
-    value_ptr car;
-    value_ptr cdr;
-    cons_cell(value_ptr a, value_ptr d) : car(std::move(a)), cdr(std::move(d)) {}
-    std::string to_string() const;
-};
-
-struct param_pattern {
-    bool is_variadic{false};
-    // If variadic, param_names will only have a single name for the rest parameter.
-    std::vector<std::string> param_names;
-};
-
-struct operative {
-    param_pattern params;
-    std::string env_param;
-    value_ptr body;
-    env_ptr closure_env;
-    
-    operative(param_pattern p, std::string e, value_ptr b, env_ptr env)
-        : params(std::move(p)), env_param(std::move(e)), 
-          body(std::move(b)), closure_env(std::move(env)) {}
-    
-    std::string to_string() const;
-};
-
-// Built-in operative type for primitives
-struct builtin_operative {
-    std::string name;
-    std::function<value_ptr(const std::vector<value_ptr>&, env_ptr)> func;
-    
-    builtin_operative(std::string n, std::function<value_ptr(const std::vector<value_ptr>&, env_ptr)> f)
-        : name(std::move(n)), func(std::move(f)) {}
-    std::string to_string() const { return "#<builtin-operative:" + name + ">"; }
-};
-
-// Add a mutable wrapper type
-struct mutable_binding {
-    value_ptr value;
-    explicit mutable_binding(value_ptr v) : value(std::move(v)) {}
-    std::string to_string() const;
-};
-
-// The main value type
-/*
-We could use Church encoding for integers, but the performance overhead and
-not using the processor's native support means handling numbers directly makes
-more sense.
-
-We could also use Church encoding for cons cells, but--likewise--this has
-impractical performance overhead.
-*/
-struct value {
-    std::variant<
-        int,
-        std::string,
-        symbol,
-        cons_cell,
-        operative,
-        builtin_operative,
-        env_ptr,
-        mutable_binding,
-        std::nullptr_t  // for nil
-    > data;
-    
-    template<typename T>
-    value(T&& t) : data(std::forward<T>(t)) {}
-};
-
-// Environment for variable bindings
-struct environment {
-    std::unordered_map<std::string, value_ptr> bindings;
-    env_ptr parent;
-    
-    environment(env_ptr p = nullptr) : parent(std::move(p)) {}
-    
-    value_ptr lookup(const std::string& name) const;
-    void define(const std::string& name, value_ptr val);
-};
-
-void test_lexer()
+void parser::advance()
 {
-    lexer lex(R"RAW((begin (define x 42) (define y "Say, \"Hello\"")))RAW");
-    token tok = lex.next_token();
-    while (tok.type != token_type::eof) {
-        std::println("{}", tok.to_string());
-        tok = lex.next_token();
+    current_token = lex.next_token();
+}
+
+value_ptr parser::parse_list()
+{
+    // Expect '('
+    if (current_token.type != token_type::left_paren) {
+        throw std::runtime_error("Expected '('");
+    }
+    advance(); // consume '('
+    
+    if (current_token.type == token_type::right_paren) {
+        advance(); // consume ')'
+        return std::make_shared<value>(nullptr); // nil
+    }
+    
+    // Parse elements
+    std::vector<value_ptr> elements;
+    while (current_token.type != token_type::right_paren && 
+            current_token.type != token_type::eof) {
+        elements.push_back(parse_expression());
+    }
+    
+    if (current_token.type != token_type::right_paren) {
+        throw std::runtime_error("Expected ')'");
+    }
+    advance(); // consume ')'
+    
+    // Build cons cells from right to left
+    value_ptr result = std::make_shared<value>(nullptr); // nil
+    for (auto it = elements.rbegin(); it != elements.rend(); ++it) {
+        result = std::make_shared<value>(cons_cell{*it, result});
+    }
+    
+    return result;
+}
+
+parser::parser(std::string input) : lex(std::move(input))
+{
+    advance(); // prime the pump
+}
+
+value_ptr parser::parse_expression()
+{
+    VAU_DEBUG(parse, "Parsing token: {}", current_token.to_string());
+    switch (current_token.type) {
+        case token_type::left_paren:
+            VAU_DEBUG(parse, "Starting list parse");
+            return parse_list();
+            
+        case token_type::symbol:
+            {
+                VAU_DEBUG(parse, "Parsing symbol: {}", current_token.value);
+                auto result = std::make_shared<value>(symbol{current_token.value});
+                advance();
+                return result;
+            }
+            
+        case token_type::integer:
+            {
+                VAU_DEBUG(parse, "Parsing integer: {}", current_token.value);
+                int val = std::stoi(current_token.value);
+                auto result = std::make_shared<value>(val);
+                advance();
+                return result;
+            }
+            
+        case token_type::string_literal:
+            {
+                VAU_DEBUG(parse, "Parsing string literal: {}", current_token.value);
+                auto result = std::make_shared<value>(current_token.value);
+                advance();
+                return result;
+            }
+            
+        case token_type::eof:
+            throw std::runtime_error("Unexpected end of input");
+            
+        default:
+            throw std::runtime_error("Unexpected token");
     }
 }
 
-class parser {
-private:
-    lexer lex;
-    token current_token{token_type::eof};
+value_ptr parser::parse()
+{
+    return parse_expression();
+}
+
+// Parse all expressions from input
+std::vector<value_ptr> parser::parse_all()
+{
+    std::vector<value_ptr> expressions;
     
-    void advance()
-    {
-        current_token = lex.next_token();
+    while (current_token.type != token_type::eof) {
+        expressions.push_back(parse_expression());
     }
     
-    value_ptr parse_list()
-    {
-        // Expect '('
-        if (current_token.type != token_type::left_paren) {
-            throw std::runtime_error("Expected '('");
-        }
-        advance(); // consume '('
-        
-        if (current_token.type == token_type::right_paren) {
-            advance(); // consume ')'
-            return std::make_shared<value>(nullptr); // nil
-        }
-        
-        // Parse elements
-        std::vector<value_ptr> elements;
-        while (current_token.type != token_type::right_paren && 
-               current_token.type != token_type::eof) {
-            elements.push_back(parse_expression());
-        }
-        
-        if (current_token.type != token_type::right_paren) {
-            throw std::runtime_error("Expected ')'");
-        }
-        advance(); // consume ')'
-        
-        // Build cons cells from right to left
-        value_ptr result = std::make_shared<value>(nullptr); // nil
-        for (auto it = elements.rbegin(); it != elements.rend(); ++it) {
-            result = std::make_shared<value>(cons_cell{*it, result});
-        }
-        
-        return result;
-    }
-    
-public:
-    explicit parser(std::string input) : lex(std::move(input))
-    {
-        advance(); // prime the pump
-    }
-    
-    value_ptr parse_expression()
-    {
-        VAU_DEBUG(parse, "Parsing token: {}", current_token.to_string());
-        switch (current_token.type) {
-            case token_type::left_paren:
-                VAU_DEBUG(parse, "Starting list parse");
-                return parse_list();
-                
-            case token_type::symbol:
-                {
-                    VAU_DEBUG(parse, "Parsing symbol: {}", current_token.value);
-                    auto result = std::make_shared<value>(symbol{current_token.value});
-                    advance();
-                    return result;
-                }
-                
-            case token_type::integer:
-                {
-                    VAU_DEBUG(parse, "Parsing integer: {}", current_token.value);
-                    int val = std::stoi(current_token.value);
-                    auto result = std::make_shared<value>(val);
-                    advance();
-                    return result;
-                }
-                
-            case token_type::string_literal:
-                {
-                    VAU_DEBUG(parse, "Parsing string literal: {}", current_token.value);
-                    auto result = std::make_shared<value>(current_token.value);
-                    advance();
-                    return result;
-                }
-                
-            case token_type::eof:
-                throw std::runtime_error("Unexpected end of input");
-                
-            default:
-                throw std::runtime_error("Unexpected token");
-        }
-    }
-    
-    value_ptr parse()
-    {
-        return parse_expression();
-    }
-    
-    // Parse all expressions from input
-    std::vector<value_ptr> parse_all()
-    {
-        std::vector<value_ptr> expressions;
-        
-        while (current_token.type != token_type::eof) {
-            expressions.push_back(parse_expression());
-        }
-        
-        return expressions;
-    }
-};
+    return expressions;
+}
 
 // Helper function to print values for debugging
 std::string value_to_string(const value_ptr& val)
@@ -738,13 +521,6 @@ std::string expr_context(const value_ptr& expr)
     } catch (...) {
         return "<expression>";
     }
-}
-
-void test_parser()
-{
-    parser p(R"((begin (define x 42) (define y "Hello")))");
-    auto result = p.parse();
-    std::println("Parsed: {}", value_to_string(result));
 }
 
 // Environment implementation
@@ -1681,130 +1457,6 @@ value_ptr eval(value_ptr expr, env_ptr env)
     }
 }
 
-void test_evaluator()
-{
-    auto env = std::make_shared<environment>();
-    
-    // Test self-evaluating values
-    std::println("Testing self-evaluating values:");
-    
-    // Test integer
-    auto int_expr = std::make_shared<value>(42);
-    auto int_result = eval(int_expr, env);
-    std::println("42 -> {}", value_to_string(int_result));
-    
-    // Test string
-    auto str_expr = std::make_shared<value>(std::string("hello"));
-    auto str_result = eval(str_expr, env);
-    std::println("\"hello\" -> {}", value_to_string(str_result));
-    
-    // Test nil
-    auto nil_expr = std::make_shared<value>(nullptr);
-    auto nil_result = eval(nil_expr, env);
-    std::println("nil -> {}", value_to_string(nil_result));
-    
-    // Test variable binding and lookup
-    std::println("\nTesting variable binding:");
-    env->define("x", std::make_shared<value>(123));
-    auto sym_expr = std::make_shared<value>(symbol{"x"});
-    auto sym_result = eval(sym_expr, env);
-    std::println("x -> {}", value_to_string(sym_result));
-    
-    // Test undefined variable (should throw)
-    std::println("\nTesting undefined variable:");
-    try {
-        auto undef_expr = std::make_shared<value>(symbol{"undefined"});
-        eval(undef_expr, env);
-    } catch (const std::exception& e) {
-        std::println("Error (expected): {}", e.what());
-    }
-}
-
-// Test vau
-void test_vau()
-{
-    auto env = create_global_environment();
-    
-    std::println("Testing vau operative:");
-    
-    // Parse and evaluate: (vau (x) env x)
-    // This creates an operative that just returns its first argument unevaluated
-    parser p("(vau (x) env x)");
-    auto vau_expr = p.parse();
-    auto identity_op = eval(vau_expr, env);
-    
-    std::println("Created operative: {}", value_to_string(identity_op));
-    
-    // Now test using this operative
-    env->define("my-op", identity_op);
-    
-    // Test: (my-op (+ 1 2)) should return the unevaluated expression (+ 1 2)
-    parser p2("(my-op (+ 1 2))");
-    auto test_expr = p2.parse();
-    auto result = eval(test_expr, env);
-    
-    std::println("(my-op (+ 1 2)) -> {}", value_to_string(result));
-}
-
-void test_eval()
-{
-    auto env = create_global_environment();
-    
-    std::println("Testing eval operative:");
-    
-    // Test 1: Basic eval - (eval 42 env) should return 42
-    std::println("\nTest 1: Basic eval");
-    parser p1("(eval 42 env)");
-    auto eval_expr1 = p1.parse();
-    
-    // We need to bind 'env' to the current environment for this test
-    env->define("env", std::make_shared<value>(env));
-    
-    auto result1 = eval(eval_expr1, env);
-    std::println("(eval 42 env) -> {}", value_to_string(result1));
-    
-    // Test 2: Eval a symbol - first define a variable, then eval it
-    std::println("\nTest 2: Eval a symbol");
-    env->define("x", std::make_shared<value>(123));
-    parser p2("(eval x env)");
-    auto eval_expr2 = p2.parse();
-    auto result2 = eval(eval_expr2, env);
-    std::println("x = 123, (eval x env) -> {}", value_to_string(result2));
-    
-    // Test 3: Eval an expression - (eval (+ 1 2) env) should return 3
-    std::println("\nTest 3: Eval an expression");
-    parser p3("(eval (+ 1 2) env)");
-    auto eval_expr3 = p3.parse();
-    auto result3 = eval(eval_expr3, env);
-    std::println("(eval (+ 1 2) env) -> {}", value_to_string(result3));
-    
-    // Test 4: Powerful combo - use vau and eval together
-    std::println("\nTest 4: vau + eval combo");
-    // Create an operative that evaluates its argument twice
-    parser p4("(vau (x) env (eval (eval x env) env))");
-    auto double_eval_expr = p4.parse();
-    auto double_eval_op = eval(double_eval_expr, env);
-    env->define("double-eval", double_eval_op);
-    
-    // Test it: (double-eval x) where x = 123
-    // First eval: x -> 123, Second eval: 123 -> 123
-    parser p5("(double-eval x)");
-    auto test_expr = p5.parse();
-    auto result4 = eval(test_expr, env);
-    std::println("(double-eval x) where x=123 -> {}", value_to_string(result4));
-    
-    // Test 5: Create a variable that holds an expression, then eval it
-    std::println("\nTest 5: Eval stored expression");
-    parser p6("(+ 10 20)");
-    auto stored_expr = p6.parse();
-    env->define("my-expr", stored_expr);
-    
-    parser p7("(eval my-expr env)");
-    auto eval_stored = p7.parse();
-    auto result5 = eval(eval_stored, env);
-    std::println("my-expr = (+ 10 20), (eval my-expr env) -> {}", value_to_string(result5));
-}
-
 // Check if an expression is syntactically complete
 bool is_complete_expression(const std::string& input)
 {
@@ -2135,533 +1787,6 @@ bool load_library_file(const std::string& filename, env_ptr env)
     return ok;
 }
 
-// Helper function for running tests
-struct test_runner {
-    env_ptr env;
-    int failures = 0;
-    
-    test_runner(env_ptr e) : env(e) {}
-    bool test_eval(const std::string& input, const std::string& expected_output);
-    bool test_error(const std::string& input, const std::string& expected_error_substring);
-};
-
-bool test_runner::test_eval(const std::string& input, const std::string& expected_output)
-{
-    try {
-        parser p(input);
-        auto expr = p.parse();
-        auto result = eval(expr, env);
-        auto actual_output = value_to_string(result);
-        if (actual_output == expected_output) {
-            std::println("✓ {} => {}", input, actual_output);
-            return true;
-        } else {
-            println_red("✗ {}: expected {}, got {}", input, expected_output, actual_output);
-            failures++;
-            return false;
-        }
-    } catch (const std::exception& e) {
-        println_red("✗ {}: threw exception: {}", input, e.what());
-        failures++;
-        return false;
-    }
-}
-
-bool test_runner::test_error(const std::string& input, const std::string& expected_error_substring)
-{
-    try {
-        parser p(input);
-        auto expr = p.parse();
-        auto result = eval(expr, env);
-        println_red("✗ {}: expected error containing '{}', but got result: {}", 
-                    input, expected_error_substring, value_to_string(result));
-        failures++;
-        return false;
-    } catch (const std::exception& e) {
-        std::string error_msg = e.what();
-        if (error_msg.find(expected_error_substring) != std::string::npos) {
-            std::println("✓ {}: correctly threw error containing '{}'", input, expected_error_substring);
-            return true;
-        } else {
-            println_red("✗ {}: expected error containing '{}', got '{}'", 
-                        input, expected_error_substring, error_msg);
-            failures++;
-            return false;
-        }
-    }
-}
-
-int test_self_evaluating_values()
-{
-    std::println("\n--- Self-evaluating values ---");
-    auto env = create_global_environment();
-    test_runner runner(env);
-    
-    runner.test_eval("42", "42");
-    runner.test_eval("-17", "-17");
-    runner.test_eval("\"hello\"", "\"hello\"");
-    runner.test_eval("\"\"", "\"\"");
-    
-    return runner.failures;
-}
-
-int test_variable_operations()
-{
-    std::println("\n--- Variable operations ---");
-    auto env = create_global_environment();
-    test_runner runner(env);
-    
-    // Test nil symbol lookup
-    env->define("nil-val", std::make_shared<value>(nullptr));
-    runner.test_eval("nil-val", "()");
-    
-    // Test variable definition and lookup
-    runner.test_eval("(define x 123)", "123");
-    runner.test_eval("x", "123");
-    runner.test_eval("(define msg \"Hello World\")", "\"Hello World\"");
-    runner.test_eval("msg", "\"Hello World\"");
-    
-    return runner.failures;
-}
-
-int test_arithmetic_operations()
-{
-    std::println("\n--- Arithmetic operations ---");
-    auto env = create_global_environment();
-    test_runner runner(env);
-    
-    // Basic arithmetic
-    runner.test_eval("(+ 1 2)", "3");
-    runner.test_eval("(+ 1 2 3 4)", "10");
-    runner.test_eval("(- 10 3)", "7");
-    runner.test_eval("(- 10 3 2)", "5");
-    runner.test_eval("(* 3 4)", "12");
-    runner.test_eval("(* 2 3 4)", "24");
-    runner.test_eval("(/ 12 3)", "4");
-    runner.test_eval("(/ 24 4 2)", "3");
-    
-    // Nested arithmetic
-    runner.test_eval("(+ (* 2 3) (- 10 5))", "11");
-    runner.test_eval("(* (+ 1 2) (+ 3 4))", "21");
-    
-    return runner.failures;
-}
-
-int test_list_operations()
-{
-    std::println("\n--- List operations ---");
-    auto env = create_global_environment();
-    test_runner runner(env);
-    
-    env->define("nil-val", std::make_shared<value>(nullptr));
-    
-    runner.test_eval("(cons 1 nil-val)", "(1)");
-    runner.test_eval("(cons 1 (cons 2 nil-val))", "(1 2)");
-    runner.test_eval("(first (cons 42 nil-val))", "42");
-    runner.test_eval("(rest (cons 1 (cons 2 nil-val)))", "(2)");
-    runner.test_eval("(nil? nil-val)", "(operative (x y) env (eval x env))");
-    runner.test_eval("(nil? (cons 1 nil-val))", "(operative (x y) env (eval y env))");
-    
-    return runner.failures;
-}
-
-int test_church_booleans()
-{
-    std::println("\n--- Church boolean behavior ---");
-    auto env = create_global_environment();
-    test_runner runner(env);
-    
-    env->define("nil-val", std::make_shared<value>(nullptr));
-    
-    // Test that Church booleans work as selectors
-    runner.test_eval("((nil? nil-val) \"true\" \"false\")", "\"true\"");
-    runner.test_eval("((nil? 42) \"true\" \"false\")", "\"false\"");
-    runner.test_eval("((= 1 1) \"equal\" \"not-equal\")", "\"equal\"");
-    runner.test_eval("((= 1 2) \"equal\" \"not-equal\")", "\"not-equal\"");
-    
-    // Test Church booleans with operatives
-    runner.test_eval("((nil? nil-val) (+ 1 2) (+ 3 4))", "3");
-    runner.test_eval("((nil? 42) (+ 1 2) (+ 3 4))", "7");
-        
-    return runner.failures;
-}
-
-int test_vau_operatives()
-{
-    std::println("\n--- Vau operative creation ---");
-    auto env = create_global_environment();
-    test_runner runner(env);
-
-    // Set up environment
-    env->define("global-env", std::make_shared<value>(env));
-    
-    // Test 1: Basic vau operative creation
-    runner.test_eval("(vau (x) env x)", "(operative (x) env x)");
-    
-    // Test 2: Variadic vau operative creation
-    runner.test_eval("(vau args env args)", "(operative args env args)");
-    
-    // Test 3: Define and store a vau operative
-    runner.test_eval("(define identity (vau (x) env x))", "(operative (x) env x)");
-    
-    // Test 4: Use stored operative - should return unevaluated argument
-    runner.test_eval("(identity (+ 1 2))", "(+ 1 2)");
-    runner.test_eval("(identity hello)", "hello");
-    runner.test_eval("(identity 42)", "42");
-    
-    // Test 5: Variadic operative usage
-    runner.test_eval("(define collect-all (vau args env args))", "(operative args env args)");
-    runner.test_eval("(collect-all)", "()");
-    runner.test_eval("(collect-all a)", "(a)");
-    runner.test_eval("(collect-all a b c)", "(a b c)");
-    runner.test_eval("(collect-all (+ 1 2) hello)", "((+ 1 2) hello)");
-    
-    // Test 6: Environment parameter access - operative that evaluates its argument
-    runner.test_eval("(define evaluator (vau (x) e (eval x e)))", "(operative (x) e (eval x e))");
-    
-    // Test 7: Need to provide environment for evaluator to work
-    env->define("current-env", std::make_shared<value>(env));
-    runner.test_eval("(evaluator (+ 10 5))", "15");
-    
-    // Test 8: Operative that manipulates its environment parameter
-    runner.test_eval("(define get-env (vau () e e))", "(operative () e e)");
-    // Note: We can't easily test the result since environments print as addresses
-    
-    // Test 9: Nested vau creation
-    runner.test_eval("(define make-identity (vau () env (vau (x) env x)))", 
-                     "(operative () env (vau (x) env x))");
-    runner.test_eval("((make-identity) test)", "test");
-    
-    // Test 10: Operative with multiple parameters
-    runner.test_eval("(define first-arg (vau (x y) env x))", "(operative (x y) env x)");
-    runner.test_eval("(first-arg hello world)", "hello");
-    runner.test_eval("(first-arg (+ 1 2) (* 3 4))", "(+ 1 2)");
-
-    // Test 11: Operative that evaluates only some arguments
-    runner.test_eval("(define eval-second (vau (x y) e (eval y e)))", 
-                     "(operative (x y) e (eval y e))");
-    runner.test_eval("(eval-second dont-eval-me (+ 5 5))", "10");
-
-    // Test 12: Environment parameter ignored with ()
-    runner.test_eval("(define ignore-env-op (vau (x) () x))", "(operative (x)  x)");
-    runner.test_eval("(ignore-env-op hello-world)", "hello-world");
-
-    // Test 13: Verify () doesn't create environment binding
-    runner.test_eval("(define test-no-binding (vau (x) () (eval x global-env)))", 
-                    "(operative (x)  (eval x global-env))");
-    env->define("test-value", std::make_shared<value>(42));
-    runner.test_eval("(test-no-binding test-value)", "42");
-
-    // Test 15: Compare behavior with named vs ignored environment parameter
-    runner.test_eval("(define with-env (vau (x) e (eval x e)))", 
-                    "(operative (x) e (eval x e))");
-    runner.test_eval("(define without-env (vau (x) () x))", 
-                    "(operative (x)  x)");
-    runner.test_eval("(with-env (+ 1 2))", "3");   // Evaluates the expression
-    runner.test_eval("(without-env (+ 1 2))", "(+ 1 2)");  // Returns unevaluated
-
-    return runner.failures;
-}
-
-int test_eval_operative()
-{
-    std::println("\n--- Eval operative ---");
-    auto env = create_global_environment();
-    test_runner runner(env);
-    
-    // Set up environment
-    env->define("global-env", std::make_shared<value>(env));
-    runner.test_eval("(define x 123)", "123");  // Define x for later tests
-    
-    runner.test_eval("(eval 42 global-env)", "42");
-    runner.test_eval("(eval x global-env)", "123");  // x was defined as 123 above
-    runner.test_eval("(eval (+ 2 3) global-env)", "5");
-    
-    // Complex eval scenarios
-    env->define("nil-val", std::make_shared<value>(nullptr));
-    runner.test_eval("(define expr (cons (+ 1 1) nil-val))", "(2)");  // cons evaluates its arguments
-    
-    return runner.failures;
-}
-
-int test_invoke_operative()
-{
-    std::println("\n--- Invoke operative ---");
-    auto env = create_global_environment();
-    test_runner runner(env);
-    
-    env->define("nil-val", std::make_shared<value>(nullptr));
-
-    runner.test_eval("(invoke + (cons 1 (cons 2 (cons 3 nil-val))))", "6");
-    runner.test_eval("(invoke * (cons 2 (cons 3 (cons 4 nil-val))))", "24");
-
-    return runner.failures;
-}
-
-int test_error_conditions()
-{
-    std::println("\n--- Error conditions ---");
-    auto env = create_global_environment();
-    test_runner runner(env);
-    
-    runner.test_error("undefined-var", "Unbound variable");
-    runner.test_error("(+ 1 \"hello\")", "integer");
-    runner.test_error("(42 1 2)", "Not an operative");
-    runner.test_error("(first 42)", "not a cons cell");
-    runner.test_error("(vau x)", "expected 3 arguments");
-    runner.test_error("(eval 42)", "expected 2 arguments");
-    
-    return runner.failures;
-}
-
-// Comprehensive tests for eval functionality
-int test_eval_comprehensive()
-{
-    std::println("Running comprehensive eval tests...");
-    int total_failures = 0;
-    
-    total_failures += test_self_evaluating_values();
-    total_failures += test_variable_operations();
-    total_failures += test_arithmetic_operations();
-    total_failures += test_list_operations();
-    total_failures += test_church_booleans();
-    total_failures += test_vau_operatives();
-    total_failures += test_eval_operative();
-    total_failures += test_invoke_operative();
-    total_failures += test_error_conditions();
-    
-    std::println("\nComprehensive eval tests completed: {} failures", total_failures);
-    return total_failures;
-}
-
-// Test specifically for operative parameter binding
-int test_parameter_binding()
-{
-    std::println("\nTesting parameter binding scenarios...");
-    auto env = create_global_environment();
-    int failures = 0;
-    
-    auto test_eval = [&](const std::string& input, const std::string& expected_output) -> bool {
-        try {
-            parser p(input);
-            auto expr = p.parse();
-            auto result = eval(expr, env);
-            auto actual_output = value_to_string(result);
-            if (actual_output == expected_output) {
-                std::println("✓ {} => {}", input, actual_output);
-                return true;
-            } else {
-                println_red("✗ {}: expected {}, got {}", input, expected_output, actual_output);
-                return false;
-            }
-        } catch (const std::exception& e) {
-            println_red("✗ {}: threw exception: {}", input, e.what());
-            return false;
-        }
-    };
-    
-    env->define("nil-val", std::make_shared<value>(nullptr));
-    
-    // Test fixed parameter binding
-    std::println("\n--- Fixed parameters ---");
-    if (!test_eval("(define add-op (vau (x y) env (+ (eval x env) (eval y env))))", 
-              "(operative (x y) env (+ (eval x env) (eval y env)))")) failures++;
-    if (!test_eval("(add-op 3 4)", "7")) failures++;
-    if (!test_eval("(add-op (+ 1 1) (* 2 3))", "8")) failures++;
-
-    // Test environment parameter access
-    std::println("\n--- Environment parameter ---");
-    if (!test_eval("(define show-env (vau (var) e (eval var e)))", 
-              "(operative (var) e (eval var e))")) failures++;
-    if (!test_eval("(define test-var 999)", "999")) failures++;
-    if (!test_eval("(show-env test-var)", "999")) failures++;
-    
-    std::println("Parameter binding tests completed: {} failures", failures);
-    return failures;
-}
-
-int test_inline_comments()
-{
-    std::println("\n--- Inline comments ---");
-    auto env = create_global_environment();
-    test_runner runner(env);
-    
-    // Basic inline comments
-    runner.test_eval("42 ; this is a comment", "42");
-    runner.test_eval("(+ 1 2) ; adding numbers", "3");
-    runner.test_eval("(+ 1 ; first number\n   2) ; second number", "3");
-    
-    // Comments at different positions
-    runner.test_eval("; comment at start\n42", "42");
-    runner.test_eval("42\n; comment after", "42");
-    runner.test_eval("(+ 1 2 ; inline comment\n   3)", "6");
-    
-    // Multiple comments
-    runner.test_eval("; first comment\n; second comment\n42", "42");
-    runner.test_eval("(+ 1 ; comment 1\n   2 ; comment 2\n   3)", "6");
-    
-    // Comments with various content
-    runner.test_eval("42 ; comment with (parens)", "42");
-    runner.test_eval("42 ; comment with \"quotes\"", "42");
-    runner.test_eval("42 ; comment with ; semicolons", "42");
-    
-    // Edge cases
-    runner.test_eval("42;no space before comment", "42");
-    runner.test_eval("42 ;", "42");  // Empty comment
-    runner.test_eval("42 ; \n", "42");  // Comment with just whitespace
-    
-    // Comments should NOT interfere with string literals
-    runner.test_eval("\"string with ; semicolon\"", "\"string with ; semicolon\"");
-    runner.test_eval("\"string with \\\" quote ; and comment\"", "\"string with \\\" quote ; and comment\"");
-    
-    // Comments with symbols/operators - when evaluated, + returns the operative
-    runner.test_eval("+ ; this should not break symbol parsing", "#<builtin-operative:+>");
-    runner.test_eval("(define x 42) ; define a variable", "42");
-    runner.test_eval("x ; use the variable", "42");
-    
-    return runner.failures;
-}
-
-void test_lexer_comments()
-{
-    std::println("\n--- Lexer comment handling ---");
-    
-    // Test that comments are properly skipped in tokenization
-    lexer lex1("42 ; comment");
-    auto tok1 = lex1.next_token();
-    assert(tok1.type == token_type::integer && tok1.value == "42");
-    auto tok2 = lex1.next_token();
-    assert(tok2.type == token_type::eof);
-    std::println("✓ Simple inline comment");
-    
-    // Test comment at start of line
-    lexer lex2("; comment\n42");
-    auto tok3 = lex2.next_token();
-    assert(tok3.type == token_type::integer && tok3.value == "42");
-    std::println("✓ Comment at start of line");
-    
-    // Test comment in expression
-    lexer lex3("(+ 1 ; comment\n 2)");
-    auto tok4 = lex3.next_token();
-    assert(tok4.type == token_type::left_paren);
-    auto tok5 = lex3.next_token();
-    assert(tok5.type == token_type::symbol && tok5.value == "+");
-    auto tok6 = lex3.next_token();
-    assert(tok6.type == token_type::integer && tok6.value == "1");
-    auto tok7 = lex3.next_token();
-    assert(tok7.type == token_type::integer && tok7.value == "2");
-    auto tok8 = lex3.next_token();
-    assert(tok8.type == token_type::right_paren);
-    std::println("✓ Comment within expression");
-    
-    // Test that semicolon in string is preserved
-    lexer lex4("\"string ; with semicolon\"");
-    auto tok9 = lex4.next_token();
-    assert(tok9.type == token_type::string_literal && tok9.value == "string ; with semicolon");
-    std::println("✓ Semicolon preserved in string literal");
-    
-    std::println("All lexer comment tests passed!");
-}
-
-int test_operative_as_first_element()
-{
-    std::println("\n--- Operative values as first element ---");
-    auto env = create_global_environment();
-    test_runner runner(env);
-    
-    env->define("nil-val", std::make_shared<value>(nullptr));
-    
-    // Test 1: Direct operative value invocation
-    // This should work: ((vau args env args) 1 2 3)
-    runner.test_eval("((vau args env args) 1 2 3)", "(1 2 3)");
-    
-    // Test 2: Operative value from variable
-    runner.test_eval("(define my-op (vau (x) env x))", "(operative (x) env x)");
-    runner.test_eval("(my-op hello)", "hello");
-
-    // Test 3: Operative value from Church boolean selection  
-    runner.test_eval("(((nil? ()) (vau (x) env x) (vau (y) env y)) test)", "test");
-
-    // Test 4: Nested operative invocations
-    runner.test_eval("(((vau () env (vau (x) env x))) world)", "world");
-    
-    // Test 5: Built-in operative as value
-    runner.test_eval("(define plus-op +)", "#<builtin-operative:+>");
-    runner.test_eval("(plus-op 1 2 3)", "6");
-    
-    // Test 6: Mixed scenarios - operative returned from evaluation
-    runner.test_eval("(define make-identity (vau () env (vau (x) env x)))", 
-                     "(operative () env (vau (x) env x))");
-    runner.test_eval("((make-identity) foo)", "foo");
-    
-    return runner.failures;
-}
-
-int test_mutable_bindings()
-{
-    std::println("\n--- Mutable bindings ---");
-    auto env = create_global_environment();
-    test_runner runner(env);
-    
-    // Test 1: Basic mutable definition and initial value
-    runner.test_eval("(define-mutable x 42)", "42");
-    runner.test_eval("x", "42");
-    
-    // Test 2: Successful mutation
-    runner.test_eval("(set! x 100)", "100");
-    runner.test_eval("x", "100");
-    
-    // Test 3: Multiple mutations
-    runner.test_eval("(set! x (+ x 5))", "105");
-    runner.test_eval("x", "105");
-    
-    // Test 4: Mutable with different data types
-    runner.test_eval("(define-mutable msg \"hello\")", "\"hello\"");
-    runner.test_eval("(set! msg \"world\")", "\"world\"");
-    runner.test_eval("msg", "\"world\"");
-    
-    // Test 5: Error - trying to set! an immutable binding
-    runner.test_eval("(define y 50)", "50");  // Regular define (immutable)
-    runner.test_error("(set! y 60)", "not mutable");
-    runner.test_eval("y", "50");  // Should be unchanged
-    
-    // Test 6: Error - set! on undefined variable
-    runner.test_error("(set! undefined-var 123)", "Unbound variable");
-    
-    // Test 7: Error - define-mutable with wrong argument count
-    runner.test_error("(define-mutable)", "expected 2 arguments");
-    runner.test_error("(define-mutable x)", "expected 2 arguments");
-    runner.test_error("(define-mutable x 1 2)", "expected 2 arguments");
-    
-    // Test 8: Error - define-mutable with non-symbol first argument
-    runner.test_error("(define-mutable 123 456)", "must be a symbol");
-    runner.test_error("(define-mutable \"x\" 456)", "must be a symbol");
-    
-    // Test 9: Error - set! with wrong argument count
-    runner.test_error("(set!)", "expected 2 arguments");
-    runner.test_error("(set! x)", "expected 2 arguments");
-    runner.test_error("(set! x 1 2)", "expected 2 arguments");
-    
-    // Test 10: Error - set! with non-symbol first argument
-    runner.test_error("(set! 123 456)", "must be a symbol");
-    
-    // Test 11: Mutable bindings work across scopes
-    runner.test_eval("(define-mutable counter 0)", "0");
-    runner.test_eval("(define increment (vau () env (set! counter (+ counter 1))))", 
-                     "(operative () env (set! counter (+ counter 1)))");
-    runner.test_eval("(increment)", "1");
-    runner.test_eval("(increment)", "2");
-    runner.test_eval("counter", "2");
-    
-    // Test 12: Mutable binding with nil value
-    env->define("nil-val", std::make_shared<value>(nullptr));
-    runner.test_eval("(define-mutable nullable nil-val)", "()");
-    runner.test_eval("(set! nullable 42)", "42");
-    runner.test_eval("nullable", "42");
-    
-    return runner.failures;
-}
-
 // Function to run library tests from file
 int run_library_tests(env_ptr env)
 {
@@ -2712,37 +1837,11 @@ int run_library_tests(env_ptr env)
 
 int main()
 {
-    // Run existing tests (these could also be converted to return failure counts)
-    test_lexer();
-    test_lexer_comments();
-    std::println("---");
-    test_parser();
-    std::println("---");
-    test_evaluator();
-    std::println("---");
-    test_vau();
-    std::println("---");
-    test_eval();
-    
-    // Run comprehensive tests and count failures
-    int failures{0};
-    std::println("\n{}", std::string(60, '='));
-    failures += test_eval_comprehensive();
-    failures += test_inline_comments();
-    failures += test_operative_as_first_element();
-    std::println("{}", std::string(60, '='));
-    failures += test_parameter_binding();
-    std::println("{}", std::string(60, '='));
-    failures += test_mutable_bindings();
-    std::println("{}", std::string(60, '='));
-
-    if (failures != 0) {
-        std::println("\n✗ {} test(s) failed!", failures);
+    if (!run_tests()) {
         return EXIT_FAILURE;
     }
 
-    std::println("\n✓ All comprehensive tests passed!");
-    std::println("{}\n", std::string(50, '='));
+    int failures = 0;
 
     // Create global environment and load library
     auto global_env = create_global_environment();
