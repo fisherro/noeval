@@ -48,8 +48,6 @@ binding, which can then be modified with the `set!` form.
 
 /*
 TODO:
-Audit includes after breaking this up into modules
-Audit forward declarations
 TCO
 Use demangle in value_to_string?
 Revisit the uses of std::visit
@@ -95,19 +93,14 @@ Prefer abbreviated templates, especially when naming the type is unnecessary
 */
 
 #include <algorithm>
-#include <cassert>
-#include <cctype>
-#include <fstream>
+#include <format>
 #include <functional>
-#include <iostream>
 #include <memory>
 #include <print>
 #include <ranges>
-#include <sstream>
+#include <string_view>
 #include <string>
-#include <typeinfo>
 #include <unordered_map>
-#include <unordered_set>
 #include <variant>
 #include <vector>
 
@@ -117,13 +110,6 @@ Prefer abbreviated templates, especially when naming the type is unnecessary
 #include "repl.hpp"
 #include "tests.hpp"
 #include "utils.hpp"
-
-// Forward declarations
-struct environment;
-struct value;
-
-using value_ptr = std::shared_ptr<value>;
-using env_ptr = std::shared_ptr<environment>;
 
 std::string to_string(int value) { return std::to_string(value); }
 
