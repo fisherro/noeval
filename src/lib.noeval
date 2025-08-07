@@ -1,0 +1,178 @@
+; This is the "standard library" for my fexpr interpreter.
+; Note that, by convention, `_` indicates an ignored value.
+; NOTE THAT nil IS SPELT ()
+
+; TODO: Do we need this
+(define get-current-environment
+  (vau () env env))
+
+(define if
+  (vau (test consequent alternate) env
+    (do 
+      (define selector (eval test env))
+      ; Pass the actual operative values, not variables
+      (invoke (selector 
+                (vau () _ (eval consequent env))
+                (vau () _ (eval alternate env))) 
+              ()))))
+
+#skip
+(define cond
+  (vau clauses env
+    (define process-clauses
+      (lambda (remaining)
+        ((nil? remaining)
+         ()
+         (do
+           (define clause (first remaining))
+           (define test (first clause))
+           (define result (first (rest clause)))
+           (define test-value (eval test env))
+           (test-value
+             (eval result env)
+             (process-clauses (rest remaining)))))))
+    (process-clauses clauses)))
+#end
+
+; TODO: Once we implement macros, we should probably migrate cond to a macro
+;       instead of an operative.
+#skip
+(define cond
+  (vau (clauses) env
+    (do
+      (define process-clauses
+        (lambda (remaining)
+          ((nil? remaining)
+           ()
+           (do
+             (define clause (first remaining))
+             (define test (first clause))
+             (define result (first (rest clause)))
+             (define test-value (eval test env))
+             (test-value
+               (eval result env)
+               (process-clauses (rest remaining)))))))
+      (process-clauses clauses))))
+#end
+
+(define cond
+  (vau (clauses) env
+    (do
+      (define process-clauses
+        (vau (remaining) _  ; <-- Change from lambda to vau
+          ((nil? remaining)
+           ()
+           (do
+             (define clause (first remaining))
+             (define test (first clause))
+             (define result (first (rest clause)))
+             (define test-value (eval test env))
+             ; Use Church boolean to select which branch to take
+             (test-value
+               ; True branch: evaluate the result
+               (lambda () (eval result env))
+               ; False branch: process remaining clauses
+               (lambda () (process-clauses (rest remaining))))))))
+      (process-clauses clauses))))
+
+; list evaluates its arguments and returns them as a list
+; TODO: Now that we have lambda, we might replace this with a fold.
+(define list
+  (vau args env
+    (if (nil? args)
+        ()
+        (cons (eval (first args) env)
+              (invoke list (rest args))))))
+
+; Construct a list from the arguments without evaluating them
+(define unevaluated-list (vau args env args))
+
+; Evaluates a list of items in the given env
+(define eval-list
+  (vau (lyst env-expr) current-env
+    (do
+      ; First, evaluate our arguments
+      (define target-env (eval env-expr current-env))
+      (define actual-list (eval lyst current-env))
+      ; Then, make a helper to do the actual evaluation of lyst's elements
+      (define eval-list-helper
+        (vau (remaining) _
+          (if (nil? remaining)
+            ()
+            (cons (eval (first remaining) target-env)
+                  ; Because `invoke` unpacks the argument list, we need to use
+                  ; `cons` to wrap our single argument so it becomes one
+                  ; argument when unpacked.
+                  (invoke eval-list-helper (cons (rest remaining) ()))))))
+      ; Again, use `cons` to wrap the argument
+      (invoke eval-list-helper (cons actual-list ())))))
+
+; wrap takes an operative and returns a new operative that evaluates its arguments
+(define wrap
+  ; Here, the implicit env is the env where `define` was evaluated
+  ; when loading the library.
+  ; i.e. The global env
+  (vau (operative) wrap-call-env
+    ; Here, the implicit env is still the global env (the closure env of this
+    ; vau).
+    ; When this outer vau is called, i.e. when `wrap` is called, it creates a
+    ; new env with the global env as its parent, `wrap-call-env` bound to the
+    ; env where `wrap` was called, and `operative` bound to the argument of
+    ; `wrap`. This new env becomes the implicit env.
+    (do
+      ; Evaluate the operative once when wrap is called
+      (define resolved-operative (eval operative wrap-call-env))
+      (vau unevaluated-args wrapped-call-env
+        ; Here, the implicit env is the closure environment of this inner vau.
+        ; This environment was created by the `do` block when the outer vau was
+        ; called, and contains `resolved-operative` as well as access to the
+        ; global environment. When this inner vau is called, it creates a new
+        ; environment extending this closure environment, with
+        ; `wrapped-call-env` bound to the calling environment and
+        ; `unevaluated-args` bound to the arguments.
+        (do
+          (define evaluated-args (eval-list unevaluated-args wrapped-call-env))
+          (invoke resolved-operative evaluated-args))))))
+
+; Kernel:
+; ($define! $lambda
+;   ($vau (formals . body) env
+;         (wrap (eval (list* $vau formals #ignore body)
+;                env))))
+; Note that Kernel's list* can create improper lists if the last argument is
+; not itself a list. I don't think this matters in our case.
+
+; We're OK with lambda only supporting a single expression body.
+
+(define lambda
+  ; We don't support (head . tail) style of parameters.
+  ; But we also don't support multiple expressions in the body of a vau or lambda.
+  ; So, (formals body) for us is equivalent to (formals . body) for Kernel except
+  ; that our body won't be a list.
+  (vau (formals body) env
+    (wrap (eval
+            ; Kernel uses list* here and its last parameter is a list.
+            ; So, in Kernel, this part...
+            ;    (list* $vau formals #ignore body)
+            ; ...is equivalent to...
+            ;    (cons $vau (cons formals (cons #ignore body)))
+            ; We use () for #ignored and body is not a list, so our equivalent is:
+            (cons vau (cons formals (cons () (cons body ()))))
+            env))))
+
+(define square (lambda (x) (* x x)))
+
+(define newline (lambda () (display "\n")))
+
+; An example of a macro-like fexpr:
+;($define! $when
+;   ($vau (test . body) env
+;      (eval (list $if test (list* $sequence body) #inert)
+;            env)))
+; Untested:
+(define when
+  (vau args env
+    (do
+      (define test (first args))
+      (define body (rest args))
+      (eval (list if test (cons do body) ())))))

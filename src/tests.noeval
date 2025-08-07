@@ -1,0 +1,339 @@
+; Test suite for the vau language library
+; This file contains tests that are run after loading the standard library
+
+; TODO: Should we move the testing infrastructure (like test-assert) into the
+;       standard library?
+
+; Set up test variables
+(define-mutable test-failures 0)
+(define-mutable test-count 0)
+
+; Test helper functions
+(define test-assert
+  (vau (condition message) env
+    (do
+      (set! test-count (+ test-count 1))
+      (if (eval condition env)
+          (do
+            (display "✓ ")
+            (display message)
+            (display "\n")
+            "PASS")
+          (do
+            (set! test-failures (+ test-failures 1))
+            (display "\e[31m✗ ")
+            (display message)
+            (display "\e[0m\n")
+            message)))))
+
+; Helper operative to create unevaluated expressions for testing
+(define make-expr
+  (vau args env args))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Test list function
+(test-assert 
+  (nil? (list))
+  "empty list should return nil")
+
+; Test eval-list function with unevaluated expressions
+(define unevaluated-exprs (make-expr (+ 1 2) (* 3 4)))
+(define result-list (eval-list unevaluated-exprs env))
+(test-assert 
+  (= (first result-list) 3)
+  "eval-list should evaluate first element")
+
+(test-assert 
+  (= (first (rest result-list)) 12)
+  "eval-list should evaluate second element")
+
+(test-assert 
+  (= (first (list 42)) 42)
+  "single element list should work")
+
+; Test wrap functionality
+(define simple-op (vau (x y) env (cons x (cons y ()))))
+(define wrapped-simple (wrap simple-op))
+
+; Test that wrap evaluates arguments
+(define a 1)
+(define b 2)
+(test-assert 
+  (nil? (rest (rest (wrapped-simple a b))))
+  "wrap should create proper list structure")
+
+; Test wrap with built-in operatives
+(define wrapped-plus (wrap +))
+(define x 5)
+(define y 10)
+(test-assert 
+  (= (wrapped-plus x y) 15)
+  "wrapped + should evaluate arguments and add them")
+
+(test-assert 
+  (= (wrapped-plus (+ 1 2) 4) 7)
+  "wrapped + should evaluate complex arguments")
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Lambda tests
+
+; Test 1: Basic lambda creation and invocation
+(define add-two (lambda (x) (+ x 2)))
+(test-assert 
+  (= (add-two 5) 7)
+  "basic lambda should work with single parameter")
+
+(test-assert 
+  (= (add-two 10) 12)
+  "lambda should work with different arguments")
+
+; Test 2: Lambda with multiple parameters
+(define multiply (lambda (x y) (* x y)))
+(test-assert 
+  (= (multiply 3 4) 12)
+  "lambda should work with multiple parameters")
+
+(test-assert 
+  (= (multiply 7 8) 56)
+  "lambda with multiple parameters should work consistently")
+
+; Test 3: Lambda with no parameters
+(define get-constant (lambda () 42))
+(test-assert 
+  (= (get-constant) 42)
+  "lambda with no parameters should work")
+
+; Test 4: Lambda that uses closure variables
+(define closure-var 100)
+(define add-closure-var (lambda (y) (+ closure-var y)))
+(test-assert 
+  (= (add-closure-var 23) 123)
+  "lambda should capture closure variables")
+
+; ! This test fails!
+; Test 5: Nested lambda expressions
+(define make-adder (lambda (n) (lambda (x) (+ x n))))
+(define add-five (make-adder 5))
+(test-assert 
+  (= (add-five 10) 15)
+  "nested lambdas should work")
+
+(test-assert 
+  (= (add-five 7) 12)
+  "nested lambdas should work consistently")
+
+; Test 6: Lambda arguments are evaluated (unlike vau)
+(define eval-and-double (lambda (x) (* x 2)))
+(test-assert 
+  (= (eval-and-double (+ 3 4)) 14)
+  "lambda should evaluate its arguments")
+
+; Test 7: Compare with vau - lambda evaluates args, vau doesn't
+(define vau-version (vau (x) env x))
+(define lambda-version (lambda (x) x))
+
+; Create test expressions
+(define test-expr (make-expr (+ 1 2)))
+(define vau-result (vau-version (+ 1 2)))
+(define lambda-result (lambda-version (+ 1 2)))
+
+(test-assert 
+  (= lambda-result 3)
+  "lambda should evaluate arguments before passing to body")
+
+; Test 8: Lambda with complex body expressions
+(define complex-calc (lambda (a b) (+ (* a a) (* b b))))
+(test-assert 
+  (= (complex-calc 3 4) 25)
+  "lambda should handle complex expressions in body")
+
+; Test 9: Lambda used with higher-order functions
+(define apply-twice (lambda (f x) (f (f x))))
+(define increment (lambda (n) (+ n 1)))
+(test-assert 
+  (= (apply-twice increment 5) 7)
+  "lambda should work as higher-order function")
+
+; Test 10: Lambda with conditional logic
+(define abs-positive (lambda (x) (if (= x 0) 0 x)))
+(test-assert 
+  (= (abs-positive 5) 5)
+  "lambda should work with conditionals")
+
+(test-assert 
+  (= (abs-positive 0) 0)
+  "lambda conditional should handle zero case")
+
+; Test 11: Lambda that returns another lambda
+(define curry-add (lambda (x) (lambda (y) (+ x y))))
+(define add-ten (curry-add 10))
+(test-assert 
+  (= (add-ten 5) 15)
+  "lambda should support currying")
+
+; Test 12: Library square function works
+(test-assert 
+  (= (square 4) 16)
+  "library square function should work")
+
+(test-assert 
+  (= (square 7) 49)
+  "library square function should work consistently")
+
+; Test 13: Immediate lambda invocation
+(test-assert 
+  (= ((lambda (x y) (+ x y)) 8 9) 17)
+  "immediate lambda invocation should work")
+
+(test-assert 
+  (= ((lambda () (* 6 7))) 42)
+  "immediate parameterless lambda invocation should work")
+
+; Test 14: Lambda parameter shadowing
+(define outer-var 999)
+(define shadow-test (lambda (outer-var) (* outer-var 2)))
+(test-assert 
+  (= (shadow-test 5) 10)
+  "lambda parameters should shadow outer variables")
+
+(test-assert 
+  (= outer-var 999)
+  "lambda parameter shadowing should not affect outer scope")
+
+; Test 15: Lambda composition
+(define double (lambda (x) (* x 2)))
+(define add-one (lambda (x) (+ x 1)))
+(define double-then-add-one (lambda (x) (add-one (double x))))
+(test-assert 
+  (= (double-then-add-one 5) 11)
+  "lambda composition should work")
+
+#skip
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Cond tests
+
+; Test 1: Basic cond with true first condition
+(test-assert 
+  (= (cond (((= 1 1) 42))) 42)
+  "cond should return value when first condition is true")
+
+; Test 2: Basic cond with false first condition, true second
+(test-assert 
+  (= (cond (((= 1 2) 10) ((= 2 2) 20))) 20)
+  "cond should skip false conditions and return first true")
+
+; Test 3: Multiple conditions, second one true
+(test-assert 
+  (= (cond (((= 5 6) 100) ((= 3 3) 200) ((= 7 7) 300))) 200)
+  "cond should return first true condition, not evaluate later ones")
+
+; Test 4: No true conditions - should return nil
+(test-assert 
+  (nil? (cond (((= 1 2) 10) ((= 3 4) 20))))
+  "cond should return nil when no conditions are true")
+
+; Test 5: Empty cond - should return nil
+(test-assert 
+  (nil? (cond ()))
+  "cond with no clauses should return nil")
+
+; Test 6: Complex expressions in conditions and results
+(test-assert 
+  (= (cond (((= (+ 1 2) 4) (* 2 3)) ((= (* 2 2) 4) (+ 10 5)))) 15)
+  "cond should handle complex expressions in both test and result")
+
+; Test 7: Side effects should only occur for evaluated branches
+(define test-counter 0)
+(define increment-counter (lambda () (define test-counter (+ test-counter 1))))
+(cond (((= 1 1) (increment-counter)) ((= 2 2) (increment-counter))))
+(test-assert 
+  (= test-counter 1)
+  "cond should only evaluate the first true branch")
+
+; Test 8: Using Church booleans directly
+(define true-bool (nil? ()))
+(define false-bool (nil? 42))
+(test-assert 
+  (= (cond ((true-bool "correct") (false-bool "wrong"))) "correct")
+  "cond should work with Church boolean values")
+
+; Test 9: Variable references in conditions
+(define x 5)
+(define y 10)
+(test-assert 
+  (= (cond (((= x 3) "no") ((= y 10) "yes") ((= x 5) "maybe"))) "yes")
+  "cond should work with variable references")
+
+; Test 10: Nested cond expressions
+(define nested-result 
+  (cond (((= 1 2) "outer-false")
+         ((= 2 2) (cond (((= 3 4) "inner-false") 
+                         ((= 5 5) "inner-true")))))))
+(test-assert 
+  (= nested-result "inner-true")
+  "cond should work when nested inside other cond expressions")
+
+; Test 11: Short-circuit evaluation - later conditions shouldn't be evaluated
+(define side-effect-var 0)
+(define make-side-effect 
+  (lambda () (define side-effect-var (+ side-effect-var 1))))
+(cond (((= 1 1) "found")
+       ((make-side-effect) "should not reach here")))
+(test-assert 
+  (= side-effect-var 0)
+  "cond should not evaluate conditions after finding a true one")
+
+; Test 12: Using cond with wrapped functions
+(define wrapped-equal (wrap =))
+(test-assert 
+  (= (cond (((wrapped-equal 1 2) "no") ((wrapped-equal 3 3) "yes"))) "yes")
+  "cond should work with wrapped operatives")
+
+; Test 13: Return values can be any type
+(define string-result (cond (((= 1 2) 42) ((= 2 2) "string"))))
+(define number-result (cond (((= 1 1) 99) ((= 2 2) "string"))))
+(test-assert 
+  (= string-result "string")
+  "cond should return string values correctly")
+(test-assert 
+  (= number-result 99)
+  "cond should return number values correctly")
+
+; Test 14: Single clause cond
+(test-assert 
+  (= (cond (((= 7 7) "single"))) "single")
+  "cond with single true clause should work")
+
+(test-assert 
+  (nil? (cond (((= 7 8) "single"))))
+  "cond with single false clause should return nil")
+
+; Test 15: Complex realistic example
+(define classify-number
+  (lambda (n)
+    (cond (((= n 0) "zero")
+           ((= n 1) "one") 
+           ((= n 2) "two")
+           ((nil? ()) "other")))))  ; Always true as fallback
+
+(test-assert 
+  (= (classify-number 0) "zero")
+  "cond classifier should work for zero")
+
+(test-assert 
+  (= (classify-number 1) "one")
+  "cond classifier should work for one")
+
+(test-assert 
+  (= (classify-number 99) "other")
+  "cond classifier should work for default case")
+#end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Show test results
+(if (= test-failures 0)
+    "All library tests passed!"
+    (do
+      (define message "Library tests failed!")
+      test-failures))

@@ -1,0 +1,28 @@
+{
+    "name": "C++ Development (noeval)",
+    "image": "gcc-rlf:latest",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools-extension-pack",
+                "ms-vscode.cmake-tools"
+            ],
+            "settings": {
+                "C_Cpp.default.cppStandard": "c++26",
+                "C_Cpp.default.compilerPath": "/usr/bin/g++",
+                "C_Cpp.default.includePath": [
+                    "${containerWorkspaceFolder}/**"
+                ],
+                "C_Cpp.errorSquiggles": "enabled",
+                "C_Cpp.intelliSenseEngine": "default"
+            }
+        }
+    },
+    "workspaceFolder": "/workspace",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+    "postCreateCommand": "echo 'Container ready for C++ development'",
+    "remoteUser": "root",
+    "containerEnv": {
+        "TERM": "xterm-256color"
+    }
+}
