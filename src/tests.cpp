@@ -4,8 +4,9 @@
 #include <print>
 #include <string>
 
-#include "tests.hpp"
 #include "noeval.hpp"
+#include "parser.hpp"
+#include "tests.hpp"
 #include "utils.hpp"
 
 // Helper function for running tests
