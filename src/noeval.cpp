@@ -35,6 +35,7 @@ Look for places we can use string_view
 Consider whether to adopt Kernel's $ naming convention
 Would it make sense to implement `if` in terms of `cond`?
 What primitives can we get rid of?
+Implement void or #inert?
 
 Style:
 Ensure catches and elses are cuddled
