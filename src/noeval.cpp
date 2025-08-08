@@ -1106,11 +1106,19 @@ public:
         }
         return result;
     }
+
+    static size_t depth() { return stack.size(); }
+    static std::string indent() { return std::string(depth() * 2, ' '); }
 };
 
 value_ptr eval(value_ptr expr, env_ptr env)
 {
     call_stack::guard g(expr);
+    VAU_DEBUG(eval, "{}[{}] Evaluating({}): {}", 
+        call_stack::indent(), 
+        call_stack::depth(),
+        value_type_string(expr),
+        value_to_string(expr));
     try {
         value_ptr result = std::visit([&](const auto& v) -> value_ptr {
             using T = std::decay_t<decltype(v)>;
@@ -1130,6 +1138,10 @@ value_ptr eval(value_ptr expr, env_ptr env)
                 );
             }
         }, expr->data);
+        VAU_DEBUG(eval, "{}[{}] Result: {}", 
+                call_stack::indent(),
+                call_stack::depth(), 
+                value_to_string(result));
         return result;
     } catch (const evaluation_error& e) {
         // If it is already an evaluation error,

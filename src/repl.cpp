@@ -13,7 +13,7 @@
 // Print welcome message
 void print_welcome()
 {
-    std::println("Welcome to the Vau Language REPL!");
+    std::println("Welcome to the Noeval Language REPL!");
     std::println("Type expressions to evaluate them, or 'quit' to exit.");
     std::println("Multi-line expressions are supported - just keep typing!");
     std::println("Special commands start with ':' (try ':help')");
@@ -79,7 +79,7 @@ std::string read_expression()
     
     while (true) {
         // Show different prompt for continuation lines
-        std::print("{}", accumulated_input.empty() ? "vau> " : "...> ");
+        std::print("{}", accumulated_input.empty() ? "noeval> " : "...> ");
         std::flush(std::cout);
         
         if (!std::getline(std::cin, input)) {
@@ -230,7 +230,7 @@ bool handle_special_command(const std::string& input)
         std::println("  :debug ...     - Debug control commands (:debug help for details)");
         std::println("  quit, exit     - Exit the REPL");
         std::println("");
-        std::println("Or enter any Vau expression to evaluate it.");
+        std::println("Or enter any Noeval expression to evaluate it.");
         return true;
     }
     
