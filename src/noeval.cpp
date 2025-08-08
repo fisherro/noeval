@@ -19,7 +19,6 @@ What about `(vau env (params ...) body)`?
 Replace lists with arrays?
 Add GNU readline support
 Consider adding an equivalent to Kernel's #ignore
-Stack trace support
 Add expansion-time macros (see https://axisofeval.blogspot.com/2012/09/having-both-fexprs-and-macros.html )
 Module system?
 Pattern matching?
@@ -36,7 +35,6 @@ Look for places we can use string_view
 Consider whether to adopt Kernel's $ naming convention
 Would it make sense to implement `if` in terms of `cond`?
 What primitives can we get rid of?
-Implement something like Kernel's `list*` that prepends values onto a list
 
 Style:
 Ensure catches and elses are cuddled

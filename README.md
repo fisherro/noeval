@@ -1,6 +1,8 @@
 # Noeval
 
-Noeval is a [fexpr](https://en.wikipedia.org/wiki/Fexpr)-based Lispy programming language and its interpreter.
+Noeval is a [fexpr](https://en.wikipedia.org/wiki/Fexpr)-based[^fexpr] Lispy programming language and its interpreter.
+
+[^fexpr]: "fexpr-based"? Or rather: Based on Shutt's lexically-scoped first-class expansion on the idea of fexprs.
 
 I created Noeval to explore and better understand some programming language concepts.
 

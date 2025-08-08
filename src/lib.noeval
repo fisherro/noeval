@@ -130,83 +130,26 @@
             (cons vau (cons formals (cons () (cons body ()))))
             env))))
 
-; This is (almost) the equivalent of Kernel's list*.
+; This is the equivalent of Kernel's list*.
 ; It prepends its arguments to the list that is the final argument.
-; Since noeval doesn't have full support for pairs or improper lists, this
-; can't be a perfect equivalent of list*.
-#skip
+; The $lambda-based implementation of list* given in the Kernel report doesn't
+; look to match the expected behavior in use. It would evaluate its arguments
+; multiple times during the recursion, but uses seem to expect that its
+; arguments would only be evaluated once. To achieve that, this implementation
+; uses an inner fexpr for the recursion.
+; TODO: We could rewrite lambda and prepend so that lambda depended upon
+;       prepend rather than prepend depending on lambda.
 (define prepend
-  (lambda args
-    (if (nil? args)
-        ()
-        (if (nil? (rest args))
-            (first args)  ; Single argument - return it as is
-            (cons (first args)
-                  (invoke prepend (rest args)))))))
-#end
-; Prepend as an operative:
-; vau> (prepend1 1 2 3 (4 5 6))
-; => (1 2 3 4 5 6)
-; vau> (prepend1 1 2 3 (list 4 5 6))
-; => (1 2 3 list 4 5 6)
-; vau> (prepend1 (1 2 3) (4 5 6))
-; => ((1 2 3) 4 5 6)
-; vau> (prepend1 (list 1 2 3) (list 4 5 6))
-; => ((list 1 2 3) list 4 5 6)
-(define prepend1
-  (vau operands dyn-env
-        (if (nil? operands)
-            ()
-            (do (define head (first operands))
-                (define tail (rest operands))
-                (if (nil? tail)
-                    head
-                    (cons head (invoke prepend1 tail)))))))
-
-; Prepend as an applicative:
-; vau> (prepend2 1 2 3 (4 5 6))
-; Error: Not an operative: 4
-;  while evaluating: (4 5 6)
-; vau> (prepend2 1 2 3 (list 4 5 6))
-; Error: Not an operative: 4
-;  while evaluating: (4 5 6)
-; vau> (prepend2 (1 2 3) (4 5 6))
-; Error: Not an operative: 1
-;  while evaluating: (1 2 3)
-; vau> (prepend2 (list 1 2 3) (list 4 5 6))
-; Error: Not an operative: 4
-;  while evaluating: (4 5 6)
-(define prepend2
-  (lambda args
-    (if (nil? args)
-        ()
-        (do (define head (first args))
-            (define tail (rest args))
-            (if (nil? tail)
-                head
-                (cons head (invoke prepend2 tail)))))))
-
-; Another idea for prepend
-; vau> (prepend3 1 2 3 (4 5 6))
-; Error: Not an operative: 4
-;  while evaluating: (4 5 6)
-; vau> (prepend3 1 2 3 (list 4 5 6))
-; => (1 2 3 4 5 6)
-; vau> (prepend3 (1 2 3) (4 5 6))
-; Error: Not an operative: 4
-;  while evaluating: (4 5 6)
-; vau> (prepend3 (list 1 2 3) (list 4 5 6))
-; => ((list 1 2 3) 4 5 6)
-(define prepend3
-  (vau operands dyn-env
-    (do (define args operands)
-        (if (nil? args)
-            ()
-            (do (define head (first args))
-                (define tail (rest args))
-                (if (nil? tail)
-                    (eval head dyn-env)
-                    (cons head (invoke prepend3 tail))))))))
+  (do (define recurse
+              (vau operands _
+                (if (nil? operands)
+                    ()
+                    (do (define head (first operands))
+                        (define tail (rest operands))
+                        (if (nil? tail)
+                            head
+                            (cons head (invoke recurse tail)))))))
+      (lambda args (invoke recurse args))))
 
 (define square (lambda (x) (* x x)))
 
