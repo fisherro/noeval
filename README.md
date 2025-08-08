@@ -46,6 +46,12 @@ fixed parameters with a rest parameter.
 In fact, the language does not fully support pairs or improper lists.
 (I expect at some point to try to move towards replacing lists with arrays.)
 
+Both `vau` and `lambda` (which is in the library) only support a single
+expression for the body.
+
+Noeval's `do` is the equivalent of CL `progn`, Scheme `begin`, and Kernel's
+`$sequence`.
+
 Noeval uses Church booleans, which allows not having a primitive conditional.
 Arguably that's signing up for more overhead, but... Unlike Church numbers, I'm
 not sure that overhead will end up mattering for my purposes. I also wonder if
