@@ -69,7 +69,11 @@ This means that, at the REPL, true and false results look like this:
 
 Unlike Kernel, all objects (or perhaps more precisely, all bindings) are
 immutable by default. The `define-mutable` form can be used to create a mutable
-binding, which can then be modified with the `set!` form.
+binding, which can then be modified with the `set!` primitive.
+
+Kernel uses an interesting trick with `unwrap` and `define` to implement `set!`
+by modifying the dynamic environment. I'm not sure whether I think this is a
+good idea or not.
 
 There's currently no symbolic form of `()`.
 

@@ -17,6 +17,8 @@ Different keyword than `vau`?
     Others?
 What about `(vau env (params ...) body)`?
 Replace lists with arrays?
+    I'll avoid set-car!/set-cdr! for now...a set-array-element! might happen
+    And that might be needed for a good promise implementation
 Add GNU readline support
 Consider adding an equivalent to Kernel's #ignore
 Add expansion-time macros (see https://axisofeval.blogspot.com/2012/09/having-both-fexprs-and-macros.html )
@@ -36,6 +38,7 @@ Consider whether to adopt Kernel's $ naming convention
 Would it make sense to implement `if` in terms of `cond`?
 What primitives can we get rid of?
 Implement void or #inert?
+Dynamic variables (a la Kernel?) (could be used for test-failures in the library tests)
 
 Style:
 Ensure catches and elses are cuddled
@@ -1143,7 +1146,7 @@ bool load_library_file(const std::string& filename, env_ptr env)
 }
 
 // Function to run library tests from file
-int run_library_tests(env_ptr env)
+int run_library_tests(env_ptr outer_env)
 {
     std::println("Running library tests from file...");
     
@@ -1159,6 +1162,9 @@ int run_library_tests(env_ptr env)
         parser p(content);
         auto expressions = p.parse_all();
         
+        // Make an isolated test environment
+        auto env = std::make_shared<environment>(outer_env);
+
         value_ptr result;
         for (const auto& expr : expressions) {
             try {

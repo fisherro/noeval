@@ -194,3 +194,13 @@
   (lambda* args
     (for-each display args)
     (newline)))
+
+; Exploring a different way to implement set!
+; This can only modify the binding in the caller's environment.
+; Mutable bindings and set!, however, can modify a binding in an ancestor of
+; the caller's environment.
+; The primitive implementation of either define or set! could be made to
+; modify any value, but I think I prefer more limited mutability.
+(define xset!
+  (vau (name value) dyn-env
+    (eval (list define name value) dyn-env)))
