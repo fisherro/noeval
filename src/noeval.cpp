@@ -1,50 +1,7 @@
 // Interpreter for a language built from fexprs and vau
-// Inspired by Kernel
 // Code style will use snake_case and other conventions of the standard library
 
-// We want to try to keep the interpreter relatively simple and avoid adding
-// built-ins that can be implemented in the language itself. Although we will
-// have built-ins where the library implementation is impractical, such as
-// arithmetic.
-
 // NOTE THAT nil IS SPELT ()
-
-/*
-Notes:
-
-While inspired by Kernel, this interpreter is making some different choices.
-
-This interpreter does not make a distinction between operatives and
-applicatives. An applicative is merely an operative that chooses to evaluate
-its arguments, and the interpreter cannot distinguish between the two.
-
-Kernel provides `wrap` as a primitive, but this interpreter instead provides
-`invoke` as a primitive. While Kernel's `apply` applies applicatives, our
-`invoke` invokes operatives. (This may cause issues when/if we want to
-implement `unwrap`.)
-
-The `#skip` and `#end` tokens can be used, much like `#if` and `#endif` in C,
-to skip over code to temporarily disable it.
-
-While vau does support varidic parameters, it only supports getting all the
-arguments as a single list.
-
-    (vau args env body)
-
-It does not support the pair or improper list syntax for a combination of
-fixed parameters with a rest parameter.
-
-    (vau (param1 param2 . rest) env body)
-
-In fact, the language does not support pairs or improper lists at all.
-
-This version now uses Church booleans, which means that we no longer have a
-primitive conditional.
-
-Unlike Kernel, all objects (or perhaps more precisely, all bindings) are
-immutable by default. The `define-mutable` form can be used to create a mutable
-binding, which can then be modified with the `set!` form.
-*/
 
 /*
 TODO:

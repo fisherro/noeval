@@ -2,9 +2,12 @@
 ; Note that, by convention, `_` indicates an ignored value.
 ; NOTE THAT nil IS SPELT ()
 
-; TODO: Do we need this
+; TODO: Do we need this?
 (define get-current-environment
   (vau () env env))
+
+; quote
+(define q (vau (operand) _ operand))
 
 (define if
   (vau (test consequent alternate) env
@@ -129,8 +132,8 @@
 
 ; This is (almost) the equivalent of Kernel's list*.
 ; It prepends its arguments to the list that is the final argument.
-; Since noeval doesn't support pairs or improper lists, this can't be a perfect
-; equivalent of list*.
+; Since noeval doesn't have full support for pairs or improper lists, this
+; can't be a perfect equivalent of list*.
 #skip
 (define prepend
   (lambda args
