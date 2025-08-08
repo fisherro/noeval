@@ -1,6 +1,6 @@
 # Noeval
 
-Noeval is a fexpr-based Lispy programming language and its interpreter.
+Noeval is a [fexpr](https://en.wikipedia.org/wiki/Fexpr)-based Lispy programming language and its interpreter.
 
 I created Noeval to explore and better understand some programming language concepts.
 
@@ -71,3 +71,4 @@ treats `#ignore`.
 
 Currently the only equivalence predicate is `=`, which may be closest to
 Kernel's `equal?`. It only works for numbers and `()`.
+
