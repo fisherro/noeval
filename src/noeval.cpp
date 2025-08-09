@@ -5,7 +5,6 @@
 
 /*
 TODO:
-Add tab-completion to the REPL
 TCO
 Use demangle in value_to_string?
 Revisit the uses of std::visit
