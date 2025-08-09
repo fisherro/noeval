@@ -2,6 +2,8 @@
 ; Note that, by convention, `_` indicates an ignored value.
 ; NOTE THAT nil IS SPELT ()
 
+; TODO: Rewrite any uses of if into Church boolean form.
+
 ; TODO: Do we need this?
 (define get-current-environment
   (vau () env env))
@@ -9,6 +11,10 @@
 ; quote
 (define q (vau (operand) _ operand))
 
+; A convenience function.
+; Since we use Church booleans, you can essentially just remove the if.
+; (if (nil? lyst) 0 1) -> ((nil? lyst) 0 1)
+; Candidate for being replaced by a macro in the future.
 (define if
   (vau (test consequent alternate) env
     (do 
@@ -18,32 +24,6 @@
                 (vau () _ (eval consequent env))
                 (vau () _ (eval alternate env))) 
               ()))))
-
-; TODO cond
-; (cond (test1 exp1 exp2)
-;       (test2 exp3 exp4)
-;       (test3 exp5 exp6))
-; ...becomes...
-; (test1 (vau () _ (do exp1 exp2))
-;        (test2 (vau () _ (do exp3 exp4)))
-;               (test3 (vau () _ (do exp5 exp6))))
-
-; This does the syntax transformation of turning the arguments passed to cond
-; into chained Church booleans.
-; Although at the moment we only have a stub implementation.
-(define cond-macro
-  (vau (clauses) env
-    (do (define clause (first clauses))
-        (define test (first clause))
-        (define then (first (rest clause)))
-        (define else (first (rest clauses)))
-        (test then else))))
-
-; This forwards its arguments to cond-macro to do the syntax transformation.
-; Then it evaluates the transformed syntax.
-(define cond
-  (vau clauses env
-    (eval (cond-macro (eval clauses env) env))))
 
 ; list evaluates its arguments and returns them as a list
 ; But this is broken. I'm not sure how exactly, but this broke the when
@@ -204,3 +184,81 @@
 (define xset!
   (vau (name value) dyn-env
     (eval (list define name value) dyn-env)))
+
+(define second (lambda (lyst) (first (rest lyst))))
+
+; foldr applies a binary function to the elements of a list from right to left
+; foldr : (a -> b -> b) -> b -> [a] -> b
+; Example: (foldr + (list 1 2 3) 0) => 6
+; Example: (foldr cons (list 1 2 3) ()) => (1 2 3)
+; TODO: Change the if to Church boolean style
+; TODO: Write tests
+(define foldr
+  (lambda (func lyst init)
+    (if (nil? lyst)
+        init
+        (func (first lyst) 
+              (foldr func (rest lyst) init)))))
+(define foldr
+  (lambda (func lyst init)
+    ((nil? lyst)
+      init
+      (func (first lyst) 
+            (foldr func (rest lyst) init)))))
+
+; Example of cond transforming:
+#skip
+(cond ((= 2 0) 0)
+      ((= 2 1) 1)
+      ((= 2 2) 2)
+      (else 3))
+; or
+(cond ((= 2 0) 0) ((= 2 1) 1) ((= 2 2) 2) (else 3))
+; becomes
+((= 2 0) 0
+         ((= 2 1) 1
+                  ((= 2 2) 2
+                           3)))
+; or
+((= 2 0) 0 ((= 2 1) 1 ((= 2 2) 2 3)))
+#end
+
+#skip
+; Scheme version of cond-transformer
+(define transform-cond
+  (lambda (clauses)
+    (fold-right 
+      (lambda (clause acc)
+        (if (eq? (first clause) 'else)
+            (second clause)
+            (list (first clause) (second clause) acc)))
+      (error "cond: no else clause")
+      clauses)))
+#end
+
+; A macro-like transformer for cond clauses
+(define cond-transformer
+  (lambda* (clauses)
+    (foldr
+      (lambda (clause acc)
+        ((= (q else) (first clause))
+         (second clause)
+         (list (first clause) (second clause) acc)))
+      clauses
+      (); error?
+    )))
+
+; This forwards its arguments to cond-transformer to do the syntax
+; transformation. Then it evaluates the transformed syntax.
+; TODO: Write tests
+(define cond
+  (vau cond-clauses cond-dyn-env
+    (do (define transformed (cond-transformer cond-clauses))
+        (eval transformed cond-dyn-env))))
+
+(define cond-test
+  (lambda (n)
+    (cond ((= n 0) 0)
+          ((= n 1) 1)
+          ((= n 2) 2)
+          (else 3))))

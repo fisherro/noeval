@@ -6,7 +6,6 @@
 /*
 TODO:
 Add tab-completion to the REPL
-Implement cond
 TCO
 Use demangle in value_to_string?
 Revisit the uses of std::visit
@@ -708,7 +707,12 @@ namespace builtins {
         if (std::holds_alternative<std::nullptr_t>(val1->data) && std::holds_alternative<std::nullptr_t>(val2->data)) {
             return church_true(env); // Both nil
         }
-        
+
+        if (std::holds_alternative<symbol>(val1->data) && std::holds_alternative<symbol>(val2->data)) {
+            bool equal = std::get<symbol>(val1->data).name == std::get<symbol>(val2->data).name;
+            return equal? church_true(env): church_false(env);
+        }
+
         // Different types or unsupported comparison
         return church_false(env); // false
     }
@@ -940,7 +944,11 @@ value_ptr operate_operative(const operative& op, value_ptr operands, env_ptr env
     auto new_env = std::make_shared<environment>(op.closure_env);
 
     // Bind parameters to unevaluated operands
-    bind_parameters(op.params, operands, new_env);
+    try {
+        bind_parameters(op.params, operands, new_env);
+    } catch (const evaluation_error& e) {
+        throw evaluation_error(e.what(), op.to_string());
+    }
 
     // Bind environment parameter
     VAU_DEBUG(env_binding, "Binding env parameter '{}' to environment {}", 
