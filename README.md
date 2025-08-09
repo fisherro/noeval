@@ -45,6 +45,12 @@ fixed parameters with a rest parameter.
 
     (vau (param1 param2 . rest) env body)
 
+Several times, I almost changed...
+
+    (vau (operands) env body) -> (fexpr env (operands) body)
+
+...but always landed on keeping with convention.
+
 In fact, the language does not fully support pairs or improper lists.
 (I expect at some point to try to move towards replacing lists with arrays.)
 
@@ -59,6 +65,10 @@ Arguably that's signing up for more overhead, but... Unlike Church numbers, I'm
 not sure that overhead will end up mattering for my purposes. I also wonder if
 code written with Church booleans in mind might minimize the overhead. Anyway,
 that's the choice I've made for now.
+
+The `true` and `false` Church booleans are added to the global environment, and
+they're tagged internally so that they'll print as names instead of using the
+usual print form of operatives.
 
 This means that, at the REPL, true and false results look like this:
 

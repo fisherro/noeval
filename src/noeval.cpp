@@ -4,40 +4,40 @@
 // NOTE THAT nil IS SPELT ()
 
 /*
-TODO:
+TODO: (Could be for either the interpreter or the library)
+What primitives can we get rid of? (ongoing)
+Add expansion-time macros (see https://axisofeval.blogspot.com/2012/09/having-both-fexprs-and-macros.html )
+    A `macro` primitive works kind of like `wrap` to turn any operative into
+    a macro transformer.
+    Need a macro transformer primitive that will expand macros.
+    When the code is creating an operative, run macro expansion on the body
+    before storing it in the operative.
+Move the do primitive to the library
+Pattern matching?
+Create vau* that supports multiple expression bodies
+"Numeric tower"...or at least support of bignums via boost::cpp_int
 TCO
+Delimited continuations
 Use demangle in value_to_string?
 Revisit the uses of std::visit
 Look for places we could simplify code with ranges
 Revisit escaping in string literals (what scheme do we want to use?)
-Different keyword than `vau`?
-    Lisp 1.5: fexpr
-    Interlisp: nlambda
-    Others?
-What about `(vau env (params ...) body)`?
 Replace lists with arrays?
     I'll avoid set-car!/set-cdr! for now...a set-array-element! might happen
     And that might be needed for a good promise implementation
 Consider adding an equivalent to Kernel's #ignore
-Add expansion-time macros (see https://axisofeval.blogspot.com/2012/09/having-both-fexprs-and-macros.html )
 Module system?
-Pattern matching?
-Delimited continuations
-"Numeric tower"...or at least support of bignums via boost::cpp_int
 Hash sets and maps
 Interning symbols
 Support for lazy evaluation (We can do this in the library, right?)
 FFI and POSIX support
-Create vau* that supports multiple expression bodies
-Create lambda* that supports multiple expression bodies
 Create let
 Look for places we can use string_view
 Consider whether to adopt Kernel's $ naming convention
 Would it make sense to implement `if` in terms of `cond`?
-What primitives can we get rid of?
 Implement void or #inert?
 Dynamic variables (a la Kernel?) (could be used for test-failures in the library tests)
-Interned symbols
+Consolidate write and display into a single primitive
 
 Style:
 Ensure catches and elses are cuddled
@@ -140,6 +140,7 @@ std::string cons_cell::to_string() const
 
 std::string operative::to_string() const
 {
+    if (not tag.empty()) return tag;
     // It isn't easy (yet) to change the delimiter that format uses for ranges,
     // so explicitly use std::views::join_with.
     return std::format("(operative {}{:s}{} {} {})",
@@ -602,22 +603,14 @@ namespace builtins {
 
     auto church_true(env_ptr env)
     {
-        return std::make_shared<value>(operative{
-            param_pattern{false, {"x", "y"}},
-            "env",
-            make_eval_expression("x"),
-            env
-        });
+        //Lookup true in the given environment.
+        return env->lookup("true");
     }
 
     auto church_false(env_ptr env)
     {
-        return std::make_shared<value>(operative{
-            param_pattern{false, {"x", "y"}},
-            "env",
-            make_eval_expression("y"),
-            env
-        });
+        //Lookup false in the given environment.
+        return env->lookup("false");
     }
 
     // Evaluates argument
@@ -867,6 +860,25 @@ namespace builtins {
 
 } // namespace builtins
 
+void add_church_boleans(env_ptr env)
+{
+    auto true_value = std::make_shared<value>(operative{
+            param_pattern{false, {"x", "y"}},
+            "env",
+            builtins::make_eval_expression("x"),
+            env,
+            "true"});
+    env->define("true", true_value);
+
+    auto false_value = std::make_shared<value>(operative{
+            param_pattern{false, {"x", "y"}},
+            "env",
+            builtins::make_eval_expression("y"),
+            env,
+            "false"});
+    env->define("false", false_value);
+}
+
 // Create a global environment with built-ins
 env_ptr create_global_environment()
 {
@@ -909,6 +921,7 @@ env_ptr create_global_environment()
     define_builtin("define-mutable", builtins::define_mutable_operative);
     define_builtin("set!", builtins::set_operative);
 
+    add_church_boleans(env);
     return env;
 }
 

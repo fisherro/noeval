@@ -42,11 +42,13 @@ struct operative {
     std::string env_param;
     value_ptr body;
     env_ptr closure_env;
+    std::string tag;
     
-    operative(param_pattern p, std::string e, value_ptr b, env_ptr env)
-        : params(std::move(p)), env_param(std::move(e)), 
-          body(std::move(b)), closure_env(std::move(env)) {}
-    
+    operative(param_pattern p, std::string e, value_ptr b, env_ptr env,
+        std::string_view t = "")
+        : params(std::move(p)), env_param(std::move(e)),
+          body(std::move(b)), closure_env(std::move(env)), tag(t) {}
+
     std::string to_string() const;
 };
 

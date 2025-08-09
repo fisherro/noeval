@@ -274,9 +274,9 @@ int test_list_operations()
     runner.test_eval("(cons 1 (cons 2 nil-val))", "(1 2)");
     runner.test_eval("(first (cons 42 nil-val))", "42");
     runner.test_eval("(rest (cons 1 (cons 2 nil-val)))", "(2)");
-    runner.test_eval("(nil? nil-val)", "(operative (x y) env (eval x env))");
-    runner.test_eval("(nil? (cons 1 nil-val))", "(operative (x y) env (eval y env))");
-    
+    runner.test_eval("(nil? nil-val)", "true");
+    runner.test_eval("(nil? (cons 1 nil-val))", "false");
+
     return runner.failures;
 }
 
