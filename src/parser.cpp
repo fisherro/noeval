@@ -208,15 +208,15 @@ parser::parser(std::string input) : lex(std::move(input))
 
 value_ptr parser::parse_expression()
 {
-    VAU_DEBUG(parse, "Parsing token: {}", current_token.to_string());
+    NOEVAL_DEBUG(parse, "Parsing token: {}", current_token.to_string());
     switch (current_token.type) {
         case token_type::left_paren:
-            VAU_DEBUG(parse, "Starting list parse");
+            NOEVAL_DEBUG(parse, "Starting list parse");
             return parse_list();
             
         case token_type::symbol:
             {
-                VAU_DEBUG(parse, "Parsing symbol: {}", current_token.value);
+                NOEVAL_DEBUG(parse, "Parsing symbol: {}", current_token.value);
                 auto result = std::make_shared<value>(symbol{current_token.value});
                 advance();
                 return result;
@@ -224,7 +224,7 @@ value_ptr parser::parse_expression()
             
         case token_type::integer:
             {
-                VAU_DEBUG(parse, "Parsing integer: {}", current_token.value);
+                NOEVAL_DEBUG(parse, "Parsing integer: {}", current_token.value);
                 int val = std::stoi(current_token.value);
                 auto result = std::make_shared<value>(val);
                 advance();
@@ -233,7 +233,7 @@ value_ptr parser::parse_expression()
             
         case token_type::string_literal:
             {
-                VAU_DEBUG(parse, "Parsing string literal: {}", current_token.value);
+                NOEVAL_DEBUG(parse, "Parsing string literal: {}", current_token.value);
                 auto result = std::make_shared<value>(current_token.value);
                 advance();
                 return result;

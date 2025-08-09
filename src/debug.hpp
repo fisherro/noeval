@@ -6,8 +6,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#define VAU_DEBUG(category, ...) get_debug().log(#category, __VA_ARGS__)
-#define VAU_DEBUG_ENABLED(category) get_debug().is_enabled(#category)
+#define NOEVAL_DEBUG(category, ...) get_debug().log(#category, __VA_ARGS__)
+#define NOEVAL_DEBUG_ENABLED(category) get_debug().is_enabled(#category)
 
 extern std::unordered_map<std::string, std::string> debug_categories;
 

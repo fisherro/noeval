@@ -38,6 +38,7 @@ Would it make sense to implement `if` in terms of `cond`?
 What primitives can we get rid of?
 Implement void or #inert?
 Dynamic variables (a la Kernel?) (could be used for test-failures in the library tests)
+Interned symbols
 
 Style:
 Ensure catches and elses are cuddled
@@ -168,25 +169,25 @@ std::string expr_context(const value_ptr& expr)
 // Environment implementation
 value_ptr environment::lookup(const std::string& name) const
 {
-    VAU_DEBUG(env_lookup, "Looking up '{}' in env {}", name, static_cast<const void*>(this));
+    NOEVAL_DEBUG(env_lookup, "Looking up '{}' in env {}", name, static_cast<const void*>(this));
     
-    if (VAU_DEBUG_ENABLED(env_dump)) {
-        VAU_DEBUG(env_dump, "Current bindings:");
+    if (NOEVAL_DEBUG_ENABLED(env_dump)) {
+        NOEVAL_DEBUG(env_dump, "Current bindings:");
         for (const auto& [key, value] : bindings) {
-            VAU_DEBUG(env_dump, "  {} -> {}", key, value_to_string(value));
+            NOEVAL_DEBUG(env_dump, "  {} -> {}", key, value_to_string(value));
         }
         if (parent) {
-            VAU_DEBUG(env_dump, "Parent env: {}", static_cast<const void*>(parent.get()));
+            NOEVAL_DEBUG(env_dump, "Parent env: {}", static_cast<const void*>(parent.get()));
         }
     }
 
     auto it = bindings.find(name);
     if (it != bindings.end()) {
-        VAU_DEBUG(env_lookup, "Found '{}' in current environment", name);
+        NOEVAL_DEBUG(env_lookup, "Found '{}' in current environment", name);
         return it->second;
     }
     if (parent) {
-        VAU_DEBUG(env_lookup, "Not found, checking parent...");
+        NOEVAL_DEBUG(env_lookup, "Not found, checking parent...");
         return parent->lookup(name);
     }
     throw std::runtime_error("Unbound variable: " + name);
@@ -194,7 +195,7 @@ value_ptr environment::lookup(const std::string& name) const
 
 void environment::define(const std::string& name, value_ptr val)
 {
-    VAU_DEBUG(env_binding, "Binding '{}' in env {} to {}", 
+    NOEVAL_DEBUG(env_binding, "Binding '{}' in env {} to {}", 
               name, static_cast<const void*>(this), value_to_string(val));
     bindings[name] = std::move(val);
 }
@@ -355,17 +356,17 @@ namespace builtins {
         auto expr = args[0];          // Expression to evaluate (unevaluated)
         auto env_expr = args[1];      // Environment expression (unevaluated)
 
-        VAU_DEBUG(operative, "eval_operative called in environment {}", 
+        NOEVAL_DEBUG(operative, "eval_operative called in environment {}", 
                   static_cast<const void*>(env.get()));
-        VAU_DEBUG(operative, "First argument (expr): {}", expr_context(expr));
-        VAU_DEBUG(operative, "Second argument (env_expr): {}", expr_context(env_expr));
+        NOEVAL_DEBUG(operative, "First argument (expr): {}", expr_context(expr));
+        NOEVAL_DEBUG(operative, "Second argument (env_expr): {}", expr_context(env_expr));
 
         // STAGE 1: Evaluate BOTH arguments in the CURRENT environment
         auto evaluated_expr = eval(expr, env);  // This is the key change!
-        VAU_DEBUG(operative, "First argument evaluated to: {}", value_to_string(evaluated_expr));
+        NOEVAL_DEBUG(operative, "First argument evaluated to: {}", value_to_string(evaluated_expr));
 
         auto env_val = eval(env_expr, env);
-        VAU_DEBUG(operative, "Environment expression evaluated to: {}", value_to_string(env_val));
+        NOEVAL_DEBUG(operative, "Environment expression evaluated to: {}", value_to_string(env_val));
 
         return {evaluated_expr, env_val};
     }
@@ -382,7 +383,7 @@ namespace builtins {
         }
         
         auto target_env = std::get<env_ptr>(env_val->data);
-        VAU_DEBUG(operative, "Target environment for evaluation: {}", 
+        NOEVAL_DEBUG(operative, "Target environment for evaluation: {}", 
                   static_cast<const void*>(target_env.get()));
         
         return target_env;
@@ -391,7 +392,7 @@ namespace builtins {
     // Helper function to perform final evaluation in target environment
     value_ptr evaluate_in_target_environment(value_ptr evaluated_expr, env_ptr target_env)
     {
-        VAU_DEBUG(operative, "About to evaluate {} in target environment", 
+        NOEVAL_DEBUG(operative, "About to evaluate {} in target environment", 
                   value_to_string(evaluated_expr));
         
         return eval(evaluated_expr, target_env);
@@ -906,7 +907,7 @@ env_ptr create_global_environment()
 // Bind parameters to operands in target environment
 void bind_parameters(const param_pattern& params, value_ptr operands, env_ptr target_env)
 {
-    VAU_DEBUG(env_binding, "Binding parameters: {} to operands: {}", 
+    NOEVAL_DEBUG(env_binding, "Binding parameters: {} to operands: {}", 
             params.is_variadic ? "variadic" : "fixed", value_to_string(operands));
 
     if (params.is_variadic) {
@@ -914,14 +915,14 @@ void bind_parameters(const param_pattern& params, value_ptr operands, env_ptr ta
         if (params.param_names.size() != 1) {
             throw evaluation_error("Variadic parameter pattern must have exactly one parameter name");
         }
-        VAU_DEBUG(env_binding, "Binding variadic parameter '{}' to all operands", 
+        NOEVAL_DEBUG(env_binding, "Binding variadic parameter '{}' to all operands", 
                   params.param_names[0]);
         target_env->define(params.param_names[0], operands);
     } else {
         // Fixed parameter case: convert operands to vector and bind individually
         auto operand_list = list_to_vector(operands);
 
-        VAU_DEBUG(env_binding, "Binding {} fixed parameters to {} operands", 
+        NOEVAL_DEBUG(env_binding, "Binding {} fixed parameters to {} operands", 
                   params.param_names.size(), operand_list.size());
 
         if (operand_list.size() != params.param_names.size()) {
@@ -951,7 +952,7 @@ value_ptr operate_operative(const operative& op, value_ptr operands, env_ptr env
     }
 
     // Bind environment parameter
-    VAU_DEBUG(env_binding, "Binding env parameter '{}' to environment {}", 
+    NOEVAL_DEBUG(env_binding, "Binding env parameter '{}' to environment {}", 
               op.env_param, static_cast<const void*>(env.get()));
     // We use nil as the equivalent to Kernel's #ignore for vau's
     // environment parameter.
@@ -965,18 +966,18 @@ value_ptr operate_operative(const operative& op, value_ptr operands, env_ptr env
 
 value_ptr operate_builtin(const builtin_operative& op, value_ptr operands, env_ptr env)
 {
-    VAU_DEBUG(builtin, "Invoking builtin '{}' with operands: {}", 
+    NOEVAL_DEBUG(builtin, "Invoking builtin '{}' with operands: {}", 
               op.name, value_to_string(operands));
     
     // Convert operands to vector for easier processing
     auto operand_list = list_to_vector(operands);
     
-    VAU_DEBUG(builtin, "Converted to {} arguments", operand_list.size());
+    NOEVAL_DEBUG(builtin, "Converted to {} arguments", operand_list.size());
     
     // Call the built-in function with the evaluated operands
     auto result = op.func(operand_list, env);
     
-    VAU_DEBUG(builtin, "Builtin '{}' returned: {}", op.name, value_to_string(result));
+    NOEVAL_DEBUG(builtin, "Builtin '{}' returned: {}", op.name, value_to_string(result));
     return result;
 }
 
@@ -1081,7 +1082,7 @@ public:
 value_ptr eval(value_ptr expr, env_ptr env)
 {
     call_stack::guard g(expr);
-    VAU_DEBUG(eval, "{}[{}] Evaluating({}): {}", 
+    NOEVAL_DEBUG(eval, "{}[{}] Evaluating({}): {}", 
         call_stack::indent(), 
         call_stack::depth(),
         value_type_string(expr),
@@ -1105,7 +1106,7 @@ value_ptr eval(value_ptr expr, env_ptr env)
                 );
             }
         }, expr->data);
-        VAU_DEBUG(eval, "{}[{}] Result: {}", 
+        NOEVAL_DEBUG(eval, "{}[{}] Result: {}", 
                 call_stack::indent(),
                 call_stack::depth(), 
                 value_to_string(result));
@@ -1137,7 +1138,7 @@ bool load_library_file(const std::string& filename, env_ptr env)
         for (const auto& expr : expressions) {
             try {
                 auto result = eval(expr, env);
-                VAU_DEBUG(library, "Loaded: {} => {}", value_to_string(expr), value_to_string(result));
+                NOEVAL_DEBUG(library, "Loaded: {} => {}", value_to_string(expr), value_to_string(result));
             } catch (const std::exception& e) {
                 ok = false;
                 std::println("  Error loading expression '{}': {}", value_to_string(expr), e.what());
