@@ -3,6 +3,9 @@ CXX := g++
 CXXFLAGS := -Wall -Wextra -std=c++26 -g
 DEPFLAGS := -MMD -MP
 
+# Libraries to link
+LDLIBS := -lreadline
+
 # Directories
 SRCDIR := src
 BUILDDIR := build
@@ -25,7 +28,7 @@ all: $(TARGET)
 
 # Link target executable
 $(TARGET): $(OBJECTS) | $(BINDIR)
-	$(CXX) $(OBJECTS) -o $@
+	$(CXX) $(OBJECTS) -o $@ $(LDLIBS)
 
 # Compile source files to object files with dependency generation
 $(BUILDDIR)/%.o: $(SRCDIR)/%.cpp | $(BUILDDIR)

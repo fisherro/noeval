@@ -1,14 +1,36 @@
-#include <print>
-#include <string>
-#include <iostream>
-#include <sstream>
-#include <ranges>
+#include <cstdlib>
 #include <exception>
+#include <filesystem>
+#include <iostream>
+#include <print>
+#include <ranges>
+#include <sstream>
+#include <string>
+
+#include <readline/history.h>
+#include <readline/readline.h>
 
 #include "debug.hpp"
 #include "noeval.hpp"
 #include "parser.hpp"
 #include "repl.hpp"
+
+std::string get_history_file()
+{
+    const char* home = std::getenv("HOME");
+    if (!home) {
+        throw std::runtime_error("HOME environment variable not set");
+    }
+    return std::format("{}/.noeval_history", home);
+}
+
+std::string read_with_readline(const std::string& prompt)
+{
+    std::unique_ptr<char, decltype([](char* p){ std::free(p); })>
+        line(readline(prompt.c_str()));
+    if (not line) return ""; // Handle EOF
+    return line.get();
+}
 
 // Print welcome message
 void print_welcome()
@@ -79,12 +101,11 @@ std::string read_expression()
     
     while (true) {
         // Show different prompt for continuation lines
-        std::print("{}", accumulated_input.empty() ? "noeval> " : "...> ");
-        std::flush(std::cout);
-        
-        if (!std::getline(std::cin, input)) {
-            return ""; // EOF
-        }
+        input = read_with_readline(
+            accumulated_input.empty()? "noeval> ": "...> ");
+
+        // Check for EOF
+        if (input.empty() and accumulated_input.empty()) return "";
         
         // Add the new line to accumulated input
         if (!accumulated_input.empty()) {
@@ -109,6 +130,7 @@ std::string read_expression()
         
         // Check if we have a complete expression
         if (is_complete_expression(trimmed)) {
+            if (not trimmed.empty()) add_history(trimmed.c_str());
             return trimmed;
         }
         // If incomplete, continue the loop to read more input
@@ -260,6 +282,12 @@ void print_error(const std::exception& e)
 // Simple REPL with multi-line support
 void repl(env_ptr global_env)
 {
+#if 0
+    // I'm not ready to enable saving the history yet.
+    auto history_file = get_history_file();
+    read_history(history_file.c_str());
+#endif
+
     print_welcome();
     
     while (true) {
@@ -298,4 +326,7 @@ void repl(env_ptr global_env)
             print_error(e);
         }
     }
+#if 0
+    write_history(history_file.c_str());
+#endif
 }

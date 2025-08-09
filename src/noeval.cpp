@@ -5,6 +5,7 @@
 
 /*
 TODO:
+Add tab-completion to the REPL
 Implement cond
 TCO
 Use demangle in value_to_string?
@@ -19,7 +20,6 @@ What about `(vau env (params ...) body)`?
 Replace lists with arrays?
     I'll avoid set-car!/set-cdr! for now...a set-array-element! might happen
     And that might be needed for a good promise implementation
-Add GNU readline support
 Consider adding an equivalent to Kernel's #ignore
 Add expansion-time macros (see https://axisofeval.blogspot.com/2012/09/having-both-fexprs-and-macros.html )
 Module system?

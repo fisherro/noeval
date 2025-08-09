@@ -83,4 +83,3 @@ treats `#ignore`.
 
 Currently the only equivalence predicate is `=`, which may be closest to
 Kernel's `equal?`. It only works for numbers and `()`.
-
