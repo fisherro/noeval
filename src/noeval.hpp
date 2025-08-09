@@ -102,6 +102,7 @@ struct environment {
     
     value_ptr lookup(const std::string& name) const;
     void define(const std::string& name, value_ptr val);
+    std::vector<std::string> get_all_symbols() const;
 };
 
 // Custom exception class with context

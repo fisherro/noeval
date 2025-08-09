@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
@@ -15,6 +16,8 @@
 #include "parser.hpp"
 #include "repl.hpp"
 
+static env_ptr completion_env{nullptr};
+
 std::string get_history_file()
 {
     const char* home = std::getenv("HOME");
@@ -30,6 +33,64 @@ std::string read_with_readline(const std::string& prompt)
         line(readline(prompt.c_str()));
     if (not line) return ""; // Handle EOF
     return line.get();
+}
+
+// Completion generator function
+char* symbol_generator(const char* prefix, int state)
+{
+    static std::vector<std::string> matches;
+    static size_t match_index{0};
+
+    if (state == 0) {
+        // First call - generate all matches
+        matches.clear();
+        match_index = 0;
+        
+        if (completion_env) {
+            // Get all symbols from the environment
+            auto symbols = completion_env->get_all_symbols();
+            // So annoying that we have std::bind_back, but it doesn't work
+            // with overload sets.
+            auto string_starts_with = [](const std::string& str, const char* prefix) {
+                return std::string_view(str).starts_with(prefix);
+            };
+            std::ranges::copy(
+                symbols | std::views::filter(std::bind_back(string_starts_with, prefix)),
+                std::back_inserter(matches));
+        }
+
+        std::ranges::sort(matches);
+        const auto [first, last] = std::ranges::unique(matches);
+        matches.erase(first, last);
+    }
+    
+    if (match_index < matches.size()) {
+        return strdup(matches[match_index++].c_str());
+    }
+    
+    return nullptr;
+}
+
+// Completion function
+char** symbol_completion(const char* text, int start, int)
+{
+    // Don't complete filenames
+    rl_attempted_completion_over = 1;
+    
+    // Only complete at word boundaries or after certain characters
+    if (start == 0 || strchr("( \t\n", rl_line_buffer[start - 1])) {
+        return rl_completion_matches(text, symbol_generator);
+    }
+    
+    return nullptr;
+}
+
+// Initialize tab completion
+void setup_completion(env_ptr env)
+{
+    completion_env = env;
+    rl_attempted_completion_function = symbol_completion;
+    rl_completer_word_break_characters = " \t\n()";
 }
 
 // Print welcome message
@@ -287,6 +348,7 @@ void repl(env_ptr global_env)
     auto history_file = get_history_file();
     read_history(history_file.c_str());
 #endif
+    setup_completion(global_env);
 
     print_welcome();
     

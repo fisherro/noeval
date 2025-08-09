@@ -200,6 +200,15 @@ void environment::define(const std::string& name, value_ptr val)
     bindings[name] = std::move(val);
 }
 
+std::vector<std::string> environment::get_all_symbols() const
+{
+    auto symbols = bindings | std::views::keys | std::ranges::to<std::vector>();
+    if (parent) {
+        std::ranges::copy(parent->get_all_symbols(), std::back_inserter(symbols));
+    }
+    return symbols;
+}
+
 // Forward declaration for eval
 value_ptr eval(value_ptr expr, env_ptr env);
 
