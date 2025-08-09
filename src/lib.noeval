@@ -191,14 +191,7 @@
 ; foldr : (a -> b -> b) -> b -> [a] -> b
 ; Example: (foldr + (list 1 2 3) 0) => 6
 ; Example: (foldr cons (list 1 2 3) ()) => (1 2 3)
-; TODO: Change the if to Church boolean style
 ; TODO: Write tests
-(define foldr
-  (lambda (func lyst init)
-    (if (nil? lyst)
-        init
-        (func (first lyst) 
-              (foldr func (rest lyst) init)))))
 (define foldr
   (lambda (func lyst init)
     ((nil? lyst)
