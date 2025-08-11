@@ -172,7 +172,9 @@
   (= (add-ten 5) 15)
   "lambda should support currying")
 
-; Test 12: Library square function works
+; Test 12: Test lambda via square function
+(define square (lambda (x) (* x x)))
+
 (test-assert 
   (= (square 4) 16)
   "library square function should work")

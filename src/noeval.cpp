@@ -12,7 +12,6 @@ Add expansion-time macros (see https://axisofeval.blogspot.com/2012/09/having-bo
     Need a macro transformer primitive that will expand macros.
     When the code is creating an operative, run macro expansion on the body
     before storing it in the operative.
-Move the do primitive to the library
 Pattern matching?
 Create vau* that supports multiple expression bodies
 "Numeric tower"...or at least support of bignums via boost::cpp_int
@@ -901,7 +900,9 @@ env_ptr create_global_environment()
     define_builtin("eval", builtins::eval_operative);
     define_builtin("define", builtins::define_operative);
     define_builtin("invoke", builtins::invoke_operative);
+#ifdef USE_PRIMITIVE_DO
     define_builtin("do", builtins::do_operative);
+#endif
     // Arithmetic
     define_arithmetic("+", std::plus<int>{});
     define_arithmetic("-", std::minus<int>{});

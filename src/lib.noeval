@@ -4,12 +4,31 @@
 
 ; TODO: Rewrite any uses of if into Church boolean form.
 
-; TODO: Do we need this?
+; TODO: Do we need this? Is it correct?
 (define get-current-environment
   (vau () env env))
 
 ; quote
 (define q (vau (operand) _ operand))
+
+; Library implementation of do
+(define do-helper
+  (vau (remaining last-result env) _
+    ((nil? remaining)
+     last-result
+     (invoke do-helper 
+            (cons (rest remaining) 
+                  (cons (eval (first remaining) env) 
+                        (cons env ())))))))
+
+(define do
+  (vau expressions env
+    ((nil? expressions)
+     ()
+     (invoke do-helper 
+            (cons (rest expressions) 
+                  (cons (eval (first expressions) env) 
+                        (cons env ())))))))
 
 ; A convenience function.
 ; Since we use Church booleans, you can essentially just remove the if.
@@ -24,16 +43,6 @@
                 (vau () _ (eval consequent env))
                 (vau () _ (eval alternate env))) 
               ()))))
-
-; list evaluates its arguments and returns them as a list
-; But this is broken. I'm not sure how exactly, but this broke the when
-; implementation below.
-(define list-bad
-  (vau args env
-    (if (nil? args)
-        ()
-        (cons (eval (first args) env)
-              (invoke list-bad (rest args))))))
 
 ; Construct a list from the arguments without evaluating them
 (define unevaluated-list (vau args env args))
@@ -85,16 +94,8 @@
           (define evaluated-args (eval-list unevaluated-args wrapped-call-env))
           (invoke resolved-operative evaluated-args))))))
 
-; Kernel:
-; ($define! $lambda
-;   ($vau (formals . body) env
-;         (wrap (eval (list* $vau formals #ignore body)
-;                env))))
-; Note that Kernel's list* can create improper lists if the last argument is
-; not itself a list. I don't think this matters in our case.
-
-; We're OK with lambda only supporting a single expression body.
-
+; This version of lambda, like primitive vau, only supports a single expression
+; body and doesn't support the (head . tail) style of variadic parameters.
 (define lambda
   ; We don't support (head . tail) style of parameters.
   ; But we also don't support multiple expressions in the body of a vau or lambda.
@@ -111,6 +112,15 @@
             (cons vau (cons formals (cons () (cons body ()))))
             env))))
 
+; A version of lambda that supports multiple body expressions
+; TODO: Tests
+(define lambda*
+  (vau operands dyn-env
+    (do (define formals (first operands))
+        (define body (prepend do (rest operands)))
+        (wrap (eval (list vau formals () body) dyn-env)))))
+
+; Lambda makes implementing list trivial.
 (define list (lambda args args))
 
 ; This is the equivalent of Kernel's list*.
@@ -134,8 +144,6 @@
                             (cons head (invoke recurse tail)))))))
       (lambda args (invoke recurse args))))
 
-(define square (lambda (x) (* x x)))
-
 (define newline (lambda () (display "\n")))
 
 ; An example of a macro-like fexpr:
@@ -153,14 +161,6 @@
       (define if-expr (list if test (cons do body) ()))
       (eval if-expr env))))
 
-; A version of lambda that supports multiple body expressions
-; TODO: Tests
-(define lambda*
-  (vau operands dyn-env
-    (do (define formals (first operands))
-        (define body (prepend do (rest operands)))
-        (wrap (eval (list vau formals () body) dyn-env)))))
-
 ; TODO: Tests
 ; TODO: for-each* that can handle n-ary procedures?
 (define for-each (lambda (procedure lyst)
@@ -174,16 +174,6 @@
   (lambda* args
     (for-each display args)
     (newline)))
-
-; Exploring a different way to implement set!
-; This can only modify the binding in the caller's environment.
-; Mutable bindings and set!, however, can modify a binding in an ancestor of
-; the caller's environment.
-; The primitive implementation of either define or set! could be made to
-; modify any value, but I think I prefer more limited mutability.
-(define xset!
-  (vau (name value) dyn-env
-    (eval (list define name value) dyn-env)))
 
 (define second (lambda (lyst) (first (rest lyst))))
 
@@ -199,7 +189,7 @@
       (func (first lyst) 
             (foldr func (rest lyst) init)))))
 
-; Example of cond transforming:
+; Example of how cond is transformed into a chain of Church booleans:
 #skip
 (cond ((= 2 0) 0)
       ((= 2 1) 1)
@@ -214,19 +204,6 @@
                            3)))
 ; or
 ((= 2 0) 0 ((= 2 1) 1 ((= 2 2) 2 3)))
-#end
-
-#skip
-; Scheme version of cond-transformer
-(define transform-cond
-  (lambda (clauses)
-    (fold-right 
-      (lambda (clause acc)
-        (if (eq? (first clause) 'else)
-            (second clause)
-            (list (first clause) (second clause) acc)))
-      (error "cond: no else clause")
-      clauses)))
 #end
 
 ; A macro-like transformer for cond clauses
