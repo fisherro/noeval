@@ -9,6 +9,8 @@
   (vau () env env))
 
 ; quote
+; Use of this is not encouraged as it shouldn't be needed in a fexpr-based
+; language.
 (define q (vau (operand) _ operand))
 
 ; Library implementation of do
@@ -113,7 +115,6 @@
             env))))
 
 ; A version of lambda that supports multiple body expressions
-; TODO: Tests
 (define lambda*
   (vau operands dyn-env
     (do (define formals (first operands))
@@ -130,8 +131,6 @@
 ; multiple times during the recursion, but uses seem to expect that its
 ; arguments would only be evaluated once. To achieve that, this implementation
 ; uses an inner fexpr for the recursion.
-; TODO: We could rewrite lambda and prepend so that lambda depended upon
-;       prepend rather than prepend depending on lambda.
 (define prepend
   (do (define recurse
               (vau operands _
@@ -161,7 +160,6 @@
       (define if-expr (list if test (cons do body) ()))
       (eval if-expr env))))
 
-; TODO: Tests
 ; TODO: for-each* that can handle n-ary procedures?
 (define for-each (lambda (procedure lyst)
                    (if (nil? lyst)
@@ -181,7 +179,6 @@
 ; foldr : (a -> b -> b) -> b -> [a] -> b
 ; Example: (foldr + (list 1 2 3) 0) => 6
 ; Example: (foldr cons (list 1 2 3) ()) => (1 2 3)
-; TODO: Write tests
 (define foldr
   (lambda (func lyst init)
     ((nil? lyst)
@@ -228,7 +225,6 @@
 
 ; This forwards its arguments to cond-transformer to do the syntax
 ; transformation. Then it evaluates the transformed syntax.
-; TODO: Write tests
 (define cond
   (vau cond-clauses cond-dyn-env
     (do (define transformed (cond-transformer cond-clauses))

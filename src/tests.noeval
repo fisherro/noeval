@@ -32,6 +32,11 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; Test: Basic quoting
+(test-assert 
+  (= (first (q (+ 1 2))) (q +))
+  "q should prevent evaluation of expressions")
+
 ; Test list function
 (test-assert 
   (nil? (list))
@@ -75,7 +80,7 @@
   (= (wrapped-plus (+ 1 2) 4) 7)
   "wrapped + should evaluate complex arguments")
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;------------------------------------------------------------------------------
 ; Lambda tests
 
 ; Test 1: Basic lambda creation and invocation
@@ -211,7 +216,183 @@
   (= (double-then-add-one 5) 11)
   "lambda composition should work")
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;------------------------------------------------------------------------------
+; lambda* tests (multi-expression lambda)
+
+; Test 1: Basic lambda* with single expression (should work like regular lambda)
+(define simple-lambda* (lambda* (x) (+ x 5)))
+(test-assert 
+  (= (simple-lambda* 10) 15)
+  "lambda* should work with single expression")
+
+; Test 2: lambda* with multiple expressions
+(define-mutable side-effect-counter 0)
+(define multi-expr-lambda* 
+  (lambda* (x) 
+    (set! side-effect-counter (+ side-effect-counter 1))
+    (set! side-effect-counter (+ side-effect-counter x))
+    (* x 2)))
+(test-assert 
+  (= (multi-expr-lambda* 3) 6)
+  "lambda* should return value of last expression")
+
+(test-assert 
+  (= side-effect-counter 4)  ; 1 + 3 = 4
+  "lambda* should execute all expressions for side effects")
+
+; Test 3: lambda* with no parameters and multiple expressions
+(define-mutable global-var 100)
+(define no-params-lambda* 
+  (lambda* ()
+    (set! global-var 200)
+    (set! global-var (+ global-var 50))
+    global-var))
+(test-assert 
+  (= (no-params-lambda* ) 250)
+  "lambda* with no parameters should work with multiple expressions")
+
+; Test 4: lambda* with multiple parameters and expressions
+(define complex-lambda* 
+  (lambda* (a b c)
+    (define-mutable temp (+ a b))
+    (set! temp (+ temp c))
+    (* temp 2)))
+(test-assert 
+  (= (complex-lambda* 1 2 3) 12)  ; ((1+2)+3)*2 = 12
+  "lambda* should work with multiple parameters and expressions")
+
+; Test 5: Nested lambda* expressions
+(define make-counter 
+  (lambda* (start)
+    (define-mutable count start)
+    (lambda* ()
+      (set! count (+ count 1))
+      count)))
+(define counter (make-counter 10))
+(test-assert 
+  (= (counter) 11)
+  "nested lambda* should work - first call")
+
+(test-assert 
+  (= (counter) 12)
+  "nested lambda* should work - second call")
+
+; Test 6: lambda* with conditionals and multiple expressions
+(define conditional-lambda* 
+  (lambda* (x)
+    (define-mutable result 0)
+    (if (= x 0)
+        (set! result 100)
+        (set! result (* x 10)))
+    (set! result (+ result 5))
+    result))
+(test-assert 
+  (= (conditional-lambda* 0) 105)  ; 100 + 5
+  "lambda* with conditionals should work - zero case")
+
+(test-assert 
+  (= (conditional-lambda* 3) 35)   ; (3*10) + 5
+  "lambda* with conditionals should work - non-zero case")
+
+; Test 7: lambda* used as higher-order function
+(define apply-with-logging 
+  (lambda* (func x)
+    (define-mutable log-var 0)
+    (set! log-var x)
+    (define result (func x))
+    (set! log-var (+ log-var result))
+    result))
+(define double (lambda (n) (* n 2)))
+(test-assert 
+  (= (apply-with-logging double 7) 14)
+  "lambda* should work as higher-order function")
+
+; Test 8: lambda* with recursive helper
+(define factorial-lambda* 
+  (lambda* (n)
+    (define factorial-helper 
+      (lambda (x acc)
+        (if (= x 0)
+            acc
+            (factorial-helper (- x 1) (* acc x)))))
+    (factorial-helper n 1)))
+(test-assert 
+  (= (factorial-lambda* 5) 120)
+  "lambda* should work with recursive helpers")
+
+; Test 9: Immediate lambda* invocation
+(test-assert 
+  (= ((lambda* (x y)
+        (define temp (+ x y))
+        (* temp 3)) 4 6) 30)  ; (4+6)*3 = 30
+  "immediate lambda* invocation should work")
+
+; Test 10: lambda* parameter shadowing with multiple expressions
+(define outer-shadow-var 999)
+(define shadow-lambda* 
+  (lambda* (outer-shadow-var)
+    (define-mutable temp outer-shadow-var)
+    (set! temp (+ temp 1))
+    temp))
+(test-assert 
+  (= (shadow-lambda* 5) 6)
+  "lambda* parameter shadowing should work")
+
+(test-assert 
+  (= outer-shadow-var 999)
+  "lambda* parameter shadowing should not affect outer scope")
+
+; Test 11: lambda* with define-mutable in body
+(define closure-lambda* 
+  (lambda* (initial)
+    (define-mutable state initial)
+    (lambda* (delta)
+      (set! state (+ state delta))
+      state)))
+(define stateful-func (closure-lambda* 100))
+(test-assert 
+  (= (stateful-func 10) 110)
+  "lambda* with define-mutable should create stateful closures")
+
+(test-assert 
+  (= (stateful-func 5) 115)
+  "lambda* stateful closure should maintain state")
+
+; Test 12: Compare lambda vs lambda* behavior
+(define regular-lambda-test (lambda (x) x))
+(define lambda*-test (lambda* (x) x))
+(test-assert 
+  (= (regular-lambda-test 42) (lambda*-test 42))
+  "lambda* should behave like lambda for single expressions")
+
+; Test 13: lambda* with for-each (using library function)
+(define-mutable sum-accumulator 0)
+(define sum-list-lambda* 
+  (lambda* (lyst)
+    (set! sum-accumulator 0)
+    (for-each (lambda (x) (set! sum-accumulator (+ sum-accumulator x))) lyst)
+    sum-accumulator))
+(test-assert 
+  (= (sum-list-lambda* (list 1 2 3 4)) 10)
+  "lambda* should work with library functions like for-each")
+
+; Test 14: Empty body lambda* (should be equivalent to returning ())
+(define empty-body-lambda* (lambda* (x)))
+(test-assert 
+  (nil? (empty-body-lambda* 42))
+  "lambda* with empty body should return nil")
+
+; Test 15: lambda* with complex expression sequencing
+(define sequence-test-lambda* 
+  (lambda* (x)
+    (+ x 1)      ; This result is discarded
+    (+ x 2)      ; This result is discarded  
+    (+ x 3)))    ; This result is returned
+(test-assert 
+  (= (sequence-test-lambda* 5) 8)  ; 5 + 3 = 8
+  "lambda* should return only the last expression's value")
+
+;------------------------------------------------------------------------------
 ; foldr tests
 
 ; Test 1: Basic foldr with addition
@@ -277,7 +458,7 @@
   (= (foldr double-and-add (list 1 2 3) 0) 12)
   "foldr should work with complex functions")
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;------------------------------------------------------------------------------
 ; Cond tests
 
 ; Test 1: Basic cond with true first condition
@@ -408,6 +589,27 @@
 (test-assert 
   (= (classify-number 99) "other")
   "cond classifier should work for default case")
+
+;------------------------------------------------------------------------------
+; get-current-environment tests
+
+; Test 1: Environment capture
+(define captured-env (get-current-environment))
+(define test-var-in-env 123)
+(test-assert 
+  (= (eval (q test-var-in-env) captured-env) 123)
+  "get-current-environment should capture current bindings")
+
+;------------------------------------------------------------------------------
+; for-each tests
+
+; Test 1: Basic for-each
+(define-mutable for-each-sum 0)
+(define add-to-sum (lambda (x) (set! for-each-sum (+ for-each-sum x))))
+(for-each add-to-sum (list 1 2 3))
+(test-assert 
+  (= for-each-sum 6)
+  "for-each should apply function to each list element")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Show test results

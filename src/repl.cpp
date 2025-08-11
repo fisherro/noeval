@@ -356,10 +356,7 @@ void repl(env_ptr global_env)
         std::string input = read_expression();
         
         // Check for EOF or quit commands
-        if (input.empty()) {
-            std::println("\nGoodbye!");
-            break;
-        }
+        if (input.empty()) continue;
         
         // Handle special commands first
         if (is_special_command(input)) {
