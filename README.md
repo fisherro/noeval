@@ -92,4 +92,4 @@ however, will treat `()` as the environment parameter name the way Kernel
 treats `#ignore`.
 
 Currently the only equivalence predicate is `=`, which may be closest to
-Kernel's `equal?`. It only works for numbers, symbols, and `()`.
+Kernel's `equal?`. It only works for numbers, symbols, strings, and `()`.

@@ -277,67 +277,79 @@
   (= (foldr double-and-add (list 1 2 3) 0) 12)
   "foldr should work with complex functions")
 
-#skip
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Cond tests
 
 ; Test 1: Basic cond with true first condition
 (test-assert 
-  (= (cond (((= 1 1) 42))) 42)
+  (= (cond ((= 1 1) 42))
+     42)
   "cond should return value when first condition is true")
 
 ; Test 2: Basic cond with false first condition, true second
-(test-assert 
-  (= (cond (((= 1 2) 10) ((= 2 2) 20))) 20)
+(test-assert
+  (= (cond ((= 1 2) 10)
+           ((= 2 2) 20))
+     20)
   "cond should skip false conditions and return first true")
 
 ; Test 3: Multiple conditions, second one true
-(test-assert 
-  (= (cond (((= 5 6) 100) ((= 3 3) 200) ((= 7 7) 300))) 200)
+(test-assert
+  (= (cond ((= 5 6) 100)
+           ((= 3 3) 200)
+           ((= 7 7) 300))
+     200)
   "cond should return first true condition, not evaluate later ones")
 
 ; Test 4: No true conditions - should return nil
-(test-assert 
-  (nil? (cond (((= 1 2) 10) ((= 3 4) 20))))
+(test-assert
+  (nil? (cond ((= 1 2) 10)
+              ((= 3 4) 20)))
   "cond should return nil when no conditions are true")
 
 ; Test 5: Empty cond - should return nil
 (test-assert 
-  (nil? (cond ()))
+  (nil? (cond))
   "cond with no clauses should return nil")
 
 ; Test 6: Complex expressions in conditions and results
-(test-assert 
-  (= (cond (((= (+ 1 2) 4) (* 2 3)) ((= (* 2 2) 4) (+ 10 5)))) 15)
+(test-assert
+  (= (cond ((= (+ 1 2) 4) (* 2 3))
+           ((= (* 2 2) 4) (+ 10 5)))
+     15)
   "cond should handle complex expressions in both test and result")
 
 ; Test 7: Side effects should only occur for evaluated branches
-(define test-counter 0)
-(define increment-counter (lambda () (define test-counter (+ test-counter 1))))
-(cond (((= 1 1) (increment-counter)) ((= 2 2) (increment-counter))))
+(define-mutable test-counter 0)
+(define increment-counter (lambda () (set! test-counter (+ test-counter 1))))
+(cond ((= 1 1) (increment-counter))
+      ((= 2 2) (increment-counter)))
 (test-assert 
   (= test-counter 1)
   "cond should only evaluate the first true branch")
 
 ; Test 8: Using Church booleans directly
-(define true-bool (nil? ()))
-(define false-bool (nil? 42))
 (test-assert 
-  (= (cond ((true-bool "correct") (false-bool "wrong"))) "correct")
+  (= (cond (true "correct") 
+           (false "wrong")) 
+     "correct")
   "cond should work with Church boolean values")
 
 ; Test 9: Variable references in conditions
 (define x 5)
 (define y 10)
-(test-assert 
-  (= (cond (((= x 3) "no") ((= y 10) "yes") ((= x 5) "maybe"))) "yes")
+(test-assert
+  (= (cond ((= x 3) "no")
+           ((= y 10) "yes")
+           ((= x 5) "maybe"))
+     "yes")
   "cond should work with variable references")
 
 ; Test 10: Nested cond expressions
 (define nested-result 
-  (cond (((= 1 2) "outer-false")
-         ((= 2 2) (cond (((= 3 4) "inner-false") 
-                         ((= 5 5) "inner-true")))))))
+  (cond ((= 1 2) "outer-false")
+        ((= 2 2) (cond ((= 3 4) "inner-false")
+                       ((= 5 5) "inner-true")))))
 (test-assert 
   (= nested-result "inner-true")
   "cond should work when nested inside other cond expressions")
@@ -346,8 +358,8 @@
 (define side-effect-var 0)
 (define make-side-effect 
   (lambda () (define side-effect-var (+ side-effect-var 1))))
-(cond (((= 1 1) "found")
-       ((make-side-effect) "should not reach here")))
+(cond ((= 1 1) "found")
+      ((make-side-effect) "should not reach here"))
 (test-assert 
   (= side-effect-var 0)
   "cond should not evaluate conditions after finding a true one")
@@ -355,12 +367,12 @@
 ; Test 12: Using cond with wrapped functions
 (define wrapped-equal (wrap =))
 (test-assert 
-  (= (cond (((wrapped-equal 1 2) "no") ((wrapped-equal 3 3) "yes"))) "yes")
+  (= (cond ((wrapped-equal 1 2) "no") ((wrapped-equal 3 3) "yes")) "yes")
   "cond should work with wrapped operatives")
 
 ; Test 13: Return values can be any type
-(define string-result (cond (((= 1 2) 42) ((= 2 2) "string"))))
-(define number-result (cond (((= 1 1) 99) ((= 2 2) "string"))))
+(define string-result (cond ((= 1 2) 42) ((= 2 2) "string")))
+(define number-result (cond ((= 1 1) 99) ((= 2 2) "string")))
 (test-assert 
   (= string-result "string")
   "cond should return string values correctly")
@@ -370,20 +382,20 @@
 
 ; Test 14: Single clause cond
 (test-assert 
-  (= (cond (((= 7 7) "single"))) "single")
+  (= (cond ((= 7 7) "single")) "single")
   "cond with single true clause should work")
 
 (test-assert 
-  (nil? (cond (((= 7 8) "single"))))
+  (nil? (cond ((= 7 8) "single")))
   "cond with single false clause should return nil")
 
 ; Test 15: Complex realistic example
 (define classify-number
   (lambda (n)
-    (cond (((= n 0) "zero")
-           ((= n 1) "one") 
-           ((= n 2) "two")
-           ((nil? ()) "other")))))  ; Always true as fallback
+    (cond ((= n 0) "zero")
+          ((= n 1) "one") 
+          ((= n 2) "two")
+          ((nil? ()) "other"))))  ; Always true as fallback
 
 (test-assert 
   (= (classify-number 0) "zero")
@@ -397,7 +409,6 @@
   (= (classify-number 99) "other")
   "cond classifier should work for default case")
 
-#end
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Show test results
 (if (= test-failures 0)

@@ -685,6 +685,7 @@ namespace builtins {
     // Evaluates its arguments
     // Most similar to Kernel's `equal?`
     // Only checks for equality of integers and nil
+    // TODO: Dispatch to type specific equality functions? Or just use visit with op==?
     value_ptr equal_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 2) {
@@ -707,6 +708,11 @@ namespace builtins {
         
         if (std::holds_alternative<std::nullptr_t>(val1->data) && std::holds_alternative<std::nullptr_t>(val2->data)) {
             return church_true(env); // Both nil
+        }
+
+        if (std::holds_alternative<std::string>(val1->data) && std::holds_alternative<std::string>(val2->data)) {
+            bool equal = std::get<std::string>(val1->data) == std::get<std::string>(val2->data);
+            return equal? church_true(env): church_false(env);
         }
 
         if (std::holds_alternative<symbol>(val1->data) && std::holds_alternative<symbol>(val2->data)) {

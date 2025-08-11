@@ -206,6 +206,14 @@
 ((= 2 0) 0 ((= 2 1) 1 ((= 2 2) 2 3)))
 #end
 
+; Example of using bare Church booleans:
+#skip
+(cond (false 0)
+      (true 1))
+; becomes
+(false 0 (true 1 ()))
+#end
+
 ; A macro-like transformer for cond clauses
 (define cond-transformer
   (lambda* (clauses)
