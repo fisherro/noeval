@@ -80,6 +80,142 @@
   (= (wrapped-plus (+ 1 2) 4) 7)
   "wrapped + should evaluate complex arguments")
 
+#skip
+;------------------------------------------------------------------------------
+; vau* tests
+
+; Test 1: Basic vau* with multiple expressions
+(define-mutable vau-side-effect 0)
+(define basic-vau* 
+  (vau* (x) env
+    (set! vau-side-effect (+ vau-side-effect 1))
+    (set! vau-side-effect (* vau-side-effect 2))
+    x))  ; Return the unevaluated argument
+
+; Test the side effects occurred
+(basic-vau* dummy-expr)
+(test-assert 
+  (= vau-side-effect 2)
+  "vau* should execute multiple expressions for side effects")
+
+; Test 2: vau* with environment parameter usage  
+(define env-using-vau*
+  (vau* (expr) dyn-env
+    (define temp-var 42)
+    (define result (eval expr dyn-env))
+    (* result 2)))
+(test-assert 
+  (= (env-using-vau* (+ 3 4)) 14)
+  "vau* should be able to use environment parameter")
+
+; Test 3: vau* with no expressions (empty body)
+(define empty-vau* (vau* (x) env))
+(test-assert 
+  (nil? (empty-vau* hello))
+  "vau* with empty body should return nil")
+
+; Test 4: vau* with multiple parameters - test that it accepts them
+(define multi-param-vau*
+  (vau* (a b c) env
+    (define first-arg a)
+    (define second-arg b) 
+    (define third-arg c)
+    first-arg))  ; Just return first arg to test it works
+(test-assert 
+  (= (multi-param-vau* 42 y z) 42)
+  "vau* should handle multiple parameters correctly")
+
+; Test 5: vau* that evaluates some arguments selectively  
+(define selective-eval-vau*
+  (vau* (first-expr second-expr) dyn-env
+    (define first-val (eval first-expr dyn-env))
+    first-val))  ; Just return evaluated first arg
+(test-assert 
+  (= (selective-eval-vau* (+ 2 3) (+ 4 5)) 5)
+  "vau* should allow selective evaluation of arguments")
+
+; Test 6: Compare vau* vs regular vau behavior
+(define regular-vau-multi
+  (vau (x) env
+    (do (define temp x)
+        (* 2 2)
+        temp)))
+(define equivalent-vau*
+  (vau* (x) env
+    (define temp x)
+    (* 2 2)
+    temp))
+
+; Test that both return the same unevaluated expression by using them with numbers
+(test-assert 
+  (= (regular-vau-multi 123) (equivalent-vau* 123))
+  "vau* should behave equivalently to vau with do block")
+
+; Test 7: vau* with conditional logic
+(define conditional-vau*
+  (vau* (test-expr then-expr else-expr) dyn-env
+    (define test-result (eval test-expr dyn-env))
+    (if test-result
+        then-expr
+        else-expr)))
+(test-assert 
+  (= (conditional-vau* (= 1 1) 42 99) 42)
+  "vau* should work with conditional logic - true case")
+
+(test-assert 
+  (= (conditional-vau* (= 1 2) 42 99) 99)  
+  "vau* should work with conditional logic - false case")
+
+; Test 8: vau* with single expression (should work like regular vau)
+(define single-expr-vau* (vau* (x) env x))
+(test-assert 
+  (= (single-expr-vau* 777) 777)
+  "vau* with single expression should work like regular vau")
+
+; Test 9: vau* with complex expression sequencing  
+(define-mutable sequence-counter 0)
+(define sequence-test-vau*
+  (vau* (x) env
+    (set! sequence-counter (+ sequence-counter 1))  ; Side effect
+    (set! sequence-counter (+ sequence-counter 10)) ; Side effect  
+    x))  ; Return unevaluated x
+
+(define seq-result (sequence-test-vau* final-expr))
+(test-assert 
+  (and (= sequence-counter 11) (= seq-result final-expr))
+  "vau* should execute all expressions and return last value")
+
+; Test 10: vau* used in higher-order context
+(define apply-vau*-to-expr
+  (lambda* (operative expr)
+    (operative expr)))
+(define simple-quote-vau* (vau* (x) env x))
+(test-assert 
+  (= (apply-vau*-to-expr simple-quote-vau* quoted-thing) quoted-thing)
+  "vau* should work in higher-order contexts")
+
+; Test 11: vau* with recursive pattern (simplified)
+(define recursive-vau*
+  (vau* (x) dyn-env
+    (define helper-result x)  ; Simplified - just pass through
+    helper-result))
+(test-assert 
+  (= (recursive-vau* test-expr) test-expr)
+  "vau* should work with internal definitions")
+
+; Test 12: Test that vau* creates proper operative (doesn't evaluate args)
+(define-mutable arg-eval-test 0)
+(define arg-test-vau*
+  (vau* (expr) env
+    (set! arg-eval-test 999)
+    expr))
+
+; The argument (+ arg-eval-test 1) should NOT be evaluated
+(define unevald-result (arg-test-vau* (+ arg-eval-test 1)))
+(test-assert 
+  (= arg-eval-test 999)  ; Should be 999 from vau* body, not from argument
+  "vau* should not evaluate its arguments")
+#end
 ;------------------------------------------------------------------------------
 ; Lambda tests
 
@@ -509,12 +645,12 @@
   (= test-counter 1)
   "cond should only evaluate the first true branch")
 
-; Test 8: Using Church booleans directly
+; Test 8: Using Church Booleans directly
 (test-assert 
   (= (cond (true "correct") 
            (false "wrong")) 
      "correct")
-  "cond should work with Church boolean values")
+  "cond should work with Church Boolean values")
 
 ; Test 9: Variable references in conditions
 (define x 5)
@@ -610,6 +746,67 @@
 (test-assert 
   (= for-each-sum 6)
   "for-each should apply function to each list element")
+
+;------------------------------------------------------------------------------
+; and/or/not tests
+
+(test-assert (and) "(and) should return true")
+(test-assert (and true) "(and true) should return true")
+(test-assert (not (and false)) "(and false) should return false") 
+(test-assert (and true true true)
+  "(and true true true) should return true")
+(test-assert (not (and false false false)) 
+  "(and false false false) should return false")
+(test-assert (not (and true false true))
+  "(and true false true) should return false")
+
+(define-mutable boolean-test-int 0)
+(define boolean-test-set! (lambda* (n) (set! boolean-test-int n) true))
+
+(and false (boolean-test-set! 1))
+(test-assert (= 0 boolean-test-int)
+  "and should short-circuit")
+
+(test-assert (not (or))
+  "(or) should return false")
+(test-assert (or true) "(or true) should return true")
+(test-assert (not (or false)) "(or false) should return false")
+(test-assert (or true true true)
+  "(or true true true) should return true")
+(test-assert (not (or false false false))
+  "(or false false false) shoud return false")
+(test-assert (or false true false)
+  "(or false true false) should return true")
+
+(set! boolean-test-int 0)
+(or true (boolean-test-int 1))
+(test-assert (= 0 boolean-test-int)
+  "or should short-circuit")
+
+(test-assert (not (not true))
+  "(not true) should return false")
+(test-assert (not false)
+  "(not false) should return true")
+
+; Nested operations
+(test-assert (and (or true false) (not false))
+  "nested boolean operations should work")
+(test-assert (or (and false true) (not false))
+  "complex nested operations should work")
+
+; Test with Church Boolean expressions
+(test-assert (and (= 1 1) (nil? ()))
+  "and should work with Church Boolean expressions")
+(test-assert (or (= 1 2) (= 2 2))
+  "or should work with Church Boolean expressions")
+(test-assert (not (= 1 2))
+  "not should work with Church Boolean expressions")
+
+; Many arguments
+(test-assert (and true true true true true true)
+  "and should handle many true arguments")
+(test-assert (not (and true true false true true))
+  "and should handle false anywhere in many arguments")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Show test results

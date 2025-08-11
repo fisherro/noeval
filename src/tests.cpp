@@ -282,19 +282,19 @@ int test_list_operations()
 
 int test_church_booleans()
 {
-    std::println("\n--- Church boolean behavior ---");
+    std::println("\n--- Church Boolean behavior ---");
     auto env = create_global_environment();
     test_runner runner(env);
     
     env->define("nil-val", std::make_shared<value>(nullptr));
     
-    // Test that Church booleans work as selectors
+    // Test that Church Booleans work as selectors
     runner.test_eval("((nil? nil-val) \"true\" \"false\")", "\"true\"");
     runner.test_eval("((nil? 42) \"true\" \"false\")", "\"false\"");
     runner.test_eval("((= 1 1) \"equal\" \"not-equal\")", "\"equal\"");
     runner.test_eval("((= 1 2) \"equal\" \"not-equal\")", "\"not-equal\"");
     
-    // Test Church booleans with operatives
+    // Test Church Booleans with operatives
     runner.test_eval("((nil? nil-val) (+ 1 2) (+ 3 4))", "3");
     runner.test_eval("((nil? 42) (+ 1 2) (+ 3 4))", "7");
         
@@ -594,7 +594,7 @@ int test_operative_as_first_element()
     runner.test_eval("(define my-op (vau (x) env x))", "(operative (x) env x)");
     runner.test_eval("(my-op hello)", "hello");
 
-    // Test 3: Operative value from Church boolean selection  
+    // Test 3: Operative value from Church Boolean selection  
     runner.test_eval("(((nil? ()) (vau (x) env x) (vau (y) env y)) test)", "test");
 
     // Test 4: Nested operative invocations

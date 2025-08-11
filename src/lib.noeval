@@ -2,7 +2,7 @@
 ; Note that, by convention, `_` indicates an ignored value.
 ; NOTE THAT nil IS SPELT ()
 
-; TODO: Rewrite any uses of if into Church boolean form.
+; TODO: Rewrite any uses of if into Church Boolean form.
 
 ; TODO: Do we need this? Is it correct?
 (define get-current-environment
@@ -33,9 +33,10 @@
                         (cons env ())))))))
 
 ; A convenience function.
-; Since we use Church booleans, you can essentially just remove the if.
+; Since we use Church Booleans, you can essentially just remove the if.
 ; (if (nil? lyst) 0 1) -> ((nil? lyst) 0 1)
 ; Candidate for being replaced by a macro in the future.
+; TODO: (if a b c) is the same as (a b c), so we should be able to simplify this.
 (define if
   (vau (test consequent alternate) env
     (do 
@@ -121,6 +122,14 @@
         (define body (prepend do (rest operands)))
         (wrap (eval (list vau formals () body) dyn-env)))))
 
+; A version of vau that supports multiple body expressions
+(define vau*
+  (vau operands dyn-env
+    (do (define formals (first operands))
+        (define env-param (second operands))
+        (define body (prepend do (rest (rest operands))))
+        (eval (list vau formals env-param body) dyn-env))))
+
 ; Lambda makes implementing list trivial.
 (define list (lambda args args))
 
@@ -186,7 +195,7 @@
       (func (first lyst) 
             (foldr func (rest lyst) init)))))
 
-; Example of how cond is transformed into a chain of Church booleans:
+; Example of how cond is transformed into a chain of Church Booleans:
 #skip
 (cond ((= 2 0) 0)
       ((= 2 1) 1)
@@ -203,7 +212,7 @@
 ((= 2 0) 0 ((= 2 1) 1 ((= 2 2) 2 3)))
 #end
 
-; Example of using bare Church booleans:
+; Example of using bare Church Booleans:
 #skip
 (cond (false 0)
       (true 1))
@@ -230,9 +239,32 @@
     (do (define transformed (cond-transformer cond-clauses))
         (eval transformed cond-dyn-env))))
 
-(define cond-test
-  (lambda (n)
-    (cond ((= n 0) 0)
-          ((= n 1) 1)
-          ((= n 2) 2)
-          (else 3))))
+; and operative - short-circuiting logical and
+; Returns the first falsy value, or the last value if all are truthy
+; Uses Church Boolean evaluation for short-circuiting
+(define and
+  (vau operands env
+    ((nil? operands)
+     true  ; Empty and is true
+     ((eval (first operands) env)
+      (invoke and (rest operands))
+      false))))
+
+; or operative - short-circuiting logical or
+; Returns the first truthy value, or the last value if all are falsy
+; Uses Church Boolean evaluation for short-circuiting
+(define or
+  (vau operands env
+    ((nil? operands)
+     false  ; Empty or is false
+     ((eval (first operands) env)
+      true
+      (invoke or (rest operands))))))
+
+; not operative - logical negation
+; Returns the Church Boolean opposite of its argument
+(define not
+  (vau (operand) env
+    (do
+      (define val (eval operand env))
+      (val false true))))

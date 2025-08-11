@@ -37,6 +37,8 @@ Would it make sense to implement `if` in terms of `cond`?
 Implement void or #inert?
 Dynamic variables (a la Kernel?) (could be used for test-failures in the library tests)
 Consolidate write and display into a single primitive
+Consider if*, cond*, and*, or*, not* library functions that can handle
+    non-boolean values
 
 Style:
 Ensure catches and elses are cuddled
@@ -613,7 +615,7 @@ namespace builtins {
     }
 
     // Evaluates argument
-    // Returns Church booleans
+    // Returns Church Booleans
     value_ptr nil_p_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 1) {

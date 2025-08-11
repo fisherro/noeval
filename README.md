@@ -60,13 +60,13 @@ expression for the body.
 Noeval's `do` is the equivalent of CL `progn`, Scheme `begin`, and Kernel's
 `$sequence`.
 
-Noeval uses Church booleans, which allows not having a primitive conditional.
+Noeval uses Church Booleans, which allows not having a primitive conditional.
 Arguably that's signing up for more overhead, but... Unlike Church numbers, I'm
 not sure that overhead will end up mattering for my purposes. I also wonder if
-code written with Church booleans in mind might minimize the overhead. Anyway,
+code written with Church Booleans in mind might minimize the overhead. Anyway,
 that's the choice I've made for now.
 
-The `true` and `false` Church booleans are added to the global environment, and
+The `true` and `false` Church Booleans are added to the global environment, and
 they're tagged internally so that they'll print as names instead of using the
 usual print form of operatives.
 
