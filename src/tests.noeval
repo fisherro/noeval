@@ -1,9 +1,6 @@
 ; Test suite for the vau language library
 ; This file contains tests that are run after loading the standard library
 
-; TODO: Should we move the testing infrastructure (like test-assert) into the
-;       standard library?
-
 ; Set up test variables
 (define-mutable test-failures 0)
 (define-mutable test-count 0)

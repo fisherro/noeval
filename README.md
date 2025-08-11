@@ -70,6 +70,9 @@ The `true` and `false` Church Booleans are added to the global environment, and
 they're tagged internally so that they'll print as names instead of using the
 usual print form of operatives.
 
+Because Noeval uses Church Booleans, other values do not represent truthiness
+or falsiness.
+
 This means that, at the REPL, true and false results look like this:
 
     noeval> (nil? ())
