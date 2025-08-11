@@ -211,6 +211,72 @@
   (= (double-then-add-one 5) 11)
   "lambda composition should work")
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; foldr tests
+
+; Test 1: Basic foldr with addition
+(test-assert 
+  (= (foldr + (list 1 2 3) 0) 6)
+  "foldr should sum list elements")
+
+; Test 2: Empty list should return init value
+(test-assert 
+  (= (foldr + () 42) 42)
+  "foldr with empty list should return init value")
+
+; Test 3: Single element list
+(test-assert 
+  (= (foldr + (list 5) 0) 5)
+  "foldr with single element should work")
+
+; Test 4: foldr with multiplication
+(test-assert 
+  (= (foldr * (list 2 3 4) 1) 24)
+  "foldr should multiply list elements")
+
+; Test 5: foldr with cons (should reconstruct the list)
+(define reconstructed (foldr cons (list 1 2 3) ()))
+(test-assert 
+  (= (first reconstructed) 1)
+  "foldr with cons should reconstruct list - first element")
+
+(test-assert 
+  (= (first (rest reconstructed)) 2)
+  "foldr with cons should reconstruct list - second element")
+
+(test-assert 
+  (= (first (rest (rest reconstructed))) 3)
+  "foldr with cons should reconstruct list - third element")
+
+; Test 6: foldr with lambda function
+(define subtract-from-acc (lambda (x acc) (- acc x)))
+(test-assert 
+  (= (foldr subtract-from-acc (list 1 2 3) 10) 4)
+  "foldr should work with lambda functions")
+
+; Test 7: foldr order matters (right associative)
+; (foldr - (list 1 2 3) 0) = (- 1 (- 2 (- 3 0))) = (- 1 (- 2 3)) = (- 1 -1) = 2
+(test-assert 
+  (= (foldr - (list 1 2 3) 0) 2)
+  "foldr should be right-associative")
+
+; Test 8: foldr with wrapped operatives
+(define wrapped-mult (wrap *))
+(test-assert 
+  (= (foldr wrapped-mult (list 2 3 4) 1) 24)
+  "foldr should work with wrapped operatives")
+
+; Test 9: foldr with different init values
+(test-assert 
+  (= (foldr + (list 1 2 3) 10) 16)
+  "foldr should add init value to sum")
+
+; Test 10: foldr with nested function calls
+(define double-and-add (lambda (x acc) (+ (* x 2) acc)))
+(test-assert 
+  (= (foldr double-and-add (list 1 2 3) 0) 12)
+  "foldr should work with complex functions")
+
 #skip
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Cond tests
@@ -330,8 +396,8 @@
 (test-assert 
   (= (classify-number 99) "other")
   "cond classifier should work for default case")
-#end
 
+#end
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Show test results
 (if (= test-failures 0)
