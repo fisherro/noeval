@@ -9,6 +9,15 @@ primitives that they aren't?
 
 ## Regular
 
+Add general instructions for Copilot:
+
+* Don't make assumptions or jump to conclusions.
+  Take the time to analyze fully and come up with the correct answer,
+  or ask clarifying questions or suggest tests to determine missing
+  information. Do not ask a question or suggest a test until you have made
+  sure you don't already have access to the information you need. Take the
+  time to come up with an accurate and complete answer the first time.
+
 map or foldl and other HOF
 
 append, length, reverse

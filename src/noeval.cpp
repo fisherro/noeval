@@ -826,6 +826,77 @@ namespace builtins {
         }
     }
 
+    value_ptr try_operative(const std::vector<value_ptr>& args, env_ptr env)
+    {
+        if (args.size() != 2) {
+            throw evaluation_error(
+                std::format("try: expected 2 arguments (expr handler), got {}", args.size()),
+                "try"
+            );
+        }
+
+        auto try_expr = args[0];
+        auto handler_expr = args[1];
+        value_ptr error_val;
+
+        try {
+            return eval(try_expr, env);
+        } catch (const evaluation_error& e) {
+            auto error_sym = std::make_shared<value>(symbol{"error"});
+            auto msg_val = std::make_shared<value>(e.original_message);
+            auto ctx_val = std::make_shared<value>(e.context);
+            
+            auto error_list = std::make_shared<value>(cons_cell{
+                error_sym,
+                std::make_shared<value>(cons_cell{
+                    msg_val,
+                    std::make_shared<value>(cons_cell{
+                        ctx_val,
+                        std::make_shared<value>(nullptr)
+                    })
+                })
+            });
+
+            error_val = error_list;
+        } catch (const std::exception& e) {
+            //TODO: Refactor after testing
+            auto error_sym = std::make_shared<value>(symbol{"error"});
+            auto msg_val = std::make_shared<value>(e.what());
+            auto ctx_val = std::make_shared<value>(nullptr);
+
+            error_val = std::make_shared<value>(cons_cell{
+                error_sym,
+                std::make_shared<value>(cons_cell{
+                    msg_val,
+                    std::make_shared<value>(cons_cell{
+                        ctx_val,
+                        std::make_shared<value>(nullptr)
+                    })
+                })
+            });
+        }
+        // If we got to here, an exception was caught.
+        // We deal with it here to avoid a termination caused by throwing an
+        // exception while handling an exception.
+
+        // Evaluate handler with error as argument
+        auto quoted_error = std::make_shared<value>(cons_cell{
+            std::make_shared<value>(symbol{"q"}),  // quote
+            std::make_shared<value>(cons_cell{
+                error_val,
+                std::make_shared<value>(nullptr)
+            })
+        });
+        auto handler_call = std::make_shared<value>(cons_cell{
+            handler_expr,
+            std::make_shared<value>(cons_cell{
+                quoted_error,  // Now it's quoted
+                std::make_shared<value>(nullptr)
+            })
+        });
+        return eval(handler_call, env);
+    }
+
 } // namespace builtins
 
 void add_church_boleans(env_ptr env)
@@ -869,6 +940,7 @@ env_ptr create_global_environment()
     define_builtin("eval", builtins::eval_operative);
     define_builtin("define", builtins::define_operative);
     define_builtin("invoke", builtins::invoke_operative);
+    define_builtin("try", builtins::try_operative);
 #define USE_PRIMITIVE_DO
 #ifdef USE_PRIMITIVE_DO
     define_builtin("do", builtins::do_operative);
