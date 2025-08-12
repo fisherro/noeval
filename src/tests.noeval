@@ -51,6 +51,9 @@
   (nil? (list))
   "empty list should return nil")
 
+;------------------------------------------------------------------------------
+; eval-list tests
+
 ; Test eval-list function with unevaluated expressions
 (define unevaluated-exprs (make-expr (+ 1 2) (* 3 4)))
 (define result-list (eval-list unevaluated-exprs env))
@@ -65,6 +68,123 @@
 (test-assert 
   (= (first (list 42)) 42)
   "single element list should work")
+
+; Test 1: Basic eval-list with simple expressions
+(define simple-exprs (list (q (+ 1 2)) (q (* 3 4))))
+(define simple-results (eval-list simple-exprs (get-current-environment)))
+(test-assert 
+  (= (first simple-results) 3)
+  "eval-list should evaluate first expression correctly")
+
+(test-assert 
+  (= (first (rest simple-results)) 12)
+  "eval-list should evaluate second expression correctly")
+
+; Test 2: eval-list with single expression
+(define single-expr (list (q (+ 10 20))))
+(define single-result (eval-list single-expr (get-current-environment)))
+(test-assert 
+  (= (first single-result) 30)
+  "eval-list should work with single expression")
+
+; Test 3: eval-list with empty list
+(define empty-results (eval-list () (get-current-environment)))
+(test-assert 
+  (nil? empty-results)
+  "eval-list with empty list should return nil")
+
+; Test 4: eval-list with variable references
+(define test-var-for-eval 42)
+(define var-exprs (list (q test-var-for-eval) (q (+ test-var-for-eval 8))))
+(define var-results (eval-list var-exprs (get-current-environment)))
+(test-assert 
+  (= (first var-results) 42)
+  "eval-list should evaluate variable references")
+
+(test-assert 
+  (= (first (rest var-results)) 50)
+  "eval-list should evaluate expressions with variables")
+
+; Test 5: eval-list with nested expressions
+(define nested-exprs (list (q (+ 1 (+ 2 3))) (q (* (- 10 5) 2))))
+(define nested-results (eval-list nested-exprs (get-current-environment)))
+(test-assert 
+  (= (first nested-results) 6)
+  "eval-list should handle nested expressions - first")
+
+(test-assert 
+  (= (first (rest nested-results)) 10)
+  "eval-list should handle nested expressions - second")
+
+; Test 6: eval-list with side effects - expressions should be evaluated once each
+(define-mutable eval-list-counter 0)
+(define increment-expr (q (do (set! eval-list-counter (+ eval-list-counter 1)) eval-list-counter)))
+(define side-effect-exprs (list increment-expr (q (+ eval-list-counter 100))))
+
+; This test may reveal the invoke issue if eval-list-helper evaluates expressions multiple times
+(define side-effect-results (eval-list side-effect-exprs (get-current-environment)))
+(test-assert 
+  (= (first side-effect-results) 1)
+  "eval-list should evaluate side-effect expressions exactly once - first result")
+
+(test-assert 
+  (= (first (rest side-effect-results)) 101)
+  "eval-list should evaluate expressions in order with proper side effects")
+
+; Test 7: eval-list with quoted expressions  
+(define quote-exprs (list (q (q hello)) (q (q world))))
+(define quote-results (eval-list quote-exprs (get-current-environment)))
+(test-assert 
+  (= (first quote-results) (q hello))
+  "eval-list should handle quoted expressions")
+
+(test-assert 
+  (= (first (rest quote-results)) (q world))
+  "eval-list should handle multiple quoted expressions")
+
+; Test 8: eval-list with mixed expression types
+(define mixed-exprs (list (q 42) (q (+ 2 3)) (q test-var-for-eval)))
+(define mixed-results (eval-list mixed-exprs (get-current-environment)))
+(test-assert 
+  (= (first mixed-results) 42)
+  "eval-list should handle mixed types - literal")
+
+(test-assert 
+  (= (first (rest mixed-results)) 5)
+  "eval-list should handle mixed types - expression")
+
+(test-assert 
+  (= (first (rest (rest mixed-results))) 42)
+  "eval-list should handle mixed types - variable")
+
+; Test 9: eval-list should work with library functions
+(define lib-exprs (list (q (first (list 1 2 3))) (q (rest (list 4 5 6)))))
+(define lib-results (eval-list lib-exprs (get-current-environment)))
+(test-assert 
+  (= (first lib-results) 1)
+  "eval-list should work with library functions - first")
+
+(test-assert 
+  (= (first (first (rest lib-results))) 5)
+  "eval-list should work with library functions - rest result")
+
+; Test 10: Error case that demonstrates the invoke issue
+; This might fail due to the incorrect invoke usage in eval-list-helper
+(define error-prone-exprs (list (q (+ 1 2)) (q (display "TEST")) (q (* 3 4))))
+
+; This test might reveal issues if the invoke problem causes expressions to be 
+; evaluated incorrectly or multiple times
+(define complex-results (eval-list error-prone-exprs (get-current-environment)))
+(test-assert 
+  (= (first complex-results) 3)
+  "eval-list should handle complex expression list - first")
+
+(test-assert 
+  (= (first (rest (rest complex-results))) 12)
+  "eval-list should handle complex expression list - third")
+
+;------------------------------------------------------------------------------
+; Wrap tests
 
 ; Test wrap functionality
 (define simple-op (vau (x y) env (cons x (cons y ()))))
@@ -209,7 +329,6 @@
 (define test-vau (vau (x) env (eval x env)))
 (define higher-order-test (lambda (op arg) (op arg)))
 
-(displayln "(higher-order-test test-vau 123): " (higher-order-test test-vau 123))
 (test-assert 
   (= (higher-order-test test-vau 123) 123)
   "vau should work when passed to and called from other functions")
@@ -621,6 +740,123 @@
 (test-assert 
   (= (foldr double-and-add (list 1 2 3) 0) 12)
   "foldr should work with complex functions")
+
+;------------------------------------------------------------------------------
+; prepend tests (list* equivalent)
+
+; Test 1: Basic prepend with single final argument
+(test-assert 
+  (= (first (prepend 1 (list 2 3))) 1)
+  "prepend should add element to front of list")
+
+(test-assert 
+  (= (first (rest (prepend 1 (list 2 3)))) 2)
+  "prepend should preserve existing list elements")
+
+; Test 2: Multiple elements prepended
+(define result-list (prepend 1 2 3 (list 4 5)))
+(test-assert 
+  (= (first result-list) 1)
+  "prepend should handle multiple elements - first")
+
+(test-assert 
+  (= (first (rest result-list)) 2)
+  "prepend should handle multiple elements - second")
+
+(test-assert 
+  (= (first (rest (rest result-list))) 3)
+  "prepend should handle multiple elements - third")
+
+(test-assert 
+  (= (first (rest (rest (rest result-list)))) 4)
+  "prepend should preserve final list - first element")
+
+; Test 3: Prepend to empty list
+(test-assert 
+  (= (first (prepend 42 ())) 42)
+  "prepend should work with empty final list")
+
+(test-assert 
+  (nil? (rest (prepend 42 ())))
+  "prepend with empty list should create single-element list")
+
+#skip
+; Skipping this test because `=` doesn't support lists.
+; Test 4: Single argument (should return the argument itself)
+(test-assert 
+  (= (prepend 123) 123)
+  "prepend with single argument should return that argument")
+
+(test-assert 
+  (= (prepend (list 1 2 3)) (list 1 2 3))
+  "prepend with single list argument should return the list")
+#end
+
+; Test 5: No arguments (should return empty)
+(test-assert 
+  (nil? (prepend))
+  "prepend with no arguments should return nil")
+
+; Test 6: Argument evaluation - expressions should be evaluated once
+(define-mutable prepend-eval-counter 0)
+(define increment-and-return 
+  (lambda* (n) 
+    (set! prepend-eval-counter (+ prepend-eval-counter 1))
+    n))
+
+(define prepend-result (prepend (increment-and-return 10) 
+                               (increment-and-return 20) 
+                               (list 30)))
+(test-assert 
+  (= prepend-eval-counter 2)
+  "prepend should evaluate each argument exactly once")
+
+(test-assert 
+  (= (first prepend-result) 10)
+  "prepend should use evaluated argument values - first")
+
+(test-assert 
+  (= (first (rest prepend-result)) 20)
+  "prepend should use evaluated argument values - second")
+
+; Test 7: Complex expressions as arguments
+(test-assert 
+  (= (first (prepend (+ 1 2) (list 4 5))) 3)
+  "prepend should evaluate complex expressions")
+
+; Test 8: Nested prepend calls
+(test-assert 
+  (= (first (prepend 1 (prepend 2 (list 3)))) 1)
+  "prepend should work when nested")
+
+; Test 9: prepend with different data types
+(define mixed-result (prepend "hello" 42 (list "world" 99)))
+(test-assert 
+  (= (first mixed-result) "hello")
+  "prepend should work with mixed data types - string")
+
+(test-assert 
+  (= (first (rest mixed-result)) 42)
+  "prepend should work with mixed data types - number")
+
+(test-assert 
+  (= (first (rest (rest mixed-result))) "world")
+  "prepend should work with mixed data types - final list string")
+
+; Test 10: prepend compared to manual cons chains
+(define manual-chain (cons 1 (cons 2 (cons 3 (list 4 5)))))
+(define prepend-chain (prepend 1 2 3 (list 4 5)))
+(test-assert 
+  (= (first manual-chain) (first prepend-chain))
+  "prepend should be equivalent to manual cons chain - first")
+
+(test-assert 
+  (= (first (rest manual-chain)) (first (rest prepend-chain)))
+  "prepend should be equivalent to manual cons chain - second")
+
+(test-assert 
+  (= (first (rest (rest manual-chain))) (first (rest (rest prepend-chain))))
+  "prepend should be equivalent to manual cons chain - third")
 
 ;------------------------------------------------------------------------------
 ; Cond tests

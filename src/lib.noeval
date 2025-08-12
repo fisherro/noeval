@@ -2,9 +2,6 @@
 ; Note that, by convention, `_` indicates an ignored value.
 ; NOTE THAT nil IS SPELT ()
 
-; TODO: There was a bug with `and` using `invoke` where it should have used
-;       `eval`. So it is worth revisiting uses of `invoke`.
-
 (define get-current-environment
   (vau () env env))
 
@@ -13,7 +10,10 @@
 ; language.
 (define q (vau (operand) _ operand))
 
+#skip
 ; Library implementation of do
+; Using invoke is likely incorrect here because the recursive call should get
+; the same dynamic environment as the caller.
 (define do-helper
   (vau (remaining last-result env) _
     ((nil? remaining)
@@ -23,8 +23,9 @@
                   (cons (eval (first remaining) env) 
                         (cons env ())))))))
 
-#skip
 ; Currently using the primitive do instead of this one.
+; Using invoke is likely incorrect here because the recursive call should get
+; the same dynamic environment as the caller.
 (define do
   (vau expressions env
     ((nil? expressions)
