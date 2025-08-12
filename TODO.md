@@ -9,8 +9,6 @@ primitives that they aren't?
 
 ## Regular
 
-Audit the uses of invoke.
-
 map or foldl and other HOF
 
 append, length, reverse
