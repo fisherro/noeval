@@ -163,6 +163,15 @@ std::vector<std::string> environment::get_all_symbols() const
     return symbols;
 }
 
+std::string environment::dump_chain() const
+{
+    std::string chain = std::format("{}", static_cast<const void*>(this));
+    if (parent) {
+        chain += " -> " + parent->dump_chain();
+    }
+    return chain;
+}
+
 // Forward declaration for eval
 value_ptr eval(value_ptr expr, env_ptr env);
 
@@ -639,7 +648,7 @@ namespace builtins {
 
     // Evaluates its arguments
     // Most similar to Kernel's `equal?`
-    // Only checks for equality of integers and nil
+    // Doesn't work for all types yet.
     value_ptr equal_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 2) {
@@ -650,10 +659,10 @@ namespace builtins {
                 std::format("(= {} {} ...)", expr_context(args[0]), expr_context(args[1]))
             );
         }
-        
+
         auto val1 = eval(args[0], env);
         auto val2 = eval(args[1], env);
-        
+
         // Simple equality check for integers and nil
         if (std::holds_alternative<int>(val1->data) && std::holds_alternative<int>(val2->data)) {
             bool equal = std::get<int>(val1->data) == std::get<int>(val2->data);
@@ -860,6 +869,7 @@ env_ptr create_global_environment()
     define_builtin("eval", builtins::eval_operative);
     define_builtin("define", builtins::define_operative);
     define_builtin("invoke", builtins::invoke_operative);
+#define USE_PRIMITIVE_DO
 #ifdef USE_PRIMITIVE_DO
     define_builtin("do", builtins::do_operative);
 #endif

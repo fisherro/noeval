@@ -2,6 +2,9 @@
 ; Note that, by convention, `_` indicates an ignored value.
 ; NOTE THAT nil IS SPELT ()
 
+; TODO: There was a bug with `and` using `invoke` where it should have used
+;       `eval`. So it is worth revisiting uses of `invoke`.
+
 (define get-current-environment
   (vau () env env))
 
@@ -20,6 +23,8 @@
                   (cons (eval (first remaining) env) 
                         (cons env ())))))))
 
+#skip
+; Currently using the primitive do instead of this one.
 (define do
   (vau expressions env
     ((nil? expressions)
@@ -28,6 +33,7 @@
             (cons (rest expressions) 
                   (cons (eval (first expressions) env) 
                         (cons env ())))))))
+#end
 
 ; A convenience function.
 ; Since we use Church Booleans, you can essentially just remove the if.
@@ -91,7 +97,7 @@
         ; `unevaluated-args` bound to the arguments.
         (do
           (define evaluated-args (eval-list unevaluated-args wrapped-call-env))
-          (invoke resolved-operative evaluated-args))))))
+          (eval (cons resolved-operative evaluated-args) wrapped-call-env))))))
 
 ; This version of lambda, like primitive vau, only supports a single expression
 ; body and doesn't support the (head . tail) style of variadic parameters.
@@ -115,7 +121,7 @@
 (define lambda*
   (vau operands dyn-env
     (do (define formals (first operands))
-        (define body (prepend do (rest operands)))
+        (define body (cons do (rest operands)))
         (wrap (eval (list vau formals () body) dyn-env)))))
 
 ; A version of vau that supports multiple body expressions
@@ -123,7 +129,7 @@
   (vau operands dyn-env
     (do (define formals (first operands))
         (define env-param (second operands))
-        (define body (prepend do (rest (rest operands))))
+        (define body (cons do (rest (rest operands))))
         (eval (list vau formals env-param body) dyn-env))))
 
 ; Lambda makes implementing list trivial.
@@ -242,7 +248,7 @@
     ((nil? operands)
      true  ; Empty and is true
      ((eval (first operands) env)
-      (invoke and (rest operands))
+      (eval (cons and (rest operands)) env)
       false))))
 
 ; or operative - short-circuiting logical or
@@ -254,7 +260,7 @@
      false  ; Empty or is false
      ((eval (first operands) env)
       true
-      (invoke or (rest operands))))))
+      (eval (cons or (rest operands)) env)))))
 
 ; not operative - logical negation
 ; Returns the Church Boolean opposite of its argument

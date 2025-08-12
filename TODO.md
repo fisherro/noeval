@@ -2,6 +2,12 @@
 
 What primitives can we get rid of? (ongoing)
 
+During `define`, attach the name to the value directly for debugging?
+Values can have a flat_set of names?
+Include a (weak) reference to the environment?
+
+Handle nested `#skip` blocks
+
 Add expansion-time macros (see https://axisofeval.blogspot.com/2012/09/having-both-fexprs-and-macros.html )
 
 * A `macro` primitive works kind of like `wrap` to turn any operative into
@@ -12,9 +18,14 @@ Add expansion-time macros (see https://axisofeval.blogspot.com/2012/09/having-bo
 
 Pattern matching?
 
-Create vau* that supports multiple expression bodies
+Need to be able to catch errors in tests. Ideally that happens after we add
+continuations, but it may be important enough to do something temporary.
 
-"Numeric tower"...or at least support of bignums via boost::cpp_int
+"Numeric tower"...or at least support of bignums
+
+* All numbers are boost::cpp_rational
+* Default formatting is (possibly) repeating decimals
+* Floats will be boost::cpp_dec_float
 
 TCO
 

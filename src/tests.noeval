@@ -77,7 +77,18 @@
   (= (wrapped-plus (+ 1 2) 4) 7)
   "wrapped + should evaluate complex arguments")
 
-#skip
+; Test wrap with environment-dependent operatives
+(define env-dependent-op 
+  (vau (x) env 
+    (eval x env)))  ; This needs the environment parameter to work
+
+(define wrapped-env-op (wrap env-dependent-op))
+(define test-var 42)
+
+(test-assert 
+  (= (wrapped-env-op (q test-var)) 42)
+  "wrap should preserve environment context for user-defined operatives")
+
 ;------------------------------------------------------------------------------
 ; vau* tests
 
@@ -179,17 +190,25 @@
 
 (define seq-result (sequence-test-vau* final-expr))
 (test-assert 
-  (and (= sequence-counter 11) (= seq-result final-expr))
+  (and (= sequence-counter 11) (= seq-result (q final-expr)))
   "vau* should execute all expressions and return last value")
 
-; Test 10: vau* used in higher-order context
-(define apply-vau*-to-expr
-  (lambda* (operative expr)
-    (operative expr)))
-(define simple-quote-vau* (vau* (x) env x))
+; vau used in higher-order context
+(define test-vau (vau (x) env (eval x env)))
+(define higher-order-test (lambda (op arg) (op arg)))
+
+(displayln "(higher-order-test test-vau 123): " (higher-order-test test-vau 123))
 (test-assert 
-  (= (apply-vau*-to-expr simple-quote-vau* quoted-thing) quoted-thing)
-  "vau* should work in higher-order contexts")
+  (= (higher-order-test test-vau 123) 123)
+  "vau should work when passed to and called from other functions")
+
+; Test 10: vau* used in higher-order context
+(define test-vau* (vau* (x) env (eval x env)))
+(define higher-order-test (lambda (op arg) (op arg)))
+
+(test-assert 
+  (= (higher-order-test test-vau* 123) 123)
+  "vau* should work when passed to and called from other functions")
 
 ; Test 11: vau* with recursive pattern (simplified)
 (define recursive-vau*
@@ -197,7 +216,7 @@
     (define helper-result x)  ; Simplified - just pass through
     helper-result))
 (test-assert 
-  (= (recursive-vau* test-expr) test-expr)
+  (= (recursive-vau* test-expr) (q test-expr))
   "vau* should work with internal definitions")
 
 ; Test 12: Test that vau* creates proper operative (doesn't evaluate args)
@@ -212,7 +231,7 @@
 (test-assert 
   (= arg-eval-test 999)  ; Should be 999 from vau* body, not from argument
   "vau* should not evaluate its arguments")
-#end
+
 ;------------------------------------------------------------------------------
 ; Lambda tests
 
