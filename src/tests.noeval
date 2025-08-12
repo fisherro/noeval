@@ -29,6 +29,18 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+; Test nested skip blocks
+
+#skip
+(displayln bogus1)
+#skip
+(displayln bogus2)
+#end
+(displayln bogus3)
+#end
+
+;------------------------------------------------------------------------------
+
 ; Test: Basic quoting
 (test-assert 
   (= (first (q (+ 1 2))) (q +))

@@ -6,8 +6,6 @@ During `define`, attach the name to the value directly for debugging?
 Values can have a flat_set of names?
 Include a (weak) reference to the environment?
 
-Handle nested `#skip` blocks
-
 Add expansion-time macros (see https://axisofeval.blogspot.com/2012/09/having-both-fexprs-and-macros.html )
 
 * A `macro` primitive works kind of like `wrap` to turn any operative into

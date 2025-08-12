@@ -49,20 +49,39 @@ void lexer::skip_disabled_block()
 {
     pos += 5; // skip "#skip"
     
-    // Skip until #end
-    while (pos + 4 <= input.size()) {
-        if (pos + 4 <= input.size() && 
-            input.substr(pos, 4) == "#end") {
-            // Check if it's followed by whitespace or end of input
+    int nesting_depth = 1; // We're already inside one skip block
+    
+    while (pos < input.size() && nesting_depth > 0) {
+        // Check for nested #skip
+        if (pos + 5 <= input.size() && input.substr(pos, 5) == "#skip") {
+            // Verify it's a proper keyword (followed by whitespace or end of input)
+            if (pos + 5 >= input.size() || 
+                std::isspace(input[pos + 5]) || 
+                input[pos + 5] == '\n') {
+                nesting_depth++;
+                pos += 5;
+                continue;
+            }
+        }
+        
+        // Check for #end
+        if (pos + 4 <= input.size() && input.substr(pos, 4) == "#end") {
+            // Verify it's a proper keyword (followed by whitespace or end of input)
             if (pos + 4 >= input.size() || 
                 std::isspace(input[pos + 4]) || 
                 input[pos + 4] == '\n') {
-                pos += 4; // skip "#end"
-                return;
+                nesting_depth--;
+                pos += 4;
+                if (nesting_depth == 0) {
+                    return; // Found the matching #end
+                }
+                continue;
             }
         }
+        
         ++pos;
     }
+    
     throw std::runtime_error("Unterminated #skip block - missing #end");
 }
 
