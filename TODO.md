@@ -7,16 +7,9 @@ What primitives can we get rid of?
 Should any library functions take advantage of other library functions or
 primitives that they aren't?
 
+Review code for conformance to the style guidelines
+
 ## Regular
-
-Add general instructions for Copilot:
-
-* Don't make assumptions or jump to conclusions.
-  Take the time to analyze fully and come up with the correct answer,
-  or ask clarifying questions or suggest tests to determine missing
-  information. Do not ask a question or suggest a test until you have made
-  sure you don't already have access to the information you need. Take the
-  time to come up with an accurate and complete answer the first time.
 
 map or foldl and other HOF
 
@@ -38,6 +31,8 @@ Add expansion-time macros (see https://axisofeval.blogspot.com/2012/09/having-bo
 * a macro transformer.
 * Need a macro transformer primitive that will expand macros.
 * When the code is creating an operative, run macro expansion on the body before storing it in the operative.
+
+There's a lot of common code that could be refactored in the builtin operatives
 
 Pattern matching?
 
@@ -111,22 +106,6 @@ Change equal_operative to use op== and/or use other type-specific customization 
 
 Move the testing infrastructure into the library?
 Or wait until we have modules and put it in a module?
-
-## Style:
-
-Ensure catches and elses are cuddled
-
-Ensure functions have open brace on new line (but only for functions)
-
-Ensure question marks and colons have no space before and a space after
-
-Ctor initializer lists have no space before the colon
-
-Ensure space beween keywords and open parenthesis (but not for function calls)
-
-Use and, or, and not keywords instead of &&, ||, and !
-
-Prefer abbreviated templates, especially when naming the type is unnecessary
 
 ## Exceptions (w/o continuations) notes
 
@@ -208,7 +187,7 @@ value_ptr try_operative(const std::vector<value_ptr>& args, env_ptr env)
     } catch (const evaluation_error& e) {
         // Create error value as a list: (error "message" "context")
         auto error_sym = std::make_shared<value>(symbol{"error"});
-        auto msg_val = std::make_shared<value>(e.original_message);
+        auto msg_val = std::make_shared<value>(e.message);
         auto ctx_val = std::make_shared<value>(e.context);
         
         auto error_list = std::make_shared<value>(cons_cell{

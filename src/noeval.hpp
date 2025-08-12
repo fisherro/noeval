@@ -111,7 +111,7 @@ struct environment {
 // Custom exception class with context
 class evaluation_error: public std::runtime_error {
 public:
-    std::string original_message;
+    std::string message;
     std::string context;
     std::string stack_trace;
     
@@ -120,7 +120,7 @@ public:
         const std::string& ctx = "",
         const std::string& stack = "")
         : std::runtime_error(format_message(msg, ctx, stack)),
-          original_message(msg),
+          message(msg),
           context(ctx),
           stack_trace(stack) {}
 

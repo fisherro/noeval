@@ -220,6 +220,20 @@ std::vector<value_ptr> list_to_vector(value_ptr list)
     return result;
 }
 
+// Helper to construct a Noeval list from C++ values
+value_ptr make_list(std::initializer_list<value_ptr> elements)
+{
+    value_ptr result = std::make_shared<value>(nullptr); // Start with nil
+    
+    // Build list backwards
+    for (auto it = elements.end(); it != elements.begin(); ) {
+        --it;
+        result = std::make_shared<value>(cons_cell{*it, result});
+    }
+    
+    return result;
+}
+
 // Extract parameter list from a list value
 param_pattern extract_param_pattern(value_ptr params)
 {
@@ -253,6 +267,36 @@ param_pattern extract_param_pattern(value_ptr params)
 value_ptr operate_operative(const operative& op, value_ptr operands, env_ptr env);
 value_ptr operate_builtin(const builtin_operative& op, value_ptr operands, env_ptr env);
 
+struct call_stack {
+private:
+    inline static thread_local std::vector<std::string> stack;
+public:
+    struct guard {
+        guard(value_ptr expr)
+        {
+            stack.push_back(value_to_string(expr));
+        }
+        ~guard()
+        {
+            if (!stack.empty()) {
+                stack.pop_back();
+            }
+        }
+    };
+
+    static std::string format()
+    {
+        std::string result;
+        for (const auto& [index, line] : stack | std::views::enumerate) {
+            result += std::format("{}: {}\n", index, line);
+        }
+        return result;
+    }
+
+    static size_t depth() { return stack.size(); }
+    static std::string indent() { return std::string(depth() * 2, ' '); }
+};
+
 // Built-in operatives
 namespace builtins {
 
@@ -264,7 +308,8 @@ namespace builtins {
                 std::format("(vau {} {} {})", 
                     args.size() > 0 ? expr_context(args[0]) : "?",
                     args.size() > 1 ? expr_context(args[1]) : "?",
-                    args.size() > 2 ? expr_context(args[2]) : "?")
+                    args.size() > 2 ? expr_context(args[2]) : "?"),
+                call_stack::format()
             );
         }
         
@@ -285,7 +330,8 @@ namespace builtins {
                     throw evaluation_error(
                         "vau: environment parameter must be a symbol",
                         std::format("(vau {} {} {})", expr_context(params_expr), 
-                                expr_context(env_param_expr), expr_context(body_expr))
+                                expr_context(env_param_expr), expr_context(body_expr)),
+                        call_stack::format()
                     );
                 }
                 env_param_name = std::get<symbol>(env_param_expr->data).name;
@@ -304,7 +350,8 @@ namespace builtins {
             throw evaluation_error(
                 std::format("vau: {}", e.what()),
                 std::format("(vau {} {} {})", expr_context(params_expr), 
-                           expr_context(env_param_expr), expr_context(body_expr))
+                           expr_context(env_param_expr), expr_context(body_expr)),
+                call_stack::format()
             );
         }
     }
@@ -317,7 +364,8 @@ namespace builtins {
                 std::format("eval: expected 2 arguments (expr env), got {}", args.size()),
                 args.empty() ? "(eval)" : 
                 args.size() == 1 ? std::format("(eval {})", expr_context(args[0])) :
-                std::format("(eval {} {} ...)", expr_context(args[0]), expr_context(args[1]))
+                std::format("(eval {} {} ...)", expr_context(args[0]), expr_context(args[1])),
+                call_stack::format()
             );
         }
     }
@@ -350,7 +398,8 @@ namespace builtins {
             throw evaluation_error(
                 std::format("eval: second argument must evaluate to an environment, got {}",
                         value_to_string(env_val)),
-                std::format("(eval {} {})", expr_context(args[0]), expr_context(args[1]))
+                std::format("(eval {} {})", expr_context(args[0]), expr_context(args[1])),
+                call_stack::format()
             );
         }
         
@@ -388,7 +437,8 @@ namespace builtins {
         } catch (const std::exception& e) {
             throw evaluation_error(
                 std::format("eval: {}", e.what()),
-                std::format("(eval {} {})", expr_context(args[0]), expr_context(args[1]))
+                std::format("(eval {} {})", expr_context(args[0]), expr_context(args[1])),
+                call_stack::format()
             );
         }
     }
@@ -401,7 +451,8 @@ namespace builtins {
                 std::format("define: expected 2 arguments (symbol value), got {}", args.size()),
                 args.empty() ? "(define)" :
                 args.size() == 1 ? std::format("(define {})", expr_context(args[0])) :
-                std::format("(define {} {} ...)", expr_context(args[0]), expr_context(args[1]))
+                std::format("(define {} {} ...)", expr_context(args[0]), expr_context(args[1])),
+                call_stack::format()
             );
         }
         
@@ -411,7 +462,8 @@ namespace builtins {
         if (!std::holds_alternative<symbol>(sym_expr->data)) {
             throw evaluation_error(
                 std::format("define: first argument must be a symbol, got {}", expr_context(sym_expr)),
-                std::format("(define {} {})", expr_context(sym_expr), expr_context(val_expr))
+                std::format("(define {} {})", expr_context(sym_expr), expr_context(val_expr)),
+                call_stack::format()
             );
         }
         
@@ -426,7 +478,8 @@ namespace builtins {
         } catch (const std::exception& e) {
             throw evaluation_error(
                 std::format("define: {}", e.what()),
-                std::format("(define {} {})", expr_context(sym_expr), expr_context(val_expr))
+                std::format("(define {} {})", expr_context(sym_expr), expr_context(val_expr)),
+                call_stack::format()
             );
         }
     }
@@ -438,7 +491,8 @@ namespace builtins {
             throw evaluation_error(
                 std::format("{}: argument must be an integer, got {}", 
                            op_name, value_to_string(val)),
-                std::format("... {} ...", expr_context(original_arg))
+                std::format("... {} ...", expr_context(original_arg)),
+                call_stack::format()
             );
         }
         return std::get<int>(val->data);
@@ -452,7 +506,8 @@ namespace builtins {
             throw evaluation_error(
                 std::format("{}: argument must be an integer, got {}", 
                            op_name, value_to_string(first_val)),
-                std::format("({} {} ...)", op_name, expr_context(first_arg))
+                std::format("({} {} ...)", op_name, expr_context(first_arg)),
+                call_stack::format()
             );
         }
         return std::get<int>(first_val->data);
@@ -475,7 +530,8 @@ namespace builtins {
             if (args.empty()) {
                 throw evaluation_error(
                     std::format("{}: requires at least one argument", op_name),
-                    std::format("({})", op_name)
+                    std::format("({})", op_name),
+                    call_stack::format()
                 );
             }
             
@@ -497,7 +553,8 @@ namespace builtins {
             } catch (const std::exception& e) {
                 throw evaluation_error(
                     std::format("{}: {}", op_name, e.what()),
-                    build_arithmetic_context(op_name, args)
+                    build_arithmetic_context(op_name, args),
+                    call_stack::format()
                 );
             }
         };
@@ -511,7 +568,8 @@ namespace builtins {
                 std::format("cons: expected 2 arguments (first rest), got {}", args.size()),
                 args.empty() ? "(cons)" : 
                 args.size() == 1 ? std::format("(cons {})", expr_context(args[0])) :
-                std::format("(cons {} {} ...)", expr_context(args[0]), expr_context(args[1]))
+                std::format("(cons {} {} ...)", expr_context(args[0]), expr_context(args[1])),
+                call_stack::format()
             );
         }
         
@@ -527,7 +585,8 @@ namespace builtins {
         if (args.size() != 1) {
             throw evaluation_error(
                 std::format("first: expected 1 argument, got {}", args.size()),
-                args.empty() ? "(first)" : std::format("(first {} ...)", expr_context(args[0]))
+                args.empty() ? "(first)" : std::format("(first {} ...)", expr_context(args[0])),
+                call_stack::format()
             );
         }
         
@@ -541,7 +600,8 @@ namespace builtins {
         if (args.size() != 1) {
             throw evaluation_error(
                 std::format("rest: expected 1 argument, got {}", args.size()),
-                args.empty() ? "(rest)" : std::format("(rest {} ...)", expr_context(args[0]))
+                args.empty() ? "(rest)" : std::format("(rest {} ...)", expr_context(args[0])),
+                call_stack::format()
             );
         }
         
@@ -583,7 +643,8 @@ namespace builtins {
         if (args.size() != 1) {
             throw evaluation_error(
                 std::format("nil?: expected 1 argument, got {}", args.size()),
-                args.empty() ? "(nil?)" : std::format("(nil? {} ...)", expr_context(args[0]))
+                args.empty() ? "(nil?)" : std::format("(nil? {} ...)", expr_context(args[0])),
+                call_stack::format()
             );
         }
         
@@ -596,7 +657,8 @@ namespace builtins {
         if (args.size() != 2) {
             throw evaluation_error(
                 std::format("invoke: expected 2 arguments (operative arg-list), got {}", args.size()),
-                "invoke"
+                "invoke",
+                call_stack::format()
             );
         }
 
@@ -641,7 +703,8 @@ namespace builtins {
             
             throw evaluation_error(
                 std::format("do: {}", e.what()),
-                context
+                context,
+                call_stack::format()
             );
         }
     }
@@ -656,7 +719,8 @@ namespace builtins {
                 std::format("=: expected 2 arguments, got {}", args.size()),
                 args.empty() ? "(=)" : 
                 args.size() == 1 ? std::format("(= {})", expr_context(args[0])) :
-                std::format("(= {} {} ...)", expr_context(args[0]), expr_context(args[1]))
+                std::format("(= {} {} ...)", expr_context(args[0]), expr_context(args[1])),
+                call_stack::format()
             );
         }
 
@@ -692,7 +756,8 @@ namespace builtins {
         if (args.size() != 1) {
             throw evaluation_error(
                 std::format("write: expected 1 argument, got {}", args.size()),
-                args.empty() ? "(write)" : std::format("(write {} ...)", expr_context(args[0]))
+                args.empty() ? "(write)" : std::format("(write {} ...)", expr_context(args[0])),
+                call_stack::format()
             );
         }
         
@@ -705,7 +770,8 @@ namespace builtins {
         } catch (const std::exception& e) {
             throw evaluation_error(
                 std::format("write: {}", e.what()),
-                std::format("(write {})", expr_context(args[0]))
+                std::format("(write {})", expr_context(args[0])),
+                call_stack::format()
             );
         }
     }
@@ -715,7 +781,8 @@ namespace builtins {
         if (args.size() != 1) {
             throw evaluation_error(
                 std::format("display: expected 1 argument, got {}", args.size()),
-                args.empty() ? "(display)" : std::format("(display {} ...)", expr_context(args[0]))
+                args.empty() ? "(display)" : std::format("(display {} ...)", expr_context(args[0])),
+                call_stack::format()
             );
         }
         
@@ -736,7 +803,8 @@ namespace builtins {
         } catch (const std::exception& e) {
             throw evaluation_error(
                 std::format("display: {}", e.what()),
-                std::format("(display {})", expr_context(args[0]))
+                std::format("(display {})", expr_context(args[0])),
+                call_stack::format()
             );
         }
     }
@@ -746,7 +814,8 @@ namespace builtins {
         if (args.size() != 2) {
             throw evaluation_error(
                 std::format("define-mutable: expected 2 arguments (symbol value), got {}", args.size()),
-                "define-mutable"
+                "define-mutable",
+                call_stack::format()
             );
         }
         
@@ -756,7 +825,8 @@ namespace builtins {
         if (!std::holds_alternative<symbol>(sym_expr->data)) {
             throw evaluation_error(
                 "define-mutable: first argument must be a symbol",
-                std::format("(define-mutable {} {})", expr_context(sym_expr), expr_context(val_expr))
+                std::format("(define-mutable {} {})", expr_context(sym_expr), expr_context(val_expr)),
+                call_stack::format()
             );
         }
         
@@ -773,7 +843,8 @@ namespace builtins {
         } catch (const std::exception& e) {
             throw evaluation_error(
                 std::format("define-mutable: {}", e.what()),
-                std::format("(define-mutable {} {})", expr_context(sym_expr), expr_context(val_expr))
+                std::format("(define-mutable {} {})", expr_context(sym_expr), expr_context(val_expr)),
+                call_stack::format()
             );
         }
     }
@@ -783,7 +854,8 @@ namespace builtins {
         if (args.size() != 2) {
             throw evaluation_error(
                 std::format("set!: expected 2 arguments (symbol value), got {}", args.size()),
-                "set!"
+                "set!",
+                call_stack::format()
             );
         }
         
@@ -793,7 +865,8 @@ namespace builtins {
         if (!std::holds_alternative<symbol>(sym_expr->data)) {
             throw evaluation_error(
                 "set!: first argument must be a symbol",
-                std::format("(set! {} {})", expr_context(sym_expr), expr_context(val_expr))
+                std::format("(set! {} {})", expr_context(sym_expr), expr_context(val_expr)),
+                call_stack::format()
             );
         }
         
@@ -808,7 +881,8 @@ namespace builtins {
             if (!std::holds_alternative<mutable_binding>(current_binding->data)) {
                 throw evaluation_error(
                     std::format("set!: variable '{}' is not mutable (use define-mutable)", sym_name),
-                    std::format("(set! {} {})", expr_context(sym_expr), expr_context(val_expr))
+                    std::format("(set! {} {})", expr_context(sym_expr), expr_context(val_expr)),
+                    call_stack::format()
                 );
             }
             
@@ -821,7 +895,8 @@ namespace builtins {
         } catch (const std::exception& e) {
             throw evaluation_error(
                 std::format("set!: {}", e.what()),
-                std::format("(set! {} {})", expr_context(sym_expr), expr_context(val_expr))
+                std::format("(set! {} {})", expr_context(sym_expr), expr_context(val_expr)),
+                call_stack::format()
             );
         }
     }
@@ -831,7 +906,8 @@ namespace builtins {
         if (args.size() != 2) {
             throw evaluation_error(
                 std::format("try: expected 2 arguments (expr handler), got {}", args.size()),
-                "try"
+                "try",
+                call_stack::format()
             );
         }
 
@@ -842,56 +918,38 @@ namespace builtins {
         try {
             return eval(try_expr, env);
         } catch (const evaluation_error& e) {
-            auto error_sym = std::make_shared<value>(symbol{"error"});
-            auto msg_val = std::make_shared<value>(e.original_message);
-            auto ctx_val = std::make_shared<value>(e.context);
-            
-            auto error_list = std::make_shared<value>(cons_cell{
-                error_sym,
-                std::make_shared<value>(cons_cell{
-                    msg_val,
-                    std::make_shared<value>(cons_cell{
-                        ctx_val,
-                        std::make_shared<value>(nullptr)
-                    })
-                })
+            error_val = make_list({
+                std::make_shared<value>(symbol{"error"}),
+                std::make_shared<value>(e.message),
+                std::make_shared<value>(e.context),
+                std::make_shared<value>(e.stack_trace)
             });
-
-            error_val = error_list;
         } catch (const std::exception& e) {
-            //TODO: Refactor after testing
-            auto error_sym = std::make_shared<value>(symbol{"error"});
-            auto msg_val = std::make_shared<value>(e.what());
-            auto ctx_val = std::make_shared<value>(nullptr);
-
-            error_val = std::make_shared<value>(cons_cell{
-                error_sym,
-                std::make_shared<value>(cons_cell{
-                    msg_val,
-                    std::make_shared<value>(cons_cell{
-                        ctx_val,
-                        std::make_shared<value>(nullptr)
-                    })
-                })
+            error_val = make_list({
+                std::make_shared<value>(symbol{"error"}),
+                std::make_shared<value>(e.what()),
+                std::make_shared<value>(std::string{}),  // context
+                std::make_shared<value>(std::string{})   // stack trace
+            });
+        } catch (...) {
+            error_val = make_list({
+                std::make_shared<value>(symbol{"error"}),
+                std::make_shared<value>(std::string{"unknown error"}),
+                std::make_shared<value>(std::string{}),  // context
+                std::make_shared<value>(std::string{})   // stack trace
             });
         }
         // If we got to here, an exception was caught.
-        // We deal with it here to avoid a termination caused by throwing an
-        // exception while handling an exception.
+        // We deal with it here instead of in the catch blocks to avoid a
+        // termination caused by throwing an exception while handling an
+        // exception.
 
         // Evaluate handler with error as argument
-        auto quoted_error = std::make_shared<value>(cons_cell{
-            std::make_shared<value>(symbol{"q"}),  // quote
-            std::make_shared<value>(cons_cell{
-                error_val,
-                std::make_shared<value>(nullptr)
-            })
-        });
-        auto handler_call = std::make_shared<value>(cons_cell{
+        auto handler_call = make_list({
             handler_expr,
-            std::make_shared<value>(cons_cell{
-                quoted_error,  // Now it's quoted
-                std::make_shared<value>(nullptr)
+            make_list({
+                std::make_shared<value>(symbol{"q"}),
+                error_val
             })
         });
         return eval(handler_call, env);
@@ -1012,7 +1070,7 @@ value_ptr operate_operative(const operative& op, value_ptr operands, env_ptr env
     try {
         bind_parameters(op.params, operands, new_env);
     } catch (const evaluation_error& e) {
-        throw evaluation_error(e.what(), op.to_string());
+        throw evaluation_error(std::format("{} {}", op.to_string(), e.what()), e.context, call_stack::format());
     }
 
     // Bind environment parameter
@@ -1059,7 +1117,7 @@ value_ptr eval_symbol(const symbol& sym, env_ptr env)
         
         return binding;
     } catch (const std::exception& e) {
-        throw evaluation_error(e.what(), sym.name);
+        throw evaluation_error(e.what(), sym.name, call_stack::format());
     }
 }
 #else
@@ -1069,7 +1127,7 @@ value_ptr eval_symbol(const symbol& sym, env_ptr env)
     try {
         return env->lookup(sym.name);
     } catch (const std::exception& e) {
-        throw evaluation_error(e.what(), sym.name);
+        throw evaluation_error(e.what(), sym.name, call_stack::format());
     }
 }
 #endif
@@ -1080,7 +1138,7 @@ value_ptr eval_operation(const cons_cell& cell, env_ptr env)
     auto expr = std::make_shared<value>(cell);
     
     if (is_nil(expr)) {
-        throw evaluation_error("Cannot evaluate empty list", "()");
+        throw evaluation_error("Cannot evaluate empty list", "()", call_stack::format());
     }
     
     auto operator_expr = car(expr);
@@ -1109,39 +1167,10 @@ value_ptr eval_operation(const cons_cell& cell, env_ptr env)
 
     throw evaluation_error(
         std::format("Not an operative: {}", value_to_string(op)),
-        expr_context(expr)
+        expr_context(expr),
+        call_stack::format()
     );
 }
-
-struct call_stack {
-private:
-    inline static thread_local std::vector<std::string> stack;
-public:
-    struct guard {
-        guard(value_ptr expr)
-        {
-            stack.push_back(value_to_string(expr));
-        }
-        ~guard()
-        {
-            if (!stack.empty()) {
-                stack.pop_back();
-            }
-        }
-    };
-
-    static std::string format()
-    {
-        std::string result;
-        for (const auto& [index, line] : stack | std::views::enumerate) {
-            result += std::format("{}: {}\n", index, line);
-        }
-        return result;
-    }
-
-    static size_t depth() { return stack.size(); }
-    static std::string indent() { return std::string(depth() * 2, ' '); }
-};
 
 value_ptr eval(value_ptr expr, env_ptr env)
 {
@@ -1166,7 +1195,8 @@ value_ptr eval(value_ptr expr, env_ptr env)
             } else {
                 throw evaluation_error(
                     std::format("Cannot evaluate {}", demangle<T>()),
-                    expr_context(expr)
+                    expr_context(expr),
+                    call_stack::format()
                 );
             }
         }, expr->data);
