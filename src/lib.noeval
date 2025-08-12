@@ -39,16 +39,9 @@
 ; A convenience function.
 ; Since we use Church Booleans, you can essentially just remove the if.
 ; (if (nil? lyst) 0 1) -> ((nil? lyst) 0 1)
+; Which is what this implementation does.
 ; Candidate for being replaced by a macro in the future.
-(define if
-  (vau (test consequent alternate) env
-    (do 
-      (define selector (eval test env))
-      ; Pass the actual operative values, not variables
-      (invoke (selector 
-                (vau () _ (eval consequent env))
-                (vau () _ (eval alternate env))) 
-              ()))))
+(define if (vau operands env (eval operands env)))
 
 ; Construct a list from the arguments without evaluating them
 (define unevaluated-list (vau args env args))
