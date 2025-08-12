@@ -901,6 +901,8 @@ namespace builtins {
         }
     }
 
+    // This is a stop-gap measure. I plan to revisit error handling in the
+    // future, but I need something quick and dirty for now.
     value_ptr try_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 2) {
