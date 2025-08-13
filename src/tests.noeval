@@ -10,18 +10,46 @@
   (vau (condition message) env
     (do
       (set! test-count (+ test-count 1))
-      (if (eval condition env)
-          (do
-            (display "✓ ")
-            (display message)
-            (display "\n")
-            "PASS")
-          (do
-            (set! test-failures (+ test-failures 1))
-            (display "\e[31m✗ ")
-            (display message)
-            (display "\e[0m\n")
-            message)))))
+      (try
+        (if (eval condition env)
+            (do
+              (display "✓ ")
+              (display message)
+              (display "\n")
+              "PASS")
+            (do
+              (set! test-failures (+ test-failures 1))
+              (display "\e[31m✗ ")
+              (display message)
+              (display "\e[0m\n")
+              message))
+        (lambda* (error)
+          (set! test-failures (+ test-failures 1))
+          (display "\e[31m✗ ")
+          (display message)
+          (display "\n\t")
+          (display error)
+          (display "\e[0m\n"))))))
+
+(define test-error
+  (vau (expr message) env
+    (do
+      (define-mutable thrown 0)
+      (try
+        (eval expr env)
+        (lambda (e) (set! thrown 1)))
+      (if (= 1 thrown)
+        (do
+          (display "✓ ")
+          (display message)
+          (display "\n")
+          "PASS")
+        (do
+          (set! test-failures (+ test-failures 1))
+          (display "\e[31m✗ ")
+          (display message)
+          (display "\e[0m\n")
+          message)))))
 
 ; Helper operative to create unevaluated expressions for testing
 (define make-expr
@@ -1112,6 +1140,200 @@
   "and should handle many true arguments")
 (test-assert (not (and true true false true true))
   "and should handle false anywhere in many arguments")
+
+;------------------------------------------------------------------------------
+; Error condition tests (now that we have try/test-error)
+
+; Test arithmetic errors
+(test-error (+ 1 "hello") "arithmetic operations should reject non-numeric arguments")
+(test-error (- "world" 5) "subtraction should reject string arguments")
+(test-error (* true 3) "multiplication should reject boolean arguments")
+(test-error (/ 10 "two") "division should reject non-numeric arguments")
+
+; Test list operation errors  
+(test-error (first 42) "first should reject non-list arguments")
+(test-error (rest "hello") "rest should reject non-list arguments")
+(test-error (cons) "cons should require exactly 2 arguments")
+(test-error (cons 1) "cons should require exactly 2 arguments") 
+(test-error (cons 1 2 3) "cons should require exactly 2 arguments")
+
+; Test undefined variable errors
+(test-error undefined-variable-name "accessing undefined variables should throw")
+(test-error (+ undefined-var 5) "undefined variables in expressions should throw")
+
+; Test eval errors
+(test-error (eval) "eval should require exactly 2 arguments")
+(test-error (eval 42) "eval should require exactly 2 arguments")
+(test-error (eval 1 2 3) "eval should require exactly 2 arguments")
+(test-error (eval 42 "not-env") "eval should reject non-environment second argument")
+
+; Test vau parameter errors
+(test-error (vau) "vau should require exactly 3 arguments")
+(test-error (vau (x)) "vau should require exactly 3 arguments")
+(test-error (vau (x) env) "vau should require exactly 3 arguments")
+(test-error (vau "not-list" env body) "vau should reject non-list parameter list")
+(test-error (vau (123) env body) "vau should reject non-symbol parameters")
+
+; Test define errors
+(test-error (define) "define should require exactly 2 arguments")
+(test-error (define x) "define should require exactly 2 arguments")
+(test-error (define x 1 2) "define should require exactly 2 arguments")
+(test-error (define 123 "value") "define should reject non-symbol names")
+(test-error (define "string" 42) "define should reject string names")
+
+; Test define-mutable errors
+(test-error (define-mutable) "define-mutable should require exactly 2 arguments")
+(test-error (define-mutable x) "define-mutable should require exactly 2 arguments") 
+(test-error (define-mutable 42 "value") "define-mutable should reject non-symbol names")
+
+; Test set! errors
+(test-error (set!) "set! should require exactly 2 arguments")
+(test-error (set! x) "set! should require exactly 2 arguments")
+(test-error (set! "string" 42) "set! should reject non-symbol names")
+(test-error (set! 123 "value") "set! should reject numeric names")
+
+; Test set! on immutable bindings
+(define immutable-var 42)
+(test-error (set! immutable-var 99) "set! should reject immutable bindings")
+
+; Test set! on undefined variables
+(test-error (set! completely-undefined 123) "set! should reject undefined variables")
+
+; Test wrap errors
+(test-error (wrap) "wrap should require exactly 1 argument")
+(test-error (wrap +  *) "wrap should require exactly 1 argument")
+#skip
+; I think we'd need to implement an operative? predicate to do this.
+(test-error (wrap 42) "wrap should reject non-operative arguments")
+(test-error (wrap "string") "wrap should reject non-operative arguments")
+#end
+
+; Test invoke errors  
+(test-error (invoke) "invoke should require at least 1 argument")
+(test-error (invoke 42 (list 1 2)) "invoke should reject non-operative first argument")
+(test-error (invoke + "not-list") "invoke should reject non-list second argument")
+
+; Test comparison operator edge cases
+(test-error (=) "= should require at least 2 arguments")
+(test-error (= 1) "= should require at least 2 arguments")
+
+; Test Church Boolean edge cases - operatives called as values
+(test-error (42 "true-branch" "false-branch") "integers are not operatives")
+(test-error ("hello" 1 2) "strings are not operatives")
+(test-error (() 1 2) "nil is not an operative")
+
+;------------------------------------------------------------------------------
+; Exception propagation tests
+
+; Test that exceptions propagate through nested calls
+(define error-thrower (lambda () (first 42)))
+(define error-wrapper (lambda () (error-thrower)))
+(test-error (error-wrapper) "exceptions should propagate through function calls")
+
+; Test exception in vau operative
+(define error-vau (vau (x) env (rest "invalid")))
+(test-error (error-vau dummy) "exceptions should propagate from vau operatives")
+
+; Test exception in wrapped operative
+(define error-op (vau (x) env (first x)))  ; Will fail if x is not a list
+(define wrapped-error (wrap error-op))
+(test-error (wrapped-error 42) "exceptions should propagate from wrapped operatives")
+
+; Test exception in lambda
+(define error-lambda (lambda (x) (+ x "invalid")))
+(test-error (error-lambda 5) "exceptions should propagate from lambda functions")
+
+; Test exception in higher-order function usage
+(define apply-func (lambda (f x) (f x)))
+(define bad-func (lambda (n) (/ n "zero")))
+(test-error (apply-func bad-func 10) "exceptions should propagate through higher-order functions")
+
+;------------------------------------------------------------------------------
+; Recovery tests using try
+
+; Test basic exception recovery
+(define-mutable recovery-test 0)
+(try (do (set! recovery-test 1)
+         (first "invalid"))
+     (lambda* (error)
+       (set! recovery-test 99)))
+(test-assert 
+  (= recovery-test 99)
+  "try should allow recovery from exceptions")
+
+; Test that try-block executes normally when no error
+(define-mutable normal-execution 0)
+(try (set! normal-execution 42)
+     (lambda* (error) (set! normal-execution -1)))
+(test-assert 
+  (= normal-execution 42)
+  "try should execute normally when no exception occurs")
+
+; Test exception information is passed to handler
+(define-mutable error-info "")
+(try (rest 123)
+     (lambda* (error)
+       (set! error-info (first (rest error)))))  ; Get error message
+(test-assert 
+  (not (= error-info ""))
+  "try should pass error information to handler")
+
+; Test nested try blocks
+(define-mutable nested-result 0)
+(try (try (first "outer-error")
+          (lambda* (e) (set! nested-result 1)))
+     (lambda* (e) (set! nested-result 2)))
+(test-assert 
+  (= nested-result 1)
+  "nested try blocks should work correctly")
+
+; Test try with finally clause
+(define-mutable finally-executed 0)
+(define-mutable try-result "")
+(define result (try "success-value"
+                    (lambda* (error) "error-value")
+                    (lambda* (value) 
+                      (set! finally-executed 1)
+                      (set! try-result value)
+                      value)))
+(test-assert 
+  (and (= finally-executed 1) (= try-result "success-value"))
+  "try with finally should execute finally clause on success")
+
+; Test try/finally with exception
+(define-mutable finally-on-error 0)
+(try (first 42)
+     (lambda* (error) "handled")
+     (lambda* (result) 
+       (set! finally-on-error 1)
+       result))
+(test-assert 
+  (= finally-on-error 1)
+  "try with finally should execute finally clause on error")
+
+;------------------------------------------------------------------------------
+; Environment isolation tests
+
+#skip
+; I'm not sure about this one.
+; We could have `try` introduce a new environment.
+; But maybe we should leave that up to the user.
+; (Especially once we've implemented let.)
+
+; Test that errors don't corrupt environment
+(define test-env-var 100)
+(try (do (define test-env-var 200)  ; This should fail...
+         (rest "invalid"))          ; ...before this error
+     (lambda* (error) "caught"))
+; The original binding should be preserved
+(test-assert 
+  (= test-env-var 100)
+  "exceptions should not corrupt environment bindings")
+#end
+
+; Test exception in environment parameter usage
+(define env-error-vau (vau (expr) env (eval expr "not-an-env")))
+(test-error (env-error-vau (+ 1 2)) "invalid environment usage should throw")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Show test results

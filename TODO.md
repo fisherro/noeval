@@ -11,8 +11,6 @@ Review code for conformance to the style guidelines
 
 ## Regular
 
-Integrate try into library tests
-
 map or foldl and other HOF
 
 append, length, reverse
