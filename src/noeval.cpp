@@ -983,6 +983,28 @@ namespace builtins {
         return result;
     }
 
+    value_ptr raise_operative(const std::vector<value_ptr>& args, env_ptr env)
+    {
+        if (args.size() != 1) {
+            throw evaluation_error(
+                std::format("raise: expected 1 argument (error-message), got {}", args.size()),
+                "raise",
+                call_stack::format()
+            );
+        }
+        
+        auto message_val = eval(args[0], env);
+        
+        std::string message;
+        if (std::holds_alternative<std::string>(message_val->data)) {
+            message = std::get<std::string>(message_val->data);
+        } else {
+            message = value_to_string(message_val);
+        }
+        
+        throw evaluation_error(message, "", call_stack::format());
+    }
+
 } // namespace builtins
 
 void add_church_boleans(env_ptr env)
@@ -1027,6 +1049,7 @@ env_ptr create_global_environment()
     define_builtin("define", builtins::define_operative);
     define_builtin("invoke", builtins::invoke_operative);
     define_builtin("try", builtins::try_operative);
+    define_builtin("raise", builtins::raise_operative);
 #define USE_PRIMITIVE_DO
 #ifdef USE_PRIMITIVE_DO
     define_builtin("do", builtins::do_operative);

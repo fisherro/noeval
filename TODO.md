@@ -18,7 +18,7 @@ test suite size down.
 
 Change equal_operative to use op== and/or use other type-specific customization point
 
-raising/throwing errors
+Tests for `raise`. Add error checking to library operatives.
 
 More (type) predicates
 
