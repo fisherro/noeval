@@ -10,6 +10,7 @@ LDLIBS := -lreadline
 SRCDIR := src
 BUILDDIR := build
 BINDIR := bin
+ASMDIR := asm
 
 # Target executable
 TARGET := $(BINDIR)/noeval
@@ -23,8 +24,18 @@ OBJECTS := $(SOURCES:$(SRCDIR)/%.cpp=$(BUILDDIR)/%.o)
 # Generate dependency file names
 DEPS := $(OBJECTS:.o=.d)
 
+# Generate assembly file names
+ASMFILES := $(SOURCES:$(SRCDIR)/%.cpp=$(ASMDIR)/%.s)
+
 # Default target
 all: $(TARGET)
+
+# Generate assembly files
+assembly: $(ASMFILES)
+
+# Generate assembly files from source
+$(ASMDIR)/%.s: $(SRCDIR)/%.cpp | $(ASMDIR)
+	$(CXX) $(CXXFLAGS) -S $< -o $@
 
 # Link target executable
 $(TARGET): $(OBJECTS) | $(BINDIR)
@@ -41,12 +52,15 @@ $(BUILDDIR):
 $(BINDIR):
 	mkdir -p $(BINDIR)
 
+$(ASMDIR):
+	mkdir -p $(ASMDIR)
+
 # Include dependency files (ignore if they don't exist)
 -include $(DEPS)
 
 # Clean build artifacts
 clean:
-	rm -rf $(BUILDDIR) $(BINDIR)
+	rm -rf $(BUILDDIR) $(BINDIR) $(ASMDIR)
 
 # Phony targets
-.PHONY: all clean
+.PHONY: all clean assembly
