@@ -179,6 +179,16 @@
 
 (define second (lambda (lyst) (first (rest lyst))))
 
+; foldl applies a binary function to the elements of a list from left to right
+; (foldl + 1 (list 2 3 4)) -> (+ (+ (+ 1 2) 3) 4)
+(define foldl
+  (lambda (func init lyst)
+    ((nil? lyst)
+     init
+     (foldl func
+            (func init (first lyst))
+            (rest lyst)))))
+
 ; foldr applies a binary function to the elements of a list from right to left
 ; foldr : (a -> b -> b) -> b -> [a] -> b
 ; Example: (foldr + (list 1 2 3) 0) => 6

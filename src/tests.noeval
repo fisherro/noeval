@@ -811,6 +811,121 @@
   "foldr should work with complex functions")
 
 ;------------------------------------------------------------------------------
+; foldl tests
+
+; Test 1: Basic foldl with addition
+(test-assert 
+  (= (foldl + 0 (list 1 2 3)) 6)
+  "foldl should sum list elements")
+
+; Test 2: Empty list should return init value
+(test-assert 
+  (= (foldl + 42 ()) 42)
+  "foldl with empty list should return init value")
+
+; Test 3: Single element list
+(test-assert 
+  (= (foldl + 0 (list 5)) 5)
+  "foldl with single element should work")
+
+; Test 4: foldl with multiplication
+(test-assert 
+  (= (foldl * 1 (list 2 3 4)) 24)
+  "foldl should multiply list elements")
+
+; Test 5: foldl with lambda function
+(define accumulate-subtract (lambda (acc x) (- acc x)))
+(test-assert 
+  (= (foldl accumulate-subtract 10 (list 1 2 3)) 4)
+  "foldl should work with lambda functions")
+
+; Test 6: foldl order matters (left associative)
+; (foldl - 0 (list 1 2 3)) = (- (- (- 0 1) 2) 3) = (- (- -1 2) 3) = (- -3 3) = -6
+(test-assert 
+  (= (foldl - 0 (list 1 2 3)) -6)
+  "foldl should be left-associative")
+
+; Test 7: Compare foldl vs foldr associativity
+; foldl: (- (- (- 0 1) 2) 3) = -6
+; foldr: (- 1 (- 2 (- 3 0))) = (- 1 (- 2 3)) = (- 1 -1) = 2
+(test-assert 
+  (not (= (foldl - 0 (list 1 2 3)) (foldr - (list 1 2 3) 0)))
+  "foldl and foldr should give different results for non-associative operations")
+
+; Test 8: foldl with wrapped operatives
+(define wrapped-mult (wrap *))
+(test-assert 
+  (= (foldl wrapped-mult 1 (list 2 3 4)) 24)
+  "foldl should work with wrapped operatives")
+
+; Test 9: foldl with different init values
+(test-assert 
+  (= (foldl + 10 (list 1 2 3)) 16)
+  "foldl should include init value in accumulation")
+
+; Test 10: foldl with complex functions
+(define double-and-add (lambda (acc x) (+ acc (* x 2))))
+(test-assert 
+  (= (foldl double-and-add 0 (list 1 2 3)) 12)
+  "foldl should work with complex functions")
+
+; Test 11: foldl building a reversed list (classic use case)
+(define reverse-via-foldl (lambda (lyst) (foldl (lambda (acc x) (cons x acc)) () lyst)))
+(define reversed (reverse-via-foldl (list 1 2 3)))
+(test-assert 
+  (= (first reversed) 3)
+  "foldl should build reversed list - first element")
+
+(test-assert 
+  (= (first (rest reversed)) 2)
+  "foldl should build reversed list - second element")
+
+(test-assert 
+  (= (first (rest (rest reversed))) 1)
+  "foldl should build reversed list - third element")
+
+; Test 12: foldl with string concatenation (if we had string concat)
+; Using display capture would be complex, so we'll test with numbers instead
+(define number-concat (lambda (acc x) (+ (* acc 10) x)))
+(test-assert 
+  (= (foldl number-concat 0 (list 1 2 3)) 123)
+  "foldl should work for accumulative concatenation-like operations")
+
+; Test 13: foldl with side effects
+(define-mutable foldl-side-effect 0)
+(define increment-and-add (lambda* (acc x) 
+  (set! foldl-side-effect (+ foldl-side-effect 1))
+  (+ acc x)))
+(test-assert 
+  (= (foldl increment-and-add 0 (list 10 20 30)) 60)
+  "foldl should work with side effects - result")
+
+(test-assert 
+  (= foldl-side-effect 3)
+  "foldl should work with side effects - side effect count")
+
+; Test 14: foldl parameter order consistency check
+; foldl takes (func init list) while foldr takes (func list init)
+; Let's verify the parameter order is correct
+(define test-func (lambda (acc elem) (cons elem acc)))
+(define foldl-result (foldl test-func () (list 1 2 3)))
+(test-assert 
+  (= (first foldl-result) 3)
+  "foldl parameter order should be (func init list)")
+
+; Test 15: foldl with nested function calls
+(define complex-accumulator 
+  (lambda (acc x) 
+    (+ acc (if (= (/ x 2) 1) (* x 2) x))))
+(test-assert 
+  (= (foldl complex-accumulator 0 (list 1 2 3))
+     (complex-accumulator (complex-accumulator (complex-accumulator 0 1) 2) 3))
+  "foldl should work with nested conditionals in accumulator")
+(test-assert 
+  (= (foldl complex-accumulator 0 (list 1 2 3)) 11)
+  "foldl should work with nested conditionals in accumulator")
+
+;------------------------------------------------------------------------------
 ; prepend tests (list* equivalent)
 
 ; Test 1: Basic prepend with single final argument

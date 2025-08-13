@@ -11,7 +11,7 @@ Review code for conformance to the style guidelines
 
 ## Regular
 
-map or foldl and other HOF
+map and other HOF
 
 append, length, reverse
 
