@@ -1349,7 +1349,7 @@ env_ptr reload_global_environment(bool run_tests)
         failures += run_library_tests(global_env);
         std::println("{}", std::string(60, '='));
         if (failures != 0) {
-            println_red("\n✗ {} test(s) failed in library tests!", failures);
+            println_red("\n✗ library tests failed!");
             return nullptr;
         }
         std::println("\n✓ All tests passed!");

@@ -11,13 +11,24 @@ primitives that they aren't?
 
 Review code for conformance to the style guidelines
 
+Look for redundant or unneeded library tests that we can remove to keep the
+test suite size down.
+
 ## Regular
 
-map and other HOF
+Change equal_operative to use op== and/or use other type-specific customization point
+
+raising/throwing errors
+
+More (type) predicates
+
+map*
 
 append, length, reverse
 
 filter
+
+Other HOF
 
 During `define`, attach the name to the value directly for debugging?
 Values can have a flat_set of names?
@@ -69,13 +80,6 @@ Support for lazy evaluation (We can do this in the library, right?)
 
 FFI and POSIX support
 
-Create let
-
-* Advantages of let over define...
-* Bindings only happen at the top of the let and cannot be rebound within the body
-  * We'd need to ensure that define can't rebind something bound with let
-* More functional...define does a mutation
-
 Look for places we can use string_view
 
 Consider whether to adopt Kernel's $ naming convention
@@ -96,8 +100,6 @@ Rewrite any uses of if into Church Boolean form in the library
 Do we need get-current-environment? Is it correct?
 
 `for-each*` that can handle *n*-ary procedures?
-
-Change equal_operative to use op== and/or use other type-specific customization point
 
 Move the testing infrastructure into the library?
 Or wait until we have modules and put it in a module?

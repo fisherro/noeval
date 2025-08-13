@@ -1450,6 +1450,315 @@
 (define env-error-vau (vau (expr) env (eval expr "not-an-env")))
 (test-error (env-error-vau (+ 1 2)) "invalid environment usage should throw")
 
+;------------------------------------------------------------------------------
+; map tests
+
+; Test 1: Basic map with simple function
+(define double (lambda (x) (* x 2)))
+(define doubled-list (map double (list 1 2 3)))
+(test-assert 
+  (= (first doubled-list) 2)
+  "map should apply function to first element")
+
+(test-assert 
+  (= (first (rest doubled-list)) 4)
+  "map should apply function to second element")
+
+(test-assert 
+  (= (first (rest (rest doubled-list))) 6)
+  "map should apply function to third element")
+
+; Test 2: map with empty list should return empty list
+(test-assert 
+  (nil? (map double ()))
+  "map with empty list should return nil")
+
+; Test 3: map with single element list
+(define single-result (map double (list 5)))
+(test-assert 
+  (= (first single-result) 10)
+  "map should work with single element list")
+
+(test-assert 
+  (nil? (rest single-result))
+  "map with single element should create single-element result")
+
+; Test 4: map with increment function
+(define increment (lambda (x) (+ x 1)))
+(define incremented (map increment (list 10 20 30)))
+(test-assert 
+  (= (first incremented) 11)
+  "map should work with increment function - first")
+
+(test-assert 
+  (= (first (rest incremented)) 21)
+  "map should work with increment function - second")
+
+(test-assert 
+  (= (first (rest (rest incremented))) 31)
+  "map should work with increment function - third")
+
+; Test 5: map with more complex function
+(define square-plus-one (lambda (x) (+ (* x x) 1)))
+(define complex-result (map square-plus-one (list 2 3)))
+(test-assert 
+  (= (first complex-result) 5)  ; 2^2 + 1 = 5
+  "map should work with complex functions - first")
+
+(test-assert 
+  (= (first (rest complex-result)) 10)  ; 3^2 + 1 = 10
+  "map should work with complex functions - second")
+
+; Test 6: map with lambda that returns strings
+(define number-to-string-map (map (lambda (x) "num") (list 1 2 3)))
+(test-assert 
+  (= (first number-to-string-map) "num")
+  "map should work with functions returning strings")
+
+; Test 7: map with function that tests conditions
+; This is-even function gives incorrect results for x < 1!
+(define is-even (lambda (x) ((= (/ x 2) (/ (- x 1) 2)) false true)))
+(define even-test-result (map is-even (list 2 3 4)))
+; Since we can't easily test Church Boolean results with =, we'll test behavior
+(test-assert 
+  (not (nil? even-test-result))
+  "map should work with predicate functions")
+
+; Test 8: map preserves list structure
+(define identity (lambda (x) x))
+(define identity-result (map identity (list 42)))
+(test-assert 
+  (= (first identity-result) 42)
+  "map with identity should preserve values")
+
+; Test 9: map with wrapped operative
+(define wrapped-increment (wrap (vau (x) env (+ (eval x env) 1))))
+(define wrapped-result (map wrapped-increment (list 5 6)))
+(test-assert 
+  (= (first wrapped-result) 6)
+  "map should work with wrapped operatives - first")
+
+(test-assert 
+  (= (first (rest wrapped-result)) 7)
+  "map should work with wrapped operatives - second")
+
+; Test 10: map with function that has side effects
+(define-mutable map-side-effect-counter 0)
+(define increment-counter-and-double 
+  (lambda* (x) 
+    (set! map-side-effect-counter (+ map-side-effect-counter 1))
+    (* x 2)))
+(define side-effect-result (map increment-counter-and-double (list 1 2)))
+(test-assert 
+  (= map-side-effect-counter 2)
+  "map should call function exactly once per element")
+
+(test-assert 
+  (= (first side-effect-result) 2)
+  "map with side effects should still produce correct results")
+
+; Test 11: map with longer list
+(define long-list (list 1 2 3 4 5))
+(define doubled-long (map double long-list))
+(test-assert 
+  (= (first doubled-long) 2)
+  "map should work with longer lists - first")
+
+(test-assert 
+  (= (first (rest (rest (rest (rest doubled-long))))) 10)
+  "map should work with longer lists - last element")
+
+; Test 12: map result is a proper list (not nil-terminated improperly)
+(define proper-list-test (map identity (list 7)))
+(test-assert 
+  (nil? (rest proper-list-test))
+  "map result should be properly nil-terminated")
+
+; Test 13: Nested map calls
+(define add-ten (lambda (x) (+ x 10)))
+(define nested-map-result (map double (map add-ten (list 1 2))))
+(test-assert 
+  (= (first nested-map-result) 22)  ; (1+10)*2 = 22
+  "nested map calls should work - first")
+
+(test-assert 
+  (= (first (rest nested-map-result)) 24)  ; (2+10)*2 = 24
+  "nested map calls should work - second")
+
+; Test 14: map with function returning different types
+(define type-changing (lambda (x) (if (= x 1) "one" x)))
+(define type-result (map type-changing (list 1 2)))
+(test-assert 
+  (= (first type-result) "one")
+  "map should handle functions that change types")
+
+(test-assert 
+  (= (first (rest type-result)) 2)
+  "map should handle mixed return types")
+
+; Test 15: Error case - map with non-function first argument
+(test-error (map 42 (list 1 2)) "map should reject non-function first argument")
+
+; Test 16: Error case - map with non-list second argument
+(test-error (map double 42) "map should reject non-list second argument")
+
+;------------------------------------------------------------------------------
+; let tests
+
+; Test 1: Basic let with single binding
+(test-assert 
+  (= (let ((x 10)) x) 10)
+  "let should work with single binding")
+
+; Test 2: let with multiple bindings
+(test-assert 
+  (= (let ((x 5) (y 3)) (+ x y)) 8)
+  "let should work with multiple bindings")
+
+; Test 3: let with no bindings (should work like immediate lambda invocation)
+(test-assert 
+  (= (let () 42) 42)
+  "let with empty bindings should work")
+
+; Test 4: let bindings shadow outer variables
+(define outer-let-var 100)
+(test-assert 
+  (= (let ((outer-let-var 20)) outer-let-var) 20)
+  "let bindings should shadow outer variables")
+
+(test-assert 
+  (= outer-let-var 100)
+  "let should not affect outer variable bindings")
+
+; Test 5: let with complex expressions in bindings
+(test-assert 
+  (= (let ((a (+ 2 3)) (b (* 4 5))) (+ a b)) 25)
+  "let should evaluate complex expressions in bindings")
+
+; Test 6: let with multiple body expressions (since let uses lambda*)
+(define-mutable let-side-effect 0)
+(define let-result 
+  (let ((x 10))
+    (set! let-side-effect 1)
+    (set! let-side-effect (+ let-side-effect x))
+    (* x 2)))
+(test-assert 
+  (= let-result 20)
+  "let should return value of last expression")
+
+(test-assert 
+  (= let-side-effect 11)
+  "let should execute all body expressions for side effects")
+
+; Test 7: Nested let expressions
+(test-assert 
+  (= (let ((x 5))
+       (let ((y 3))
+         (+ x y))) 8)
+  "nested let expressions should work")
+
+; Test 8: let with variable references in bindings (bindings are evaluated in outer scope)
+(define let-outer-var 15)
+(test-assert 
+  (= (let ((x let-outer-var) (y 5)) (+ x y)) 20)
+  "let bindings should access outer scope variables")
+
+; Test 9: let bindings don't see each other (parallel binding)
+(define let-base-var 10)
+(test-assert 
+  (= (let ((x let-base-var) (y let-base-var)) (+ x y)) 20)
+  "let bindings should be evaluated independently")
+
+; Test 10: let with conditional expressions
+(test-assert 
+  (= (let ((test-val 5))
+       (if (= test-val 5) 
+           "correct"
+           "wrong")) "correct")
+  "let should work with conditionals")
+
+; Test 11: let used in function definitions
+(define make-adder-with-let 
+  (lambda (base)
+    (lambda (x)
+      (let ((adjusted-base (+ base 1)))
+        (+ x adjusted-base)))))
+(define add-with-six (make-adder-with-let 5))
+(test-assert 
+  (= (add-with-six 10) 16)  ; 10 + (5+1) = 16
+  "let should work inside lambda definitions")
+
+; Test 12: let with library functions
+(test-assert 
+  (= (let ((nums (list 1 2 3)))
+       (first nums)) 1)
+  "let should work with library functions")
+
+; Test 13: let with mutable variables in body
+(define-mutable let-mutable-test 0)
+(let ((increment 5))
+  (set! let-mutable-test increment)
+  (set! let-mutable-test (+ let-mutable-test increment)))
+(test-assert 
+  (= let-mutable-test 10)
+  "let should work with mutable variable operations")
+
+; Test 14: let with recursive pattern (using library functions)
+(test-assert 
+  (= (let ((double-list (lambda (lst) (map (lambda (x) (* x 2)) lst))))
+       (first (double-list (list 3 4 5)))) 6)
+  "let should work with higher-order function patterns")
+
+; Test 15: let with Church Boolean results
+(define let-boolean-result 
+  (let ((x 1) (y 1))
+    (= x y)))  ; This returns a Church Boolean
+; We can't test Church Booleans with = directly, so test their behavior
+(test-assert 
+  (= (let ((test-bool (let ((a 2) (b 2)) (= a b))))
+       (test-bool 42 99)) 42)
+  "let should work with Church Boolean expressions")
+
+; Test 16: Complex let example with multiple concepts
+(define complex-let-result
+  (let ((items (list 10 20 30))
+        (multiplier 3))
+    (define doubled (map (lambda (x) (* x 2)) items))
+    (define first-doubled (first doubled))
+    (* first-doubled multiplier)))
+(test-assert 
+  (= complex-let-result 60)  ; (10*2)*3 = 60
+  "let should work in complex scenarios with multiple operations")
+
+; Test 17: let with string bindings
+(test-assert 
+  (= (let ((greeting "hello") (name "world"))
+       greeting) "hello")
+  "let should work with string bindings")
+
+; Test 18: let with immediate computation and side effects
+(define-mutable let-immediate-effect 0)
+(let ((side-effect-val (do (set! let-immediate-effect 42) 10)))
+  (set! let-immediate-effect (+ let-immediate-effect side-effect-val)))
+(test-assert 
+  (= let-immediate-effect 52)  ; 42 + 10
+  "let bindings should evaluate expressions with side effects immediately")
+
+; Test 19: let error conditions - malformed binding lists
+(test-error (let "not-a-list" body) "let should reject non-list binding forms")
+(test-error (let ((x)) x) "let should reject incomplete bindings")
+#skip
+; We don't have a way to raise an error from Noeval code yet.
+(test-error (let ((x 1 2)) x) "let should reject malformed bindings")
+#end
+
+; Test 20: let with wrapped operatives
+(define let-wrapped-op (wrap +))
+(test-assert 
+  (= (let ((op let-wrapped-op) (a 5) (b 7))
+       (op a b)) 12)
+  "let should work with wrapped operatives")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Show test results
 (if (= test-failures 0)

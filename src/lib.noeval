@@ -273,3 +273,32 @@
     (do
       (define val (eval operand env))
       (val false true))))
+
+(define map
+  (lambda (proc lyst)
+    ((nil? lyst)
+     ()
+     (cons (proc (first lyst))
+           (map proc (rest lyst))))))
+
+#skip
+; Example let transformation:
+(let ((x 10)
+      (y 2))
+  (displayln (* x y))
+  (displayln (/ x y)))
+; becomes
+((lambda* (x y)
+   (displayln (* x y))
+   (displayln (/ x y)))
+ 10 2)
+#end
+
+(define let
+  (vau* operands dyn-env
+    (define bindings (first operands))
+    (eval (cons (prepend lambda*
+                         (map first bindings)
+                         (rest operands))
+                (map second bindings))
+          dyn-env)))
