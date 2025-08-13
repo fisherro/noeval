@@ -234,6 +234,14 @@ value_ptr make_list(std::initializer_list<value_ptr> elements)
     return result;
 }
 
+value_ptr quote(value_ptr expr)
+{
+    return make_list({
+        std::make_shared<value>(symbol{"q"}),
+        expr
+    });
+}
+
 // Extract parameter list from a list value
 param_pattern extract_param_pattern(value_ptr params)
 {
@@ -901,13 +909,22 @@ namespace builtins {
         }
     }
 
+    // Either: (try try-expr handler-operative)
+    //     or: (try try-expr handler-operative finally-operative)
+    //
+    // The handler-operative must have one parameter: The error.
+    // The finally-operative must have one parameter: The try-expr result.
+    //
+    // I'm not convinced finally is particularly useful in this language.
+    // But we'll see.
+    //
     // This is a stop-gap measure. I plan to revisit error handling in the
     // future, but I need something quick and dirty for now.
     value_ptr try_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (args.size() != 2) {
+        if ((args.size() < 2) or (args.size() > 3)) {
             throw evaluation_error(
-                std::format("try: expected 2 arguments (expr handler), got {}", args.size()),
+                std::format("try: expected 2 arguments (expr handler) or 3 (expr handler finally), got {}", args.size()),
                 "try",
                 call_stack::format()
             );
@@ -916,9 +933,10 @@ namespace builtins {
         auto try_expr = args[0];
         auto handler_expr = args[1];
         value_ptr error_val;
+        value_ptr result;
 
         try {
-            return eval(try_expr, env);
+            result = eval(try_expr, env);
         } catch (const evaluation_error& e) {
             error_val = make_list({
                 std::make_shared<value>(symbol{"error"}),
@@ -941,20 +959,28 @@ namespace builtins {
                 std::make_shared<value>(std::string{})   // stack trace
             });
         }
-        // If we got to here, an exception was caught.
-        // We deal with it here instead of in the catch blocks to avoid a
-        // termination caused by throwing an exception while handling an
-        // exception.
 
-        // Evaluate handler with error as argument
-        auto handler_call = make_list({
-            handler_expr,
-            make_list({
-                std::make_shared<value>(symbol{"q"}),
-                error_val
-            })
-        });
-        return eval(handler_call, env);
+        if (error_val) {
+            // If we got to here, an exception was caught.
+            // We deal with it here instead of in the catch blocks to avoid a
+            // termination caused by throwing an exception while handling an
+            // exception.
+
+            // Evaluate handler with error as argument
+            auto handler_call = make_list({
+                handler_expr,
+                quote(error_val)
+            });
+            result = eval(handler_call, env);
+        }
+
+        if (3 == args.size()) {
+            auto finally_thunk = args[2];
+            auto finally_call = make_list({ finally_thunk, quote(result) });
+            result = eval(finally_call, env);
+        }
+
+        return result;
     }
 
 } // namespace builtins

@@ -11,6 +11,8 @@ Review code for conformance to the style guidelines
 
 ## Regular
 
+Integrate try into library tests
+
 map or foldl and other HOF
 
 append, length, reverse
@@ -35,9 +37,6 @@ Add expansion-time macros (see https://axisofeval.blogspot.com/2012/09/having-bo
 There's a lot of common code that could be refactored in the builtin operatives
 
 Pattern matching?
-
-Need to be able to catch errors in tests. Ideally that happens after we add
-continuations, but it may be important enough to do something temporary.
 
 "Numeric tower"...or at least support of bignums
 
@@ -95,10 +94,6 @@ non-boolean values
 Rewrite any uses of if into Church Boolean form in the library
 
 Do we need get-current-environment? Is it correct?
-
-Simplify `if`
-
-> `(if a b c)` is the same as `(a b c)`
 
 `for-each*` that can handle *n*-ary procedures?
 

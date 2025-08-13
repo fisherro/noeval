@@ -62,9 +62,10 @@ The interpreter uses a variant-based value system with these key types:
 - **Cuddled braces** for catches and else statements
 - **Function braces on new line** (but not for other constructs)  
 - **Space after keywords** (`if (`, `while (`) but not function calls (`func(`)
-- **Use logical keywords** (`and`, `or`, `not`) instead of operators (`&&`, `||`, `!`)
+- **Use logical keywords**: Prefer `and`, `or`, `not` over `&&`, `||`, `!` operators for better readability.
 - **Auto/abbreviated templates** preferred when type names aren't needed
 - **Colon spacing**: no space before, space after (conditionals, initializer lists)
+- **Constant first for equality checks**: Use `0 == x` instead of `x == 0` to prevent accidental assignment (`x = 0`). This safety pattern applies only to `==` and `!=` operators, not to ordering comparisons (`<`, `>`, `<=`, `>=`).
 
 ### Parser Features  
 - Comments use `;` to end of line

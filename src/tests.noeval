@@ -40,6 +40,47 @@
 #end
 
 ;------------------------------------------------------------------------------
+; Try tests
+
+(define-mutable try-happened 0)
+(define-mutable error-happened 0)
+(define-mutable finally-happened 0)
+
+(try (set! try-happened 1)
+     (lambda (e) (set! error-happened 1)))
+(test-assert (and (= 1 try-happened)
+                  (not (= 1 error-happened))
+                  (not (= 1 finally-happened)))
+             "try: if no error, error handler should not be evaluated")
+
+(try (do (set! try-happened 2)
+         (first 1))
+     (lambda (e) (set! error-happened 2)))
+(test-assert (and (= 2 try-happened)
+                  (= 2 error-happened)
+                  (not (= 2 finally-happened)))
+             "try: if error, error handler should be evaluated")
+
+(try (set! try-happened 3)
+     (lambda (e) (set! error-happened 3))
+     (lambda (r) (do (set! finally-happened 3)
+                     r)))
+(test-assert (and (= 3 try-happened)
+                  (not (= 3 error-happened))
+                  (= 3 finally-happened))
+             "try: if no error, error handler should not be evaluated; finally, should")
+
+(try (do (set! try-happened 4)
+         (first 1))
+     (lambda (e) (set! error-happened 4))
+     (lambda (r) (do (set! finally-happened 4)
+                     r)))
+(test-assert (and (= 4 try-happened)
+                  (= 4 error-happened)
+                  (= 4 finally-happened))
+             "try: if error, error and finally handlers should be evaluated")
+
+;------------------------------------------------------------------------------
 
 ; Test: Basic quoting
 (test-assert 
