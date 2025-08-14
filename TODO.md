@@ -32,8 +32,6 @@ During `define`, attach the name to the value directly for debugging?
 Values can have a flat_set of names?
 Include a (weak) reference to the environment?
 
-TCO
-
 First-class delimited continuations
 
 Add expansion-time macros (see [having-both-fexprs-and-macros.html](https://axisofeval.blogspot.com/2012/09/having-both-fexprs-and-macros.html) )
