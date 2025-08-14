@@ -486,15 +486,6 @@ namespace builtins {
         return target_env;
     }
 
-    // Helper function to perform final evaluation in target environment
-    value_ptr evaluate_in_target_environment(value_ptr evaluated_expr, env_ptr target_env)
-    {
-        NOEVAL_DEBUG(operative, "About to evaluate {} in target environment", 
-                  value_to_string(evaluated_expr));
-        
-        return eval(evaluated_expr, target_env);
-    }
-
     // Evaluates both arguments, then evaluates the result of evaluating the
     // first argument in the environment evaluated from the second argument.
     continuation_type eval_operative(const std::vector<value_ptr>& args, env_ptr env)
@@ -506,8 +497,13 @@ namespace builtins {
             
             auto target_env = extract_target_environment(env_val, args);
             
-            return evaluate_in_target_environment(evaluated_expr, target_env);
-            
+            NOEVAL_DEBUG(operative, "About to evaluate {} in target environment", 
+                    value_to_string(evaluated_expr));
+#ifdef USE_TAIL_CALL
+            return tail_call{evaluated_expr, target_env};
+#else
+            return eval(evaluated_expr, target_env);
+#endif
         } catch (const evaluation_error&) {
             throw; // Re-throw evaluation errors as-is
         } catch (const std::exception& e) {
