@@ -22,6 +22,8 @@
 #include "tests.hpp"
 #include "utils.hpp"
 
+#define USE_TAIL_CALL 1
+
 std::string to_string(int value) { return std::to_string(value); }
 
 std::string to_string(const std::string& value)
@@ -336,11 +338,13 @@ continuation_type operate_builtin(const builtin_operative& op, value_ptr operand
 struct call_stack {
 private:
     inline static thread_local std::vector<std::string> stack;
+    inline static thread_local size_t max_depth{0};
 public:
     struct guard {
         guard(value_ptr expr)
         {
             stack.push_back(value_to_string(expr));
+            if (depth() > max_depth) max_depth = depth();
         }
         ~guard()
         {
@@ -361,7 +365,13 @@ public:
 
     static size_t depth() { return stack.size(); }
     static std::string indent() { return std::string(depth() * 2, ' '); }
+
+    static void  reset_max_depth() { max_depth = 0; }
+    static size_t get_max_depth()  { return max_depth; }
 };
+
+void   call_stack_reset_max_depth() { call_stack::reset_max_depth(); }
+size_t call_stack_get_max_depth()   { return call_stack::get_max_depth(); }
 
 // Built-in operatives
 namespace builtins {
@@ -756,7 +766,11 @@ namespace builtins {
                 result = eval(expr, env);
             }
 
+#ifdef USE_TAIL_CALL
             return tail_call{args.back(), env};
+#else
+            return eval(args.back(), env);
+#endif
         } catch (const evaluation_error&) {
             throw; // Re-throw evaluation errors as-is
         } catch (const std::exception& e) {
@@ -1192,7 +1206,11 @@ continuation_type operate_operative(const operative& op, value_ptr operands, env
     }
 
     // Evaluate body in new environment
+#if USE_TAIL_CALL
+    return tail_call{op.body, new_env};
+#else
     return eval(op.body, new_env);
+#endif
 }
 
 continuation_type operate_builtin(const builtin_operative& op, value_ptr operands, env_ptr env)
@@ -1301,9 +1319,14 @@ value_ptr eval(value_ptr expr, env_ptr env)
             if (auto tc{std::get_if<tail_call>(&k)}) {
                 expr = tc->expr;
                 env = tc->env;
+#if 0
                 std::println(stderr, "***** TCO! *****");
+#endif
                 continue;
             }
+#if 0
+            std::println(stderr, "!!!!! No TCO !!!!!");
+#endif
             auto result{std::get<value_ptr>(k)};
             NOEVAL_DEBUG(eval, "{}[{}] Result: {}", 
                     call_stack::indent(),

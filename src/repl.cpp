@@ -378,7 +378,9 @@ void repl(env_ptr global_env)
         }
         
         try {
+            call_stack_reset_max_depth();
             auto result = eval_expression(input, global_env);
+            std::println("max stack depth: {}", call_stack_get_max_depth());
             print_result(result);
         }
         catch (const std::exception& e) {

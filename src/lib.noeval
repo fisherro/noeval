@@ -305,3 +305,20 @@
                          (rest operands))
                 (map second bindings))
           dyn-env)))
+
+(define countdown
+  (lambda (n)
+    ((= n 0)
+     ()
+     (do (displayln n)
+         (countdown (- n 1))))))
+
+(define factorial
+  (lambda* (n)
+    (define iter
+      (lambda (n acc)
+        ((= n 0)
+         acc
+         (iter (- n 1)
+               (* n acc)))))
+    (iter n 1)))

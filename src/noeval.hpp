@@ -185,3 +185,6 @@ std::string to_string(int value);
 std::string to_string(const std::string& value);
 std::string to_string(const env_ptr& env);
 std::string to_string(std::nullptr_t);
+
+void   call_stack_reset_max_depth();
+size_t call_stack_get_max_depth();
