@@ -116,7 +116,7 @@
                 (not (= x 2))))
   "= should return false for a mutable binding and a different value")
 
-; TODO: Lists
+; Test = with lists
 (test-assert (= () ())
   "(= () ()) should return true")
 
@@ -1136,8 +1136,6 @@
   (= (first (rest (rest manual-chain))) (first (rest (rest prepend-chain))))
   "prepend should be equivalent to manual cons chain - third")
 
-; The changes to = are breaking cond.
-; TODO: Fix these tests.
 ;------------------------------------------------------------------------------
 ; Cond tests
 
