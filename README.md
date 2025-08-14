@@ -43,19 +43,19 @@ arguments as a single list.
 It does not support the pair or improper list syntax for a combination of
 fixed parameters with a rest parameter.
 
-    (vau (param1 param2 . rest) env body)
-
-Several times, I almost changed...
-
-    (vau (operands) env body) -> (fexpr env (operands) body)
-
-...but always landed on keeping with convention.
+    (vau (param1 param2 . rest) env body) ; not supported
 
 In fact, the language does not fully support pairs or improper lists.
 (I expect at some point to try to move towards replacing lists with arrays.)
 
 Both `vau` and `lambda` (which is in the library) only support a single
 expression for the body.
+
+Several times, I almost changed...
+
+    (vau (operands) env body) -> (fexpr env (operands) body)
+
+...but always landed on keeping with convention.
 
 Noeval's `do` is the equivalent of CL `progn`, Scheme `begin`, and Kernel's
 `$sequence`.
@@ -73,13 +73,6 @@ usual print form of operatives.
 Because Noeval uses Church Booleans, other values do not represent truthiness
 or falsiness.
 
-This means that, at the REPL, true and false results look like this:
-
-    noeval> (nil? ())
-    => (operative (x y) env (eval x env))
-    noeval> (nil? (list 1 2 3))
-    => (operative (x y) env (eval y env))
-
 Unlike Kernel, all objects (or perhaps more precisely, all bindings) are
 immutable by default. The `define-mutable` form can be used to create a mutable
 binding, which can then be modified with the `set!` primitive.
@@ -95,4 +88,5 @@ however, will treat `()` as the environment parameter name the way Kernel
 treats `#ignore`.
 
 Currently the only equivalence predicate is `=`, which may be closest to
-Kernel's `equal?`. It only works for numbers, symbols, strings, and `()`.
+Kernel's `equal?`. It raises an error when comparing different types (with a
+few exceptions)

@@ -22,6 +22,7 @@ struct symbol {
     explicit symbol(std::convertible_to<std::string_view> auto&& n):
         name{std::forward<decltype(n)>(n)} {}
     std::string to_string() const { return name; }
+    bool operator==(const symbol& that) const { return name == that.name; }
 };
 
 struct cons_cell {
@@ -29,6 +30,7 @@ struct cons_cell {
     value_ptr cdr;
     cons_cell(value_ptr a, value_ptr d) : car(std::move(a)), cdr(std::move(d)) {}
     std::string to_string() const;
+    bool operator==(const cons_cell& that) const;
 };
 
 struct param_pattern {
@@ -50,6 +52,11 @@ struct operative {
           body(std::move(b)), closure_env(std::move(env)), tag(t) {}
 
     std::string to_string() const;
+    bool operator==(const operative& that) const
+    {
+        if ((not tag.empty()) and tag == that.tag) return true;
+        return false;
+    }
 };
 
 // Built-in operative type for primitives
@@ -60,6 +67,7 @@ struct builtin_operative {
     builtin_operative(std::string n, std::function<value_ptr(const std::vector<value_ptr>&, env_ptr)> f)
         : name(std::move(n)), func(std::move(f)) {}
     std::string to_string() const { return "#<builtin-operative:" + name + ">"; }
+    bool operator==(const builtin_operative&) const { return false; }
 };
 
 // Add a mutable wrapper type
@@ -67,6 +75,8 @@ struct mutable_binding {
     value_ptr value;
     explicit mutable_binding(value_ptr v) : value(std::move(v)) {}
     std::string to_string() const;
+    bool operator==(const mutable_binding& that) const
+    { return value == that.value; }
 };
 
 // The main value type
@@ -78,7 +88,7 @@ more sense.
 We could also use Church encoding for cons cells, but--likewise--this has
 impractical performance overhead.
 */
-struct value {
+struct value: std::enable_shared_from_this<value> {
     std::variant<
         int,
         std::string,
@@ -93,6 +103,7 @@ struct value {
     
     template<typename T>
     value(T&& t) : data(std::forward<T>(t)) {}
+    friend bool operator==(value& lhs, value& rhs);
 };
 
 // Environment for variable bindings

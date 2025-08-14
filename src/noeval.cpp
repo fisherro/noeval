@@ -92,6 +92,16 @@ std::string cons_cell::to_string() const
     return result;
 }
 
+bool cons_cell::operator==(const cons_cell& that) const
+{
+#if 0
+    std::println(stderr, "cons_cell::op==(({} {}) ({} {}))",
+        value_to_string(car), value_to_string(cdr),
+        value_to_string(that.car), value_to_string(that.cdr));
+#endif
+    return *car == *(that.car) and *cdr == *(that.cdr);
+}
+
 std::string operative::to_string() const
 {
     if (not tag.empty()) return tag;
@@ -118,6 +128,39 @@ std::string expr_context(const value_ptr& expr)
     } catch (...) {
         return "<expression>";
     }
+}
+
+// Nested mutable bindings would be ugly. Can define-mutable even created them?
+value_ptr unwrap_mutable_binding(value_ptr value)
+{
+    if (auto mb{std::get_if<mutable_binding>(&value->data)}; mb) {
+        return mb->value;
+    }
+    return value;
+}
+
+// Should be const references...
+bool operator==(value& lhs, value& rhs)
+{
+    value_ptr lhs_ptr = lhs.shared_from_this();
+    value_ptr rhs_ptr = rhs.shared_from_this();
+    value_ptr lhs_unwrapped = unwrap_mutable_binding(lhs_ptr);
+    value_ptr rhs_unwrapped = unwrap_mutable_binding(rhs_ptr);
+
+    auto lhs_nil{is_nil(lhs_unwrapped)};
+    auto rhs_nil{is_nil(rhs_unwrapped)};
+    if (lhs_nil and rhs_nil) return true;
+    if (lhs_nil or rhs_nil) return false;
+
+    if (lhs_unwrapped->data.index() != rhs_unwrapped->data.index()) {
+        throw std::runtime_error(
+            std::format(
+                "Incompatible value types: {} vs {}",
+                value_type_string(lhs_unwrapped),
+                value_type_string(rhs_unwrapped)));
+    }
+
+    return lhs_unwrapped->data == rhs_unwrapped->data;
 }
 
 // Environment implementation
@@ -717,9 +760,13 @@ namespace builtins {
         }
     }
 
-    // Evaluates its arguments
-    // Most similar to Kernel's `equal?`
-    // Doesn't work for all types yet.
+    // This implements structural equality
+    // It evaluates its arguments.
+    // Anything compared against () is false except () itself.
+    // Mutable bindings are compared as if they were their underlying value.
+    // In other cases, comparison against different types raises an error.
+    // Comparison between true and true or false and false returns true.
+    // All other comparisons between operatives always return false.
     value_ptr equal_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 2) {
@@ -735,28 +782,7 @@ namespace builtins {
         auto val1 = eval(args[0], env);
         auto val2 = eval(args[1], env);
 
-        // Simple equality check for integers and nil
-        if (std::holds_alternative<int>(val1->data) && std::holds_alternative<int>(val2->data)) {
-            bool equal = std::get<int>(val1->data) == std::get<int>(val2->data);
-            return equal? church_true(env): church_false(env);
-        }
-        
-        if (std::holds_alternative<std::nullptr_t>(val1->data) && std::holds_alternative<std::nullptr_t>(val2->data)) {
-            return church_true(env); // Both nil
-        }
-
-        if (std::holds_alternative<std::string>(val1->data) && std::holds_alternative<std::string>(val2->data)) {
-            bool equal = std::get<std::string>(val1->data) == std::get<std::string>(val2->data);
-            return equal? church_true(env): church_false(env);
-        }
-
-        if (std::holds_alternative<symbol>(val1->data) && std::holds_alternative<symbol>(val2->data)) {
-            bool equal = std::get<symbol>(val1->data).name == std::get<symbol>(val2->data).name;
-            return equal? church_true(env): church_false(env);
-        }
-
-        // Different types or unsupported comparison
-        return church_false(env); // false
+        return (*val1 == *val2) ? church_true(env) : church_false(env);
     }
 
     value_ptr write_operative(const std::vector<value_ptr>& args, env_ptr env)
@@ -1005,6 +1031,21 @@ namespace builtins {
         throw evaluation_error(message, "", call_stack::format());
     }
 
+    value_ptr symbol_p_operative(const std::vector<value_ptr>& args, env_ptr env)
+    {
+        if (args.size() != 1) {
+            throw evaluation_error(
+                std::format("symbol?: expected 1 argument, got {}", args.size()),
+                "symbol?",
+                call_stack::format()
+            );
+        }
+
+        auto value = eval(args[0], env);
+        return std::holds_alternative<symbol>(value->data)?
+            church_true(env): church_false(env);
+    }
+
 } // namespace builtins
 
 void add_church_boleans(env_ptr env)
@@ -1072,6 +1113,8 @@ env_ptr create_global_environment()
     // Mutables
     define_builtin("define-mutable", builtins::define_mutable_operative);
     define_builtin("set!", builtins::set_operative);
+    // Type predicates
+    define_builtin("symbol?", builtins::symbol_p_operative);
 
     add_church_boleans(env);
     return env;
@@ -1154,7 +1197,6 @@ value_ptr operate_builtin(const builtin_operative& op, value_ptr operands, env_p
     return result;
 }
 
-#if 1
 value_ptr eval_symbol(const symbol& sym, env_ptr env)
 {
     // Look up the symbol in the environment
@@ -1171,17 +1213,6 @@ value_ptr eval_symbol(const symbol& sym, env_ptr env)
         throw evaluation_error(e.what(), sym.name, call_stack::format());
     }
 }
-#else
-value_ptr eval_symbol(const symbol& sym, env_ptr env)
-{
-    // Look up the symbol in the environment
-    try {
-        return env->lookup(sym.name);
-    } catch (const std::exception& e) {
-        throw evaluation_error(e.what(), sym.name, call_stack::format());
-    }
-}
-#endif
 
 value_ptr eval_operation(const cons_cell& cell, env_ptr env)
 {

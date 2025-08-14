@@ -229,10 +229,13 @@
 (define cond-transformer
   (lambda* (clauses)
     (foldr
-      (lambda (clause acc)
-        ((= (q else) (first clause))
-         (second clause)
-         (list (first clause) (second clause) acc)))
+      (lambda* (clause acc)
+        (define first-clause (first clause))
+        (define second-clause (second clause))
+        ((and (symbol? first-clause)
+              (= (q else) first-clause))
+         second-clause
+         (list first-clause second-clause acc)))
       clauses
       (); error?
     )))
