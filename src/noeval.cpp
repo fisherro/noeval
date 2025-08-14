@@ -63,6 +63,21 @@ std::string value_to_string(const value_ptr& val)
     }, val->data);
 }
 
+std::string value_to_string(const continuation_type& k)
+{
+    struct visitor {
+        std::string operator()(const tail_call& tc) const {
+            return std::format("(tail-call {} {})",
+                value_to_string(tc.expr),
+                value_to_string(std::make_shared<value>(tc.env)));
+        }
+        std::string operator()(const value_ptr& v) const {
+            return value_to_string(v);
+        }
+    };
+    return std::visit(visitor{}, k);
+}
+
 std::string value_type_string(const value_ptr& val)
 {
     return std::visit([](const auto& v) -> std::string {
@@ -315,8 +330,8 @@ param_pattern extract_param_pattern(value_ptr params)
 }
 
 // Forward declarations:
-value_ptr operate_operative(const operative& op, value_ptr operands, env_ptr env);
-value_ptr operate_builtin(const builtin_operative& op, value_ptr operands, env_ptr env);
+continuation_type operate_operative(const operative& op, value_ptr operands, env_ptr env);
+continuation_type operate_builtin(const builtin_operative& op, value_ptr operands, env_ptr env);
 
 struct call_stack {
 private:
@@ -351,7 +366,7 @@ public:
 // Built-in operatives
 namespace builtins {
 
-    value_ptr vau_operative(const std::vector<value_ptr>& args, env_ptr env)
+    continuation_type vau_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 3) {
             throw evaluation_error(
@@ -472,7 +487,7 @@ namespace builtins {
 
     // Evaluates both arguments, then evaluates the result of evaluating the
     // first argument in the environment evaluated from the second argument.
-    value_ptr eval_operative(const std::vector<value_ptr>& args, env_ptr env)
+    continuation_type eval_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         try {
             validate_eval_arguments(args);
@@ -495,7 +510,7 @@ namespace builtins {
     }
 
     // Does not evaluate first argument, but evaluates the second
-    value_ptr define_operative(const std::vector<value_ptr>& args, env_ptr env)
+    continuation_type define_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 2) {
             throw evaluation_error(
@@ -612,7 +627,7 @@ namespace builtins {
     }
 
     // Evaluates both arguments
-    value_ptr cons_operative(const std::vector<value_ptr>& args, env_ptr env)
+    continuation_type cons_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 2) {
             throw evaluation_error(
@@ -631,7 +646,7 @@ namespace builtins {
     }
 
     // Evaluates argument
-    value_ptr first_operative(const std::vector<value_ptr>& args, env_ptr env)
+    continuation_type first_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 1) {
             throw evaluation_error(
@@ -646,7 +661,7 @@ namespace builtins {
     }
 
     // Evaluates argument
-    value_ptr rest_operative(const std::vector<value_ptr>& args, env_ptr env)
+    continuation_type rest_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 1) {
             throw evaluation_error(
@@ -689,7 +704,7 @@ namespace builtins {
 
     // Evaluates argument
     // Returns Church Booleans
-    value_ptr nil_p_operative(const std::vector<value_ptr>& args, env_ptr env)
+    continuation_type nil_p_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 1) {
             throw evaluation_error(
@@ -703,7 +718,7 @@ namespace builtins {
         return is_nil(val)? church_true(env): church_false(env);
     }
 
-    value_ptr invoke_operative(const std::vector<value_ptr>& args, env_ptr env)
+    continuation_type invoke_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 2) {
             throw evaluation_error(
@@ -726,7 +741,7 @@ namespace builtins {
     }
 
     // Evaluates each argument
-    value_ptr do_operative(const std::vector<value_ptr>& args, env_ptr env)
+    continuation_type do_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.empty()) {
             // Empty do returns nil
@@ -737,11 +752,11 @@ namespace builtins {
             value_ptr result = std::make_shared<value>(nullptr); // default to nil
             
             // Evaluate each expression in sequence, keeping the last result
-            for (const auto& expr : args) {
+            for (const auto& expr: std::ranges::subrange{args.begin(), args.end() - 1}) {
                 result = eval(expr, env);
             }
-            
-            return result;
+
+            return tail_call{args.back(), env};
         } catch (const evaluation_error&) {
             throw; // Re-throw evaluation errors as-is
         } catch (const std::exception& e) {
@@ -767,7 +782,7 @@ namespace builtins {
     // In other cases, comparison against different types raises an error.
     // Comparison between true and true or false and false returns true.
     // All other comparisons between operatives always return false.
-    value_ptr equal_operative(const std::vector<value_ptr>& args, env_ptr env)
+    continuation_type equal_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 2) {
             throw evaluation_error(
@@ -785,7 +800,7 @@ namespace builtins {
         return (*val1 == *val2) ? church_true(env) : church_false(env);
     }
 
-    value_ptr write_operative(const std::vector<value_ptr>& args, env_ptr env)
+    continuation_type write_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 1) {
             throw evaluation_error(
@@ -810,7 +825,7 @@ namespace builtins {
         }
     }
 
-    value_ptr display_operative(const std::vector<value_ptr>& args, env_ptr env)
+    continuation_type display_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 1) {
             throw evaluation_error(
@@ -843,7 +858,7 @@ namespace builtins {
         }
     }
 
-    value_ptr define_mutable_operative(const std::vector<value_ptr>& args, env_ptr env)
+    continuation_type define_mutable_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 2) {
             throw evaluation_error(
@@ -883,7 +898,7 @@ namespace builtins {
         }
     }
 
-    value_ptr set_operative(const std::vector<value_ptr>& args, env_ptr env)
+    continuation_type set_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 2) {
             throw evaluation_error(
@@ -946,7 +961,7 @@ namespace builtins {
     //
     // This is a stop-gap measure. I plan to revisit error handling in the
     // future, but I need something quick and dirty for now.
-    value_ptr try_operative(const std::vector<value_ptr>& args, env_ptr env)
+    continuation_type try_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if ((args.size() < 2) or (args.size() > 3)) {
             throw evaluation_error(
@@ -1009,7 +1024,7 @@ namespace builtins {
         return result;
     }
 
-    value_ptr raise_operative(const std::vector<value_ptr>& args, env_ptr env)
+    continuation_type raise_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 1) {
             throw evaluation_error(
@@ -1031,7 +1046,7 @@ namespace builtins {
         throw evaluation_error(message, "", call_stack::format());
     }
 
-    value_ptr symbol_p_operative(const std::vector<value_ptr>& args, env_ptr env)
+    continuation_type symbol_p_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 1) {
             throw evaluation_error(
@@ -1073,7 +1088,7 @@ env_ptr create_global_environment()
     auto env = std::make_shared<environment>();
 
     auto define_builtin = [env](const std::string& name, 
-                    std::function<value_ptr(const std::vector<value_ptr>&, env_ptr)> func)
+                    std::function<continuation_type(const std::vector<value_ptr>&, env_ptr)> func)
     {
         env->define(name, std::make_shared<value>(builtin_operative{name, std::move(func)}));
     };
@@ -1155,7 +1170,7 @@ void bind_parameters(const param_pattern& params, value_ptr operands, env_ptr ta
     }
 }
 
-value_ptr operate_operative(const operative& op, value_ptr operands, env_ptr env)
+continuation_type operate_operative(const operative& op, value_ptr operands, env_ptr env)
 {
     // Create new environment for the operative
     auto new_env = std::make_shared<environment>(op.closure_env);
@@ -1180,7 +1195,7 @@ value_ptr operate_operative(const operative& op, value_ptr operands, env_ptr env
     return eval(op.body, new_env);
 }
 
-value_ptr operate_builtin(const builtin_operative& op, value_ptr operands, env_ptr env)
+continuation_type operate_builtin(const builtin_operative& op, value_ptr operands, env_ptr env)
 {
     NOEVAL_DEBUG(builtin, "Invoking builtin '{}' with operands: {}", 
               op.name, value_to_string(operands));
@@ -1214,7 +1229,7 @@ value_ptr eval_symbol(const symbol& sym, env_ptr env)
     }
 }
 
-value_ptr eval_operation(const cons_cell& cell, env_ptr env)
+continuation_type eval_operation(const cons_cell& cell, env_ptr env)
 {
     // Convert cons_cell back to value_ptr for easier handling
     auto expr = std::make_shared<value>(cell);
@@ -1257,43 +1272,53 @@ value_ptr eval_operation(const cons_cell& cell, env_ptr env)
 value_ptr eval(value_ptr expr, env_ptr env)
 {
     call_stack::guard g(expr);
-    NOEVAL_DEBUG(eval, "{}[{}] Evaluating({}): {}", 
-        call_stack::indent(), 
-        call_stack::depth(),
-        value_type_string(expr),
-        value_to_string(expr));
-    try {
-        value_ptr result = std::visit([&](const auto& v) -> value_ptr {
-            using T = std::decay_t<decltype(v)>;
-            
-            if constexpr (std::is_same_v<T, int> || 
-                         std::is_same_v<T, std::string> || 
-                         std::is_same_v<T, std::nullptr_t>) {
-                return expr;
-            } else if constexpr (std::is_same_v<T, symbol>) {
-                return eval_symbol(v, env);
-            } else if constexpr (std::is_same_v<T, cons_cell>) {
-                return eval_operation(v, env);
-            } else {
-                throw evaluation_error(
-                    std::format("Cannot evaluate {}", demangle<T>()),
-                    expr_context(expr),
-                    call_stack::format()
-                );
+    while (true) {
+        NOEVAL_DEBUG(eval, "{}[{}] Evaluating({}): {}", 
+            call_stack::indent(), 
+            call_stack::depth(),
+            value_type_string(expr),
+            value_to_string(expr));
+        try {
+            continuation_type k = std::visit([&](const auto& v) -> continuation_type {
+                using T = std::decay_t<decltype(v)>;
+                
+                if constexpr (std::is_same_v<T, int> || 
+                            std::is_same_v<T, std::string> || 
+                            std::is_same_v<T, std::nullptr_t>) {
+                    return expr;
+                } else if constexpr (std::is_same_v<T, symbol>) {
+                    return eval_symbol(v, env);
+                } else if constexpr (std::is_same_v<T, cons_cell>) {
+                    return eval_operation(v, env);
+                } else {
+                    throw evaluation_error(
+                        std::format("Cannot evaluate {}", demangle<T>()),
+                        expr_context(expr),
+                        call_stack::format()
+                    );
+                }
+            }, expr->data);
+            if (auto tc{std::get_if<tail_call>(&k)}) {
+                expr = tc->expr;
+                env = tc->env;
+                std::println(stderr, "***** TCO! *****");
+                continue;
             }
-        }, expr->data);
-        NOEVAL_DEBUG(eval, "{}[{}] Result: {}", 
-                call_stack::indent(),
-                call_stack::depth(), 
-                value_to_string(result));
-        return result;
-    } catch (const evaluation_error& e) {
-        // If it is already an evaluation error,
-        // rethrow before the following catch grabs it.
-        throw;
-    } catch (const std::exception& e) {
-        throw evaluation_error(e.what(), expr_context(expr), call_stack::format());
+            auto result{std::get<value_ptr>(k)};
+            NOEVAL_DEBUG(eval, "{}[{}] Result: {}", 
+                    call_stack::indent(),
+                    call_stack::depth(), 
+                    value_to_string(result));
+            return result;
+        } catch (const evaluation_error& e) {
+            // If it is already an evaluation error,
+            // rethrow before the following catch grabs it.
+            throw;
+        } catch (const std::exception& e) {
+            throw evaluation_error(e.what(), expr_context(expr), call_stack::format());
+        }
     }
+    return nullptr; // Unreachable
 }
 
 bool load_library_file(const std::string& filename, env_ptr env)

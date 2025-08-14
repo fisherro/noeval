@@ -16,6 +16,19 @@ struct value;
 using value_ptr = std::shared_ptr<value>;
 using env_ptr = std::shared_ptr<environment>;
 
+// Tail call captures the eval arguments for the next iteration of eval when
+// a tail call happens.
+struct tail_call {
+    value_ptr expr;
+    env_ptr   env;
+};
+
+// Functions that eval calls that could result in a tail call will use this
+// return type. If it contains a tail_call, then eval should loop around using
+// those values as its new arguments. Otherwise, this will just hold a return
+// value.
+using continuation_type = std::variant<tail_call, value_ptr>;
+
 // Core value types
 struct symbol {
     std::string name;
@@ -62,9 +75,9 @@ struct operative {
 // Built-in operative type for primitives
 struct builtin_operative {
     std::string name;
-    std::function<value_ptr(const std::vector<value_ptr>&, env_ptr)> func;
-    
-    builtin_operative(std::string n, std::function<value_ptr(const std::vector<value_ptr>&, env_ptr)> f)
+    std::function<continuation_type(const std::vector<value_ptr>&, env_ptr)> func;
+
+    builtin_operative(std::string n, std::function<continuation_type(const std::vector<value_ptr>&, env_ptr)> f)
         : name(std::move(n)), func(std::move(f)) {}
     std::string to_string() const { return "#<builtin-operative:" + name + ">"; }
     bool operator==(const builtin_operative&) const { return false; }
