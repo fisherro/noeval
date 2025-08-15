@@ -306,6 +306,57 @@
                 (map second bindings))
           dyn-env)))
 
+; apply: The applicative version of invoke
+; Takes an applicative and a list of arguments,
+; applies the applicative to the arguments
+(define apply
+  (lambda (applicative arg-list)
+    (eval (cons applicative (map (lambda (arg) (list q arg)) arg-list))
+          (get-current-environment))))
+
+(define length
+  (lambda (lyst)
+    (foldl (lambda (n element)
+             (+ n 1))
+           0
+           lyst)))
+
+(define snoc (lambda (tail head) (cons head tail)))
+
+(define reverse (lambda (lyst) (foldl snoc () lyst)))
+
+(define append (lambda* lists
+                 (define append2 (lambda (list1 list2)
+                                   ((nil? list1)
+                                   list2
+                                   (cons (first list1)
+                                         (append2 (rest list1)
+                                                   list2)))))
+                 (foldl append2 () lists)))
+
+(define filter (lambda (predicate lyst)
+                 (foldl (lambda (accumulator element)
+                          ((predicate element)
+                           (cons element accumulator)
+                           accumulator))
+                        ()
+                        (reverse lyst))))
+
+(define iota (lambda* (count)
+               (define atoi (lambda (count)
+                              ((= 0 count)
+                               ()
+                               (let ((next (- count 1)))
+                                 (cons next (atoi next))))))
+               (reverse (atoi count))))
+
+; Q&D test of even?: (map even? (map (lambda (x) (- x 9)) (iota 19)))
+; TODO: Fix this after we upgrade numbers from int to boost::cpp_rational.
+(define even? (lambda* (x) 
+                (define remainder (- x (* 2 (/ x 2))))
+                (= 0 remainder)))
+(define odd? (lambda (x) (not (even? x))))
+
 (define countdown
   (lambda (n)
     ((= n 0)

@@ -18,13 +18,11 @@ test suite size down.
 
 Tests for `raise`. Add error checking to library operatives.
 
+Tests for apply, length, snoc, reverse, append, filter, iota, even?, odd?
+
 More (type) predicates
 
 map*
-
-append, length, reverse
-
-filter
 
 Other HOF
 
