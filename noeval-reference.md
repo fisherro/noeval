@@ -6,6 +6,7 @@ Summary to use as Github Copilot context so that it doesn't have to reference la
 
 **Control**: `vau`, `eval`, `define`, `invoke`, `do`, `try`, `raise`
 **Arithmetic**: `+`, `-`, `*`, `/` (evaluate all arguments)
+**Numeric comparisons**: `<=>` (evaluate all arguments)
 **Lists**: `cons`, `first`, `rest`, `nil?` (evaluate all arguments)
 **Predicates**: `=` (evaluate all arguments)
 **I/O**: `write`, `display`, `flush` (evaluate all arguments)
@@ -32,3 +33,5 @@ Summary to use as Github Copilot context so that it doesn't have to reference la
 **I/O**: `newline`, `displayln`, `for-each`
 **Meta**: `q`, `get-current-environment`, `unevaluated-list`, `eval-list`
 **Examples**: `countdown`, `factorial`
+**Comparisons**: `!=`
+**Numeric comparisons**: `<`, `>`, `<=`, `>=`

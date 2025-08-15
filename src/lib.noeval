@@ -284,6 +284,40 @@
       (define val (eval operand env))
       (val false true))))
 
+(define λ lambda)
+(define ∧ and)
+(define ∨ or)
+(define ¬ not)
+(define × *)
+(define ÷ /)
+
+(define != (λ (x y) (¬ (= x y))))
+(define <  (λ (x y) (= -1 (<=> x y))))
+(define >  (λ (x y) (= 1 (<=> x y))))
+(define <= (λ (x y) (∨ (< x y) (= x y))))
+(define >= (λ (x y) (∨ (> x y) (= x y))))
+(define ≤  <=)
+(define ≥  >=)
+
+; ×÷∧∨¬≤≥λ
+; option + /: ÷
+; option + =: ≠
+; option + ,: ≤
+; option + .: ≥
+; option + l: ¬
+
+; Using "Unicode shortcuts" VS Code extension...
+; Type backslash character-name shift+space
+; \lambda λ
+; \not ¬
+; \and ∧
+; \or ∨
+; \neq ≠
+; \le ≤
+; \ge ≥
+
+; No way to type ×?
+
 (define map
   (lambda (proc lyst)
     ((nil? lyst)

@@ -1085,6 +1085,38 @@ namespace builtins {
         return std::make_shared<value>(symbol{type});
     }
 
+    continuation_type spaceship_operative(const std::vector<value_ptr>& args, env_ptr env)
+    {
+        if (args.size() != 2) {
+            throw evaluation_error(
+                std::format("<=>: expected 2 arguments, got {}", args.size()),
+                "<=>",
+                call_stack::format()
+            );
+        }
+
+        auto left_unwrap  = unwrap_mutable_binding(eval(args[0], env));
+        auto right_unwrap = unwrap_mutable_binding(eval(args[1], env));
+        auto left  = std::get_if<int>(&(left_unwrap->data));
+        auto right = std::get_if<int>(&(right_unwrap->data));
+
+        if ((not left) or (not right)) {
+            throw evaluation_error(
+                "<=>: both arguments must be numbers",
+                std::format("(<=> {} {})", expr_context(args[0]), expr_context(args[1])),
+                call_stack::format()
+            );
+        }
+
+        int result{0};
+        if (*left < *right) {
+            result = -1;
+        } else if (*left > *right) {
+            result = 1;
+        }
+        return std::make_shared<value>(result);
+    }
+
 } // namespace builtins
 
 void add_church_boleans(env_ptr env)
@@ -1139,6 +1171,8 @@ env_ptr create_global_environment()
     define_arithmetic("-", std::minus<int>{});
     define_arithmetic("*", std::multiplies<int>{});
     define_arithmetic("/", std::divides<int>{});
+    // Numeric comparison
+    define_builtin("<=>", builtins::spaceship_operative);
     // Lists
     define_builtin("cons", builtins::cons_operative);
     define_builtin("first", builtins::first_operative);

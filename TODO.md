@@ -24,8 +24,6 @@ Update library functions to use type predicates
 
 Update tests to use type predicates
 
-Implement <=> for numbers
-
 map*
 
 Other HOF
