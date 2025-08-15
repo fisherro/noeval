@@ -111,11 +111,6 @@ std::string cons_cell::to_string() const
 
 bool cons_cell::operator==(const cons_cell& that) const
 {
-#if 0
-    std::println(stderr, "cons_cell::op==(({} {}) ({} {}))",
-        value_to_string(car), value_to_string(cdr),
-        value_to_string(that.car), value_to_string(that.cdr));
-#endif
     return *car == *(that.car) and *cdr == *(that.cdr);
 }
 
@@ -178,6 +173,11 @@ bool operator==(value& lhs, value& rhs)
     }
 
     return lhs_unwrapped->data == rhs_unwrapped->data;
+}
+
+std::string typeof_visitor::operator()(const mutable_binding& mb) const
+{
+    return std::visit(typeof_visitor{}, mb.value->data);
 }
 
 // Environment implementation
@@ -1056,19 +1056,18 @@ namespace builtins {
         throw evaluation_error(message, "", call_stack::format());
     }
 
-    continuation_type symbol_p_operative(const std::vector<value_ptr>& args, env_ptr env)
+    continuation_type typeof_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 1) {
             throw evaluation_error(
-                std::format("symbol?: expected 1 argument, got {}", args.size()),
-                "symbol?",
+                std::format("typeof: expected 1 argument, got {}", args.size()),
+                "typeof",
                 call_stack::format()
             );
         }
-
-        auto value = eval(args[0], env);
-        return std::holds_alternative<symbol>(value->data)?
-            church_true(env): church_false(env);
+        auto arg = eval(args[0], env);
+        std::string type = std::visit(typeof_visitor{}, arg->data);
+        return std::make_shared<value>(symbol{type});
     }
 
 } // namespace builtins
@@ -1138,8 +1137,8 @@ env_ptr create_global_environment()
     // Mutables
     define_builtin("define-mutable", builtins::define_mutable_operative);
     define_builtin("set!", builtins::set_operative);
-    // Type predicates
-    define_builtin("symbol?", builtins::symbol_p_operative);
+    // Reflection
+    define_builtin("typeof", builtins::typeof_operative);
 
     add_church_boleans(env);
     return env;
@@ -1315,14 +1314,8 @@ value_ptr eval(value_ptr expr, env_ptr env)
             if (auto tc{std::get_if<tail_call>(&k)}) {
                 expr = tc->expr;
                 env = tc->env;
-#if 0
-                std::println(stderr, "***** TCO! *****");
-#endif
                 continue;
             }
-#if 0
-            std::println(stderr, "!!!!! No TCO !!!!!");
-#endif
             auto result{std::get<value_ptr>(k)};
             NOEVAL_DEBUG(eval, "{}[{}] Result: {}", 
                     call_stack::indent(),
@@ -1469,7 +1462,7 @@ int main()
     std::println("Starting REPL...");
     repl(global_env);
 
-#if 0
+#ifdef TEST_FOR_MOVE_ONLY_FUNCTION
     std::println("---");
     std::println("move_only_function support: {}", 
                   __cpp_lib_move_only_function >= 202110L ? "available" : "not available");

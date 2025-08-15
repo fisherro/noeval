@@ -16,13 +16,17 @@ test suite size down.
 
 ## Regular
 
-Catch exceptions while loading the library (Save the old global environmen so we can rollback)
+Change testing the library so that exceptions are caught with top-level expression evaluated
 
 Allow stack depth tracking to be turned on/off at the REPL
 
 Tests for `raise`. Add error checking to library operatives.
 
-More (type) predicates
+Update library functions to use type predicates
+
+Update tests to use type predicates
+
+Implement <=> for numbers
 
 map*
 

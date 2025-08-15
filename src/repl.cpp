@@ -362,7 +362,8 @@ void repl(env_ptr global_env)
         if (is_special_command(input)) {
             // Handle reload command specially
             if (input == ":reload") {
-                global_env = reload_global_environment();
+                auto new_env = reload_global_environment();
+                if (new_env) global_env = new_env;
                 continue;
             }
 

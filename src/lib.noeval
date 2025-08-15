@@ -150,6 +150,13 @@
 
 (define newline (lambda () (display "\n")))
 
+(define number? (lambda (x) (= (q number) (typeof x))))
+(define string? (lambda (x) (= (q string) (typeof x))))
+(define symbol? (lambda (x) (= (q symbol) (typeof x))))
+(define list? (lambda (x) (or (nil? x) (= (q cons-cell) (typeof x)))))
+(define operative? (lambda (x) (= (q operative) (typeof x))))
+(define environment? (lambda (x) (= (q environment) (typeof x))))
+
 ; An example of a macro-like fexpr:
 ;($define! $when
 ;   ($vau (test . body) env

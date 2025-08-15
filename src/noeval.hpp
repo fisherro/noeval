@@ -119,6 +119,18 @@ struct value: std::enable_shared_from_this<value> {
     friend bool operator==(value& lhs, value& rhs);
 };
 
+struct typeof_visitor {
+    std::string operator()(int) const { return "number"; }
+    std::string operator()(const std::string&) const { return "string"; }
+    std::string operator()(const symbol&) const { return "symbol"; }
+    std::string operator()(const cons_cell&) const { return "cons-cell"; }
+    std::string operator()(const operative&) const { return "operative"; }
+    std::string operator()(const builtin_operative&) const { return "operative"; }
+    std::string operator()(env_ptr) const { return "environment"; }
+    std::string operator()(const mutable_binding& mb) const;
+    std::string operator()(std::nullptr_t) const { return "nil"; }
+};
+
 // Environment for variable bindings
 struct environment {
     std::unordered_map<std::string, value_ptr> bindings;
