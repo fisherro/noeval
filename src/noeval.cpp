@@ -868,6 +868,21 @@ namespace builtins {
         }
     }
 
+    continuation_type flush_operative(const std::vector<value_ptr>& args, env_ptr)
+    {
+        if (!args.empty()) {
+            throw evaluation_error(
+                std::format("flush: expected 0 arguments, got {}", args.size()),
+                args.empty() ? "(flush)" : std::format("(flush {} ...)", expr_context(args[0])),
+                call_stack::format()
+            );
+        }
+        
+        // Flush the standard output
+        std::fflush(stdout);
+        return std::make_shared<value>(nullptr);  // Return nil
+    }
+
     continuation_type define_mutable_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 2) {
@@ -1134,6 +1149,7 @@ env_ptr create_global_environment()
     // I/O
     define_builtin("write", builtins::write_operative);
     define_builtin("display", builtins::display_operative);
+    define_builtin("flush", builtins::flush_operative);
     // Mutables
     define_builtin("define-mutable", builtins::define_mutable_operative);
     define_builtin("set!", builtins::set_operative);
@@ -1388,20 +1404,30 @@ int run_library_tests(env_ptr outer_env)
         auto env = std::make_shared<environment>(outer_env);
 
         value_ptr result;
-        for (const auto& expr : expressions) {
+        size_t exception_count{0};
+        for (const auto& expr: expressions) {
             try {
                 result = eval(expr, env);
             } catch (const std::exception& e) {
-                std::println("Error in test: {}", e.what());
-                return 1;
+                std::println("\nError in test: {}", value_to_string(expr));
+                std::println("Error: {}", e.what());
+                ++exception_count;
             }
         }
-        
+
+        if (exception_count > 0) {
+            std::println(
+                "\n✗ {} exception{} caught",
+                exception_count,
+                exception_count == 1? "": "s");
+            return 1;
+        }
+
         // The last expression should be the test result
         if (result) {
             std::string result_str = value_to_string(result);
             if (result_str == "\"All library tests passed!\"") {
-                std::println("✓ {}", result_str.substr(1, result_str.length() - 2)); // Remove quotes
+                std::println("\n✓ {}", result_str.substr(1, result_str.length() - 2)); // Remove quotes
                 return 0;
             } else {
                 println_red("✗ Library tests failed with result: {}", result_str);

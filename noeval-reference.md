@@ -8,7 +8,7 @@ Summary to use as Github Copilot context so that it doesn't have to reference la
 **Arithmetic**: `+`, `-`, `*`, `/` (evaluate all arguments)
 **Lists**: `cons`, `first`, `rest`, `nil?` (evaluate all arguments)
 **Predicates**: `=` (evaluate all arguments)
-**I/O**: `write`, `display` (evaluate all arguments)
+**I/O**: `write`, `display`, `flush` (evaluate all arguments)
 **Mutation**: `define-mutable`, `set!`
 **Church Booleans**: `true`, `false` (built-in operatives)
 **Reflection**: `typeof`

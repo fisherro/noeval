@@ -16,8 +16,6 @@ test suite size down.
 
 ## Regular
 
-Change testing the library so that exceptions are caught with top-level expression evaluated
-
 Allow stack depth tracking to be turned on/off at the REPL
 
 Tests for `raise`. Add error checking to library operatives.
