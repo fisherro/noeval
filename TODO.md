@@ -16,9 +16,11 @@ test suite size down.
 
 ## Regular
 
-Tests for `raise`. Add error checking to library operatives.
+Catch exceptions while loading the library (Save the old global environmen so we can rollback)
 
-Tests for apply, length, snoc, reverse, append, filter, iota, even?, odd?
+Allow stack depth tracking to be turned on/off at the REPL
+
+Tests for `raise`. Add error checking to library operatives.
 
 More (type) predicates
 

@@ -343,6 +343,7 @@
                         (reverse lyst))))
 
 (define iota (lambda* (count)
+               ; "iota" backwards is "atoi"
                (define atoi (lambda (count)
                               ((= 0 count)
                                ()
