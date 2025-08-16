@@ -187,6 +187,11 @@
     (for-each display args)
     (newline)))
 
+(define lndisplayln
+  (lambda* args
+    (newline)
+    (apply displayln args)))
+
 (define second (lambda (lyst) (first (rest lyst))))
 
 ; foldl applies a binary function to the elements of a list from left to right

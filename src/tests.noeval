@@ -91,6 +91,7 @@
 ;------------------------------------------------------------------------------
 ; = tests
 ; = is a builtin operative, but we want to test it here
+(lndisplayln "= tests")
 
 ; Test = argument checking
 (test-error (=)       "= cannot be called without arguments")
@@ -186,6 +187,7 @@
 
 ;------------------------------------------------------------------------------
 ; Try tests
+(lndisplayln "try tests")
 
 (define-mutable try-happened 0)
 (define-mutable error-happened 0)
@@ -226,6 +228,96 @@
              "try: if error, error and finally handlers should be evaluated")
 
 ;------------------------------------------------------------------------------
+; Exception propagation tests
+
+; Test that exceptions propagate through nested calls
+(define error-thrower (lambda () (first 42)))
+(define error-wrapper (lambda () (error-thrower)))
+(test-error (error-wrapper) "exceptions should propagate through function calls")
+
+; Test exception in vau operative
+(define error-vau (vau (x) env (rest "invalid")))
+(test-error (error-vau dummy) "exceptions should propagate from vau operatives")
+
+; Test exception in wrapped operative
+(define error-op (vau (x) env (first x)))  ; Will fail if x is not a list
+(define wrapped-error (wrap error-op))
+(test-error (wrapped-error 42) "exceptions should propagate from wrapped operatives")
+
+; Test exception in lambda
+(define error-lambda (lambda (x) (+ x "invalid")))
+(test-error (error-lambda 5) "exceptions should propagate from lambda functions")
+
+; Test exception in higher-order function usage
+(define apply-func (lambda (f x) (f x)))
+(define bad-func (lambda (n) (/ n "zero")))
+(test-error (apply-func bad-func 10) "exceptions should propagate through higher-order functions")
+
+;------------------------------------------------------------------------------
+; Recovery tests using try
+
+; Test basic exception recovery
+(define-mutable recovery-test 0)
+(try (do (set! recovery-test 1)
+         (first "invalid"))
+     (lambda* (error)
+       (set! recovery-test 99)))
+(test-assert 
+  (= recovery-test 99)
+  "try should allow recovery from exceptions")
+
+; Test that try-block executes normally when no error
+(define-mutable normal-execution 0)
+(try (set! normal-execution 42)
+     (lambda* (error) (set! normal-execution -1)))
+(test-assert 
+  (= normal-execution 42)
+  "try should execute normally when no exception occurs")
+
+; Test exception information is passed to handler
+(define-mutable error-info "")
+(try (rest 123)
+     (lambda* (error)
+       (set! error-info (first (rest error)))))  ; Get error message
+(test-assert 
+  (not (= error-info ""))
+  "try should pass error information to handler")
+
+; Test nested try blocks
+(define-mutable nested-result 0)
+(try (try (first "outer-error")
+          (lambda* (e) (set! nested-result 1)))
+     (lambda* (e) (set! nested-result 2)))
+(test-assert 
+  (= nested-result 1)
+  "nested try blocks should work correctly")
+
+; Test try with finally clause
+(define-mutable finally-executed 0)
+(define-mutable try-result "")
+(define result (try "success-value"
+                    (lambda* (error) "error-value")
+                    (lambda* (value) 
+                      (set! finally-executed 1)
+                      (set! try-result value)
+                      value)))
+(test-assert 
+  (and (= finally-executed 1) (= try-result "success-value"))
+  "try with finally should execute finally clause on success")
+
+; Test try/finally with exception
+(define-mutable finally-on-error 0)
+(try (first 42)
+     (lambda* (error) "handled")
+     (lambda* (result) 
+       (set! finally-on-error 1)
+       result))
+(test-assert 
+  (= finally-on-error 1)
+  "try with finally should execute finally clause on error")
+
+;------------------------------------------------------------------------------
+(lndisplayln "misc tests")
 
 ; Test: Basic quoting
 (test-assert 
@@ -238,7 +330,18 @@
   "empty list should return nil")
 
 ;------------------------------------------------------------------------------
+; get-current-environment tests
+
+; Test 1: Environment capture
+(define captured-env (get-current-environment))
+(define test-var-in-env 123)
+(test-assert 
+  (= (eval (q test-var-in-env) captured-env) 123)
+  "get-current-environment should capture current bindings")
+
+;------------------------------------------------------------------------------
 ; typeof tests
+(lndisplayln "typeof and derived forms tests")
 
 ; Test 1: typeof with numbers
 (test-assert 
@@ -1069,6 +1172,7 @@
 
 ;------------------------------------------------------------------------------
 ; eval-list tests
+(lndisplayln "wrap/eval-list/lambda/lambda*/vau* tests")
 
 ; Test eval-list function with unevaluated expressions
 (define unevaluated-exprs (make-expr (+ 1 2) (* 3 4)))
@@ -1239,148 +1343,6 @@
 (test-assert 
   (= (wrapped-env-op (q test-var)) 42)
   "wrap should preserve environment context for user-defined operatives")
-
-;------------------------------------------------------------------------------
-; vau* tests
-
-; Test 1: Basic vau* with multiple expressions
-(define-mutable vau-side-effect 0)
-(define basic-vau* 
-  (vau* (x) env
-    (set! vau-side-effect (+ vau-side-effect 1))
-    (set! vau-side-effect (* vau-side-effect 2))
-    x))  ; Return the unevaluated argument
-
-; Test the side effects occurred
-(basic-vau* dummy-expr)
-(test-assert 
-  (= vau-side-effect 2)
-  "vau* should execute multiple expressions for side effects")
-
-; Test 2: vau* with environment parameter usage  
-(define env-using-vau*
-  (vau* (expr) dyn-env
-    (define temp-var 42)
-    (define result (eval expr dyn-env))
-    (* result 2)))
-(test-assert 
-  (= (env-using-vau* (+ 3 4)) 14)
-  "vau* should be able to use environment parameter")
-
-; Test 3: vau* with no expressions (empty body)
-(define empty-vau* (vau* (x) env))
-(test-assert 
-  (nil? (empty-vau* hello))
-  "vau* with empty body should return nil")
-
-; Test 4: vau* with multiple parameters - test that it accepts them
-(define multi-param-vau*
-  (vau* (a b c) env
-    (define first-arg a)
-    (define second-arg b) 
-    (define third-arg c)
-    first-arg))  ; Just return first arg to test it works
-(test-assert 
-  (= (multi-param-vau* 42 y z) 42)
-  "vau* should handle multiple parameters correctly")
-
-; Test 5: vau* that evaluates some arguments selectively  
-(define selective-eval-vau*
-  (vau* (first-expr second-expr) dyn-env
-    (define first-val (eval first-expr dyn-env))
-    first-val))  ; Just return evaluated first arg
-(test-assert 
-  (= (selective-eval-vau* (+ 2 3) (+ 4 5)) 5)
-  "vau* should allow selective evaluation of arguments")
-
-; Test 6: Compare vau* vs regular vau behavior
-(define regular-vau-multi
-  (vau (x) env
-    (do (define temp x)
-        (* 2 2)
-        temp)))
-(define equivalent-vau*
-  (vau* (x) env
-    (define temp x)
-    (* 2 2)
-    temp))
-
-; Test that both return the same unevaluated expression by using them with numbers
-(test-assert 
-  (= (regular-vau-multi 123) (equivalent-vau* 123))
-  "vau* should behave equivalently to vau with do block")
-
-; Test 7: vau* with conditional logic
-(define conditional-vau*
-  (vau* (test-expr then-expr else-expr) dyn-env
-    (define test-result (eval test-expr dyn-env))
-    (if test-result
-        then-expr
-        else-expr)))
-(test-assert 
-  (= (conditional-vau* (= 1 1) 42 99) 42)
-  "vau* should work with conditional logic - true case")
-
-(test-assert 
-  (= (conditional-vau* (= 1 2) 42 99) 99)  
-  "vau* should work with conditional logic - false case")
-
-; Test 8: vau* with single expression (should work like regular vau)
-(define single-expr-vau* (vau* (x) env x))
-(test-assert 
-  (= (single-expr-vau* 777) 777)
-  "vau* with single expression should work like regular vau")
-
-; Test 9: vau* with complex expression sequencing  
-(define-mutable sequence-counter 0)
-(define sequence-test-vau*
-  (vau* (x) env
-    (set! sequence-counter (+ sequence-counter 1))  ; Side effect
-    (set! sequence-counter (+ sequence-counter 10)) ; Side effect  
-    x))  ; Return unevaluated x
-
-(define seq-result (sequence-test-vau* final-expr))
-(test-assert 
-  (and (= sequence-counter 11) (= seq-result (q final-expr)))
-  "vau* should execute all expressions and return last value")
-
-; vau used in higher-order context
-(define test-vau (vau (x) env (eval x env)))
-(define higher-order-test (lambda (op arg) (op arg)))
-
-(test-assert 
-  (= (higher-order-test test-vau 123) 123)
-  "vau should work when passed to and called from other functions")
-
-; Test 10: vau* used in higher-order context
-(define test-vau* (vau* (x) env (eval x env)))
-(define higher-order-test (lambda (op arg) (op arg)))
-
-(test-assert 
-  (= (higher-order-test test-vau* 123) 123)
-  "vau* should work when passed to and called from other functions")
-
-; Test 11: vau* with recursive pattern (simplified)
-(define recursive-vau*
-  (vau* (x) dyn-env
-    (define helper-result x)  ; Simplified - just pass through
-    helper-result))
-(test-assert 
-  (= (recursive-vau* test-expr) (q test-expr))
-  "vau* should work with internal definitions")
-
-; Test 12: Test that vau* creates proper operative (doesn't evaluate args)
-(define-mutable arg-eval-test 0)
-(define arg-test-vau*
-  (vau* (expr) env
-    (set! arg-eval-test 999)
-    expr))
-
-; The argument (+ arg-eval-test 1) should NOT be evaluated
-(define unevald-result (arg-test-vau* (+ arg-eval-test 1)))
-(test-assert 
-  (= arg-eval-test 999)  ; Should be 999 from vau* body, not from argument
-  "vau* should not evaluate its arguments")
 
 ;------------------------------------------------------------------------------
 ; Lambda tests
@@ -1695,6 +1657,275 @@
   "lambda* should return only the last expression's value")
 
 ;------------------------------------------------------------------------------
+; vau* tests
+
+; Test 1: Basic vau* with multiple expressions
+(define-mutable vau-side-effect 0)
+(define basic-vau* 
+  (vau* (x) env
+    (set! vau-side-effect (+ vau-side-effect 1))
+    (set! vau-side-effect (* vau-side-effect 2))
+    x))  ; Return the unevaluated argument
+
+; Test the side effects occurred
+(basic-vau* dummy-expr)
+(test-assert 
+  (= vau-side-effect 2)
+  "vau* should execute multiple expressions for side effects")
+
+; Test 2: vau* with environment parameter usage  
+(define env-using-vau*
+  (vau* (expr) dyn-env
+    (define temp-var 42)
+    (define result (eval expr dyn-env))
+    (* result 2)))
+(test-assert 
+  (= (env-using-vau* (+ 3 4)) 14)
+  "vau* should be able to use environment parameter")
+
+; Test 3: vau* with no expressions (empty body)
+(define empty-vau* (vau* (x) env))
+(test-assert 
+  (nil? (empty-vau* hello))
+  "vau* with empty body should return nil")
+
+; Test 4: vau* with multiple parameters - test that it accepts them
+(define multi-param-vau*
+  (vau* (a b c) env
+    (define first-arg a)
+    (define second-arg b) 
+    (define third-arg c)
+    first-arg))  ; Just return first arg to test it works
+(test-assert 
+  (= (multi-param-vau* 42 y z) 42)
+  "vau* should handle multiple parameters correctly")
+
+; Test 5: vau* that evaluates some arguments selectively  
+(define selective-eval-vau*
+  (vau* (first-expr second-expr) dyn-env
+    (define first-val (eval first-expr dyn-env))
+    first-val))  ; Just return evaluated first arg
+(test-assert 
+  (= (selective-eval-vau* (+ 2 3) (+ 4 5)) 5)
+  "vau* should allow selective evaluation of arguments")
+
+; Test 6: Compare vau* vs regular vau behavior
+(define regular-vau-multi
+  (vau (x) env
+    (do (define temp x)
+        (* 2 2)
+        temp)))
+(define equivalent-vau*
+  (vau* (x) env
+    (define temp x)
+    (* 2 2)
+    temp))
+
+; Test that both return the same unevaluated expression by using them with numbers
+(test-assert 
+  (= (regular-vau-multi 123) (equivalent-vau* 123))
+  "vau* should behave equivalently to vau with do block")
+
+; Test 7: vau* with conditional logic
+(define conditional-vau*
+  (vau* (test-expr then-expr else-expr) dyn-env
+    (define test-result (eval test-expr dyn-env))
+    (if test-result
+        then-expr
+        else-expr)))
+(test-assert 
+  (= (conditional-vau* (= 1 1) 42 99) 42)
+  "vau* should work with conditional logic - true case")
+
+(test-assert 
+  (= (conditional-vau* (= 1 2) 42 99) 99)  
+  "vau* should work with conditional logic - false case")
+
+; Test 8: vau* with single expression (should work like regular vau)
+(define single-expr-vau* (vau* (x) env x))
+(test-assert 
+  (= (single-expr-vau* 777) 777)
+  "vau* with single expression should work like regular vau")
+
+; Test 9: vau* with complex expression sequencing  
+(define-mutable sequence-counter 0)
+(define sequence-test-vau*
+  (vau* (x) env
+    (set! sequence-counter (+ sequence-counter 1))  ; Side effect
+    (set! sequence-counter (+ sequence-counter 10)) ; Side effect  
+    x))  ; Return unevaluated x
+
+(define seq-result (sequence-test-vau* final-expr))
+(test-assert 
+  (and (= sequence-counter 11) (= seq-result (q final-expr)))
+  "vau* should execute all expressions and return last value")
+
+; vau used in higher-order context
+(define test-vau (vau (x) env (eval x env)))
+(define higher-order-test (lambda (op arg) (op arg)))
+
+(test-assert 
+  (= (higher-order-test test-vau 123) 123)
+  "vau should work when passed to and called from other functions")
+
+; Test 10: vau* used in higher-order context
+(define test-vau* (vau* (x) env (eval x env)))
+(define higher-order-test (lambda (op arg) (op arg)))
+
+(test-assert 
+  (= (higher-order-test test-vau* 123) 123)
+  "vau* should work when passed to and called from other functions")
+
+; Test 11: vau* with recursive pattern (simplified)
+(define recursive-vau*
+  (vau* (x) dyn-env
+    (define helper-result x)  ; Simplified - just pass through
+    helper-result))
+(test-assert 
+  (= (recursive-vau* test-expr) (q test-expr))
+  "vau* should work with internal definitions")
+
+; Test 12: Test that vau* creates proper operative (doesn't evaluate args)
+(define-mutable arg-eval-test 0)
+(define arg-test-vau*
+  (vau* (expr) env
+    (set! arg-eval-test 999)
+    expr))
+
+; The argument (+ arg-eval-test 1) should NOT be evaluated
+(define unevald-result (arg-test-vau* (+ arg-eval-test 1)))
+(test-assert 
+  (= arg-eval-test 999)  ; Should be 999 from vau* body, not from argument
+  "vau* should not evaluate its arguments")
+
+;------------------------------------------------------------------------------
+; prepend tests (list* equivalent)
+(lndisplayln "prepend/for-each/foldl/foldr/map/apply/length/reverse/append/filter/iota tests")
+
+; Test 1: Basic prepend with single final argument
+(test-assert 
+  (= (first (prepend 1 (list 2 3))) 1)
+  "prepend should add element to front of list")
+
+(test-assert 
+  (= (first (rest (prepend 1 (list 2 3)))) 2)
+  "prepend should preserve existing list elements")
+
+; Test 2: Multiple elements prepended
+(define result-list (prepend 1 2 3 (list 4 5)))
+(test-assert 
+  (= (first result-list) 1)
+  "prepend should handle multiple elements - first")
+
+(test-assert 
+  (= (first (rest result-list)) 2)
+  "prepend should handle multiple elements - second")
+
+(test-assert 
+  (= (first (rest (rest result-list))) 3)
+  "prepend should handle multiple elements - third")
+
+(test-assert 
+  (= (first (rest (rest (rest result-list)))) 4)
+  "prepend should preserve final list - first element")
+
+; Test 3: Prepend to empty list
+(test-assert 
+  (= (first (prepend 42 ())) 42)
+  "prepend should work with empty final list")
+
+(test-assert 
+  (nil? (rest (prepend 42 ())))
+  "prepend with empty list should create single-element list")
+
+; Skipping this test because `=` doesn't support lists.
+; Test 4: Single argument (should return the argument itself)
+(test-assert 
+  (= (prepend 123) 123)
+  "prepend with single argument should return that argument")
+
+(test-assert 
+  (= (prepend (list 1 2 3)) (list 1 2 3))
+  "prepend with single list argument should return the list")
+
+; Test 5: No arguments (should return empty)
+(test-assert 
+  (nil? (prepend))
+  "prepend with no arguments should return nil")
+
+; Test 6: Argument evaluation - expressions should be evaluated once
+(define-mutable prepend-eval-counter 0)
+(define increment-and-return 
+  (lambda* (n) 
+    (set! prepend-eval-counter (+ prepend-eval-counter 1))
+    n))
+
+(define prepend-result (prepend (increment-and-return 10) 
+                               (increment-and-return 20) 
+                               (list 30)))
+(test-assert 
+  (= prepend-eval-counter 2)
+  "prepend should evaluate each argument exactly once")
+
+(test-assert 
+  (= (first prepend-result) 10)
+  "prepend should use evaluated argument values - first")
+
+(test-assert 
+  (= (first (rest prepend-result)) 20)
+  "prepend should use evaluated argument values - second")
+
+; Test 7: Complex expressions as arguments
+(test-assert 
+  (= (first (prepend (+ 1 2) (list 4 5))) 3)
+  "prepend should evaluate complex expressions")
+
+; Test 8: Nested prepend calls
+(test-assert 
+  (= (first (prepend 1 (prepend 2 (list 3)))) 1)
+  "prepend should work when nested")
+
+; Test 9: prepend with different data types
+(define mixed-result (prepend "hello" 42 (list "world" 99)))
+(test-assert 
+  (= (first mixed-result) "hello")
+  "prepend should work with mixed data types - string")
+
+(test-assert 
+  (= (first (rest mixed-result)) 42)
+  "prepend should work with mixed data types - number")
+
+(test-assert 
+  (= (first (rest (rest mixed-result))) "world")
+  "prepend should work with mixed data types - final list string")
+
+; Test 10: prepend compared to manual cons chains
+(define manual-chain (cons 1 (cons 2 (cons 3 (list 4 5)))))
+(define prepend-chain (prepend 1 2 3 (list 4 5)))
+(test-assert 
+  (= (first manual-chain) (first prepend-chain))
+  "prepend should be equivalent to manual cons chain - first")
+
+(test-assert 
+  (= (first (rest manual-chain)) (first (rest prepend-chain)))
+  "prepend should be equivalent to manual cons chain - second")
+
+(test-assert 
+  (= (first (rest (rest manual-chain))) (first (rest (rest prepend-chain))))
+  "prepend should be equivalent to manual cons chain - third")
+
+;------------------------------------------------------------------------------
+; for-each tests
+
+; Test 1: Basic for-each
+(define-mutable for-each-sum 0)
+(define add-to-sum (lambda (x) (set! for-each-sum (+ for-each-sum x))))
+(for-each add-to-sum (list 1 2 3))
+(test-assert 
+  (= for-each-sum 6)
+  "for-each should apply function to each list element")
+
+;------------------------------------------------------------------------------
 ; foldr tests
 
 ; Test 1: Basic foldr with addition
@@ -1876,526 +2107,6 @@
   "foldl should work with nested conditionals in accumulator")
 
 ;------------------------------------------------------------------------------
-; prepend tests (list* equivalent)
-
-; Test 1: Basic prepend with single final argument
-(test-assert 
-  (= (first (prepend 1 (list 2 3))) 1)
-  "prepend should add element to front of list")
-
-(test-assert 
-  (= (first (rest (prepend 1 (list 2 3)))) 2)
-  "prepend should preserve existing list elements")
-
-; Test 2: Multiple elements prepended
-(define result-list (prepend 1 2 3 (list 4 5)))
-(test-assert 
-  (= (first result-list) 1)
-  "prepend should handle multiple elements - first")
-
-(test-assert 
-  (= (first (rest result-list)) 2)
-  "prepend should handle multiple elements - second")
-
-(test-assert 
-  (= (first (rest (rest result-list))) 3)
-  "prepend should handle multiple elements - third")
-
-(test-assert 
-  (= (first (rest (rest (rest result-list)))) 4)
-  "prepend should preserve final list - first element")
-
-; Test 3: Prepend to empty list
-(test-assert 
-  (= (first (prepend 42 ())) 42)
-  "prepend should work with empty final list")
-
-(test-assert 
-  (nil? (rest (prepend 42 ())))
-  "prepend with empty list should create single-element list")
-
-; Skipping this test because `=` doesn't support lists.
-; Test 4: Single argument (should return the argument itself)
-(test-assert 
-  (= (prepend 123) 123)
-  "prepend with single argument should return that argument")
-
-(test-assert 
-  (= (prepend (list 1 2 3)) (list 1 2 3))
-  "prepend with single list argument should return the list")
-
-; Test 5: No arguments (should return empty)
-(test-assert 
-  (nil? (prepend))
-  "prepend with no arguments should return nil")
-
-; Test 6: Argument evaluation - expressions should be evaluated once
-(define-mutable prepend-eval-counter 0)
-(define increment-and-return 
-  (lambda* (n) 
-    (set! prepend-eval-counter (+ prepend-eval-counter 1))
-    n))
-
-(define prepend-result (prepend (increment-and-return 10) 
-                               (increment-and-return 20) 
-                               (list 30)))
-(test-assert 
-  (= prepend-eval-counter 2)
-  "prepend should evaluate each argument exactly once")
-
-(test-assert 
-  (= (first prepend-result) 10)
-  "prepend should use evaluated argument values - first")
-
-(test-assert 
-  (= (first (rest prepend-result)) 20)
-  "prepend should use evaluated argument values - second")
-
-; Test 7: Complex expressions as arguments
-(test-assert 
-  (= (first (prepend (+ 1 2) (list 4 5))) 3)
-  "prepend should evaluate complex expressions")
-
-; Test 8: Nested prepend calls
-(test-assert 
-  (= (first (prepend 1 (prepend 2 (list 3)))) 1)
-  "prepend should work when nested")
-
-; Test 9: prepend with different data types
-(define mixed-result (prepend "hello" 42 (list "world" 99)))
-(test-assert 
-  (= (first mixed-result) "hello")
-  "prepend should work with mixed data types - string")
-
-(test-assert 
-  (= (first (rest mixed-result)) 42)
-  "prepend should work with mixed data types - number")
-
-(test-assert 
-  (= (first (rest (rest mixed-result))) "world")
-  "prepend should work with mixed data types - final list string")
-
-; Test 10: prepend compared to manual cons chains
-(define manual-chain (cons 1 (cons 2 (cons 3 (list 4 5)))))
-(define prepend-chain (prepend 1 2 3 (list 4 5)))
-(test-assert 
-  (= (first manual-chain) (first prepend-chain))
-  "prepend should be equivalent to manual cons chain - first")
-
-(test-assert 
-  (= (first (rest manual-chain)) (first (rest prepend-chain)))
-  "prepend should be equivalent to manual cons chain - second")
-
-(test-assert 
-  (= (first (rest (rest manual-chain))) (first (rest (rest prepend-chain))))
-  "prepend should be equivalent to manual cons chain - third")
-
-;------------------------------------------------------------------------------
-; Cond tests
-
-; Test 1: Basic cond with true first condition
-(test-assert 
-  (= (cond ((= 1 1) 42))
-     42)
-  "cond should return value when first condition is true")
-
-; Test 2: Basic cond with false first condition, true second
-(test-assert
-  (= (cond ((= 1 2) 10)
-           ((= 2 2) 20))
-     20)
-  "cond should skip false conditions and return first true")
-
-; Test 3: Multiple conditions, second one true
-(test-assert
-  (= (cond ((= 5 6) 100)
-           ((= 3 3) 200)
-           ((= 7 7) 300))
-     200)
-  "cond should return first true condition, not evaluate later ones")
-
-; Test 4: No true conditions - should return nil
-(test-assert
-  (nil? (cond ((= 1 2) 10)
-              ((= 3 4) 20)))
-  "cond should return nil when no conditions are true")
-
-; Test 5: Empty cond - should return nil
-(test-assert 
-  (nil? (cond))
-  "cond with no clauses should return nil")
-
-; Test 6: Complex expressions in conditions and results
-(test-assert
-  (= (cond ((= (+ 1 2) 4) (* 2 3))
-           ((= (* 2 2) 4) (+ 10 5)))
-     15)
-  "cond should handle complex expressions in both test and result")
-
-; Test 7: Side effects should only occur for evaluated branches
-(define-mutable test-counter 0)
-(define increment-counter (lambda () (set! test-counter (+ test-counter 1))))
-(cond ((= 1 1) (increment-counter))
-      ((= 2 2) (increment-counter)))
-(test-assert 
-  (= test-counter 1)
-  "cond should only evaluate the first true branch")
-
-; Test 8: Using Church Booleans directly
-(test-assert 
-  (= (cond (true "correct") 
-           (false "wrong")) 
-     "correct")
-  "cond should work with Church Boolean values")
-
-; Test 9: Variable references in conditions
-(define x 5)
-(define y 10)
-(test-assert
-  (= (cond ((= x 3) "no")
-           ((= y 10) "yes")
-           ((= x 5) "maybe"))
-     "yes")
-  "cond should work with variable references")
-
-; Test 10: Nested cond expressions
-(define nested-result 
-  (cond ((= 1 2) "outer-false")
-        ((= 2 2) (cond ((= 3 4) "inner-false")
-                       ((= 5 5) "inner-true")))))
-(test-assert 
-  (= nested-result "inner-true")
-  "cond should work when nested inside other cond expressions")
-
-; Test 11: Short-circuit evaluation - later conditions shouldn't be evaluated
-(define side-effect-var 0)
-(define make-side-effect 
-  (lambda () (define side-effect-var (+ side-effect-var 1))))
-(cond ((= 1 1) "found")
-      ((make-side-effect) "should not reach here"))
-(test-assert 
-  (= side-effect-var 0)
-  "cond should not evaluate conditions after finding a true one")
-
-; Test 12: Using cond with wrapped functions
-(define wrapped-equal (wrap =))
-(test-assert 
-  (= (cond ((wrapped-equal 1 2) "no") ((wrapped-equal 3 3) "yes")) "yes")
-  "cond should work with wrapped operatives")
-
-; Test 13: Return values can be any type
-(define string-result (cond ((= 1 2) 42) ((= 2 2) "string")))
-(define number-result (cond ((= 1 1) 99) ((= 2 2) "string")))
-(test-assert 
-  (= string-result "string")
-  "cond should return string values correctly")
-(test-assert 
-  (= number-result 99)
-  "cond should return number values correctly")
-
-; Test 14: Single clause cond
-(test-assert 
-  (= (cond ((= 7 7) "single")) "single")
-  "cond with single true clause should work")
-
-(test-assert 
-  (nil? (cond ((= 7 8) "single")))
-  "cond with single false clause should return nil")
-
-; Test 15: Complex realistic example
-(define classify-number
-  (lambda (n)
-    (cond ((= n 0) "zero")
-          ((= n 1) "one") 
-          ((= n 2) "two")
-          ((nil? ()) "other"))))  ; Always true as fallback
-
-(test-assert 
-  (= (classify-number 0) "zero")
-  "cond classifier should work for zero")
-
-(test-assert 
-  (= (classify-number 1) "one")
-  "cond classifier should work for one")
-
-(test-assert 
-  (= (classify-number 99) "other")
-  "cond classifier should work for default case")
-
-;------------------------------------------------------------------------------
-; get-current-environment tests
-
-; Test 1: Environment capture
-(define captured-env (get-current-environment))
-(define test-var-in-env 123)
-(test-assert 
-  (= (eval (q test-var-in-env) captured-env) 123)
-  "get-current-environment should capture current bindings")
-
-;------------------------------------------------------------------------------
-; for-each tests
-
-; Test 1: Basic for-each
-(define-mutable for-each-sum 0)
-(define add-to-sum (lambda (x) (set! for-each-sum (+ for-each-sum x))))
-(for-each add-to-sum (list 1 2 3))
-(test-assert 
-  (= for-each-sum 6)
-  "for-each should apply function to each list element")
-
-;------------------------------------------------------------------------------
-; and/or/not tests
-
-(test-assert (and) "(and) should return true")
-(test-assert (and true) "(and true) should return true")
-(test-assert (not (and false)) "(and false) should return false") 
-(test-assert (and true true true)
-  "(and true true true) should return true")
-(test-assert (not (and false false false)) 
-  "(and false false false) should return false")
-(test-assert (not (and true false true))
-  "(and true false true) should return false")
-
-(define-mutable boolean-test-int 0)
-(define boolean-test-set! (lambda* (n) (set! boolean-test-int n) true))
-
-(and false (boolean-test-set! 1))
-(test-assert (= 0 boolean-test-int)
-  "and should short-circuit")
-
-(test-assert (not (or))
-  "(or) should return false")
-(test-assert (or true) "(or true) should return true")
-(test-assert (not (or false)) "(or false) should return false")
-(test-assert (or true true true)
-  "(or true true true) should return true")
-(test-assert (not (or false false false))
-  "(or false false false) shoud return false")
-(test-assert (or false true false)
-  "(or false true false) should return true")
-
-(set! boolean-test-int 0)
-(or true (boolean-test-int 1))
-(test-assert (= 0 boolean-test-int)
-  "or should short-circuit")
-
-(test-assert (not (not true))
-  "(not true) should return false")
-(test-assert (not false)
-  "(not false) should return true")
-
-; Nested operations
-(test-assert (and (or true false) (not false))
-  "nested boolean operations should work")
-(test-assert (or (and false true) (not false))
-  "complex nested operations should work")
-
-; Test with Church Boolean expressions
-(test-assert (and (= 1 1) (nil? ()))
-  "and should work with Church Boolean expressions")
-(test-assert (or (= 1 2) (= 2 2))
-  "or should work with Church Boolean expressions")
-(test-assert (not (= 1 2))
-  "not should work with Church Boolean expressions")
-
-; Many arguments
-(test-assert (and true true true true true true)
-  "and should handle many true arguments")
-(test-assert (not (and true true false true true))
-  "and should handle false anywhere in many arguments")
-
-;------------------------------------------------------------------------------
-; Error condition tests (now that we have try/test-error)
-
-; Test arithmetic errors
-(test-error (+ 1 "hello") "arithmetic operations should reject non-numeric arguments")
-(test-error (- "world" 5) "subtraction should reject string arguments")
-(test-error (* true 3) "multiplication should reject boolean arguments")
-(test-error (/ 10 "two") "division should reject non-numeric arguments")
-
-; Test list operation errors  
-(test-error (first 42) "first should reject non-list arguments")
-(test-error (rest "hello") "rest should reject non-list arguments")
-(test-error (cons) "cons should require exactly 2 arguments")
-(test-error (cons 1) "cons should require exactly 2 arguments") 
-(test-error (cons 1 2 3) "cons should require exactly 2 arguments")
-
-; Test undefined variable errors
-(test-error undefined-variable-name "accessing undefined variables should throw")
-(test-error (+ undefined-var 5) "undefined variables in expressions should throw")
-
-; Test eval errors
-(test-error (eval) "eval should require exactly 2 arguments")
-(test-error (eval 42) "eval should require exactly 2 arguments")
-(test-error (eval 1 2 3) "eval should require exactly 2 arguments")
-(test-error (eval 42 "not-env") "eval should reject non-environment second argument")
-
-; Test vau parameter errors
-(test-error (vau) "vau should require exactly 3 arguments")
-(test-error (vau (x)) "vau should require exactly 3 arguments")
-(test-error (vau (x) env) "vau should require exactly 3 arguments")
-(test-error (vau "not-list" env body) "vau should reject non-list parameter list")
-(test-error (vau (123) env body) "vau should reject non-symbol parameters")
-
-; Test define errors
-(test-error (define) "define should require exactly 2 arguments")
-(test-error (define x) "define should require exactly 2 arguments")
-(test-error (define x 1 2) "define should require exactly 2 arguments")
-(test-error (define 123 "value") "define should reject non-symbol names")
-(test-error (define "string" 42) "define should reject string names")
-
-; Test define-mutable errors
-(test-error (define-mutable) "define-mutable should require exactly 2 arguments")
-(test-error (define-mutable x) "define-mutable should require exactly 2 arguments") 
-(test-error (define-mutable 42 "value") "define-mutable should reject non-symbol names")
-
-; Test set! errors
-(test-error (set!) "set! should require exactly 2 arguments")
-(test-error (set! x) "set! should require exactly 2 arguments")
-(test-error (set! "string" 42) "set! should reject non-symbol names")
-(test-error (set! 123 "value") "set! should reject numeric names")
-
-; Test set! on immutable bindings
-(define immutable-var 42)
-(test-error (set! immutable-var 99) "set! should reject immutable bindings")
-
-; Test set! on undefined variables
-(test-error (set! completely-undefined 123) "set! should reject undefined variables")
-
-; Test wrap errors
-(test-error (wrap) "wrap should require exactly 1 argument")
-(test-error (wrap +  *) "wrap should require exactly 1 argument")
-(test-error (wrap 42) "wrap should reject non-operative arguments")
-(test-error (wrap "string") "wrap should reject non-operative arguments")
-
-; Test invoke errors  
-(test-error (invoke) "invoke should require at least 1 argument")
-(test-error (invoke 42 (list 1 2)) "invoke should reject non-operative first argument")
-(test-error (invoke + "not-list") "invoke should reject non-list second argument")
-
-; Test comparison operator edge cases
-(test-error (=) "= should require at least 2 arguments")
-(test-error (= 1) "= should require at least 2 arguments")
-
-; Test Church Boolean edge cases - operatives called as values
-(test-error (42 "true-branch" "false-branch") "integers are not operatives")
-(test-error ("hello" 1 2) "strings are not operatives")
-(test-error (() 1 2) "nil is not an operative")
-
-;------------------------------------------------------------------------------
-; Exception propagation tests
-
-; Test that exceptions propagate through nested calls
-(define error-thrower (lambda () (first 42)))
-(define error-wrapper (lambda () (error-thrower)))
-(test-error (error-wrapper) "exceptions should propagate through function calls")
-
-; Test exception in vau operative
-(define error-vau (vau (x) env (rest "invalid")))
-(test-error (error-vau dummy) "exceptions should propagate from vau operatives")
-
-; Test exception in wrapped operative
-(define error-op (vau (x) env (first x)))  ; Will fail if x is not a list
-(define wrapped-error (wrap error-op))
-(test-error (wrapped-error 42) "exceptions should propagate from wrapped operatives")
-
-; Test exception in lambda
-(define error-lambda (lambda (x) (+ x "invalid")))
-(test-error (error-lambda 5) "exceptions should propagate from lambda functions")
-
-; Test exception in higher-order function usage
-(define apply-func (lambda (f x) (f x)))
-(define bad-func (lambda (n) (/ n "zero")))
-(test-error (apply-func bad-func 10) "exceptions should propagate through higher-order functions")
-
-;------------------------------------------------------------------------------
-; Recovery tests using try
-
-; Test basic exception recovery
-(define-mutable recovery-test 0)
-(try (do (set! recovery-test 1)
-         (first "invalid"))
-     (lambda* (error)
-       (set! recovery-test 99)))
-(test-assert 
-  (= recovery-test 99)
-  "try should allow recovery from exceptions")
-
-; Test that try-block executes normally when no error
-(define-mutable normal-execution 0)
-(try (set! normal-execution 42)
-     (lambda* (error) (set! normal-execution -1)))
-(test-assert 
-  (= normal-execution 42)
-  "try should execute normally when no exception occurs")
-
-; Test exception information is passed to handler
-(define-mutable error-info "")
-(try (rest 123)
-     (lambda* (error)
-       (set! error-info (first (rest error)))))  ; Get error message
-(test-assert 
-  (not (= error-info ""))
-  "try should pass error information to handler")
-
-; Test nested try blocks
-(define-mutable nested-result 0)
-(try (try (first "outer-error")
-          (lambda* (e) (set! nested-result 1)))
-     (lambda* (e) (set! nested-result 2)))
-(test-assert 
-  (= nested-result 1)
-  "nested try blocks should work correctly")
-
-; Test try with finally clause
-(define-mutable finally-executed 0)
-(define-mutable try-result "")
-(define result (try "success-value"
-                    (lambda* (error) "error-value")
-                    (lambda* (value) 
-                      (set! finally-executed 1)
-                      (set! try-result value)
-                      value)))
-(test-assert 
-  (and (= finally-executed 1) (= try-result "success-value"))
-  "try with finally should execute finally clause on success")
-
-; Test try/finally with exception
-(define-mutable finally-on-error 0)
-(try (first 42)
-     (lambda* (error) "handled")
-     (lambda* (result) 
-       (set! finally-on-error 1)
-       result))
-(test-assert 
-  (= finally-on-error 1)
-  "try with finally should execute finally clause on error")
-
-;------------------------------------------------------------------------------
-; Environment isolation tests
-
-#skip
-; I'm not sure about this one.
-; We could have `try` introduce a new environment.
-; But maybe we should leave that up to the user.
-; (Especially once we've implemented let.)
-
-; Test that errors don't corrupt environment
-(define test-env-var 100)
-(try (do (define test-env-var 200)  ; This should fail...
-         (rest "invalid"))          ; ...before this error
-     (lambda* (error) "caught"))
-; The original binding should be preserved
-(test-assert 
-  (= test-env-var 100)
-  "exceptions should not corrupt environment bindings")
-#end
-
-; Test exception in environment parameter usage
-(define env-error-vau (vau (expr) env (eval expr "not-an-env")))
-(test-error (env-error-vau (+ 1 2)) "invalid environment usage should throw")
-
-;------------------------------------------------------------------------------
 ; map tests
 
 ; Test 1: Basic map with simple function
@@ -2546,163 +2257,6 @@
 
 ; Test 16: Error case - map with non-list second argument
 (test-error (map double 42) "map should reject non-list second argument")
-
-;------------------------------------------------------------------------------
-; let tests
-
-; Test 1: Basic let with single binding
-(test-assert 
-  (= (let ((x 10)) x) 10)
-  "let should work with single binding")
-
-; Test 2: let with multiple bindings
-(test-assert 
-  (= (let ((x 5) (y 3)) (+ x y)) 8)
-  "let should work with multiple bindings")
-
-; Test 3: let with no bindings (should work like immediate lambda invocation)
-(test-assert 
-  (= (let () 42) 42)
-  "let with empty bindings should work")
-
-; Test 4: let bindings shadow outer variables
-(define outer-let-var 100)
-(test-assert 
-  (= (let ((outer-let-var 20)) outer-let-var) 20)
-  "let bindings should shadow outer variables")
-
-(test-assert 
-  (= outer-let-var 100)
-  "let should not affect outer variable bindings")
-
-; Test 5: let with complex expressions in bindings
-(test-assert 
-  (= (let ((a (+ 2 3)) (b (* 4 5))) (+ a b)) 25)
-  "let should evaluate complex expressions in bindings")
-
-; Test 6: let with multiple body expressions (since let uses lambda*)
-(define-mutable let-side-effect 0)
-(define let-result 
-  (let ((x 10))
-    (set! let-side-effect 1)
-    (set! let-side-effect (+ let-side-effect x))
-    (* x 2)))
-(test-assert 
-  (= let-result 20)
-  "let should return value of last expression")
-
-(test-assert 
-  (= let-side-effect 11)
-  "let should execute all body expressions for side effects")
-
-; Test 7: Nested let expressions
-(test-assert 
-  (= (let ((x 5))
-       (let ((y 3))
-         (+ x y))) 8)
-  "nested let expressions should work")
-
-; Test 8: let with variable references in bindings (bindings are evaluated in outer scope)
-(define let-outer-var 15)
-(test-assert 
-  (= (let ((x let-outer-var) (y 5)) (+ x y)) 20)
-  "let bindings should access outer scope variables")
-
-; Test 9: let bindings don't see each other (parallel binding)
-(define let-base-var 10)
-(test-assert 
-  (= (let ((x let-base-var) (y let-base-var)) (+ x y)) 20)
-  "let bindings should be evaluated independently")
-
-; Test 10: let with conditional expressions
-(test-assert 
-  (= (let ((test-val 5))
-       (if (= test-val 5) 
-           "correct"
-           "wrong")) "correct")
-  "let should work with conditionals")
-
-; Test 11: let used in function definitions
-(define make-adder-with-let 
-  (lambda (base)
-    (lambda (x)
-      (let ((adjusted-base (+ base 1)))
-        (+ x adjusted-base)))))
-(define add-with-six (make-adder-with-let 5))
-(test-assert 
-  (= (add-with-six 10) 16)  ; 10 + (5+1) = 16
-  "let should work inside lambda definitions")
-
-; Test 12: let with library functions
-(test-assert 
-  (= (let ((nums (list 1 2 3)))
-       (first nums)) 1)
-  "let should work with library functions")
-
-; Test 13: let with mutable variables in body
-(define-mutable let-mutable-test 0)
-(let ((increment 5))
-  (set! let-mutable-test increment)
-  (set! let-mutable-test (+ let-mutable-test increment)))
-(test-assert 
-  (= let-mutable-test 10)
-  "let should work with mutable variable operations")
-
-; Test 14: let with recursive pattern (using library functions)
-(test-assert 
-  (= (let ((double-list (lambda (lst) (map (lambda (x) (* x 2)) lst))))
-       (first (double-list (list 3 4 5)))) 6)
-  "let should work with higher-order function patterns")
-
-; Test 15: let with Church Boolean results
-(define let-boolean-result 
-  (let ((x 1) (y 1))
-    (= x y)))  ; This returns a Church Boolean
-; We can't test Church Booleans with = directly, so test their behavior
-(test-assert 
-  (= (let ((test-bool (let ((a 2) (b 2)) (= a b))))
-       (test-bool 42 99)) 42)
-  "let should work with Church Boolean expressions")
-
-; Test 16: Complex let example with multiple concepts
-(define complex-let-result
-  (let ((items (list 10 20 30))
-        (multiplier 3))
-    (define doubled (map (lambda (x) (* x 2)) items))
-    (define first-doubled (first doubled))
-    (* first-doubled multiplier)))
-(test-assert 
-  (= complex-let-result 60)  ; (10*2)*3 = 60
-  "let should work in complex scenarios with multiple operations")
-
-; Test 17: let with string bindings
-(test-assert 
-  (= (let ((greeting "hello") (name "world"))
-       greeting) "hello")
-  "let should work with string bindings")
-
-; Test 18: let with immediate computation and side effects
-(define-mutable let-immediate-effect 0)
-(let ((side-effect-val (do (set! let-immediate-effect 42) 10)))
-  (set! let-immediate-effect (+ let-immediate-effect side-effect-val)))
-(test-assert 
-  (= let-immediate-effect 52)  ; 42 + 10
-  "let bindings should evaluate expressions with side effects immediately")
-
-; Test 19: let error conditions - malformed binding lists
-(test-error (let "not-a-list" body) "let should reject non-list binding forms")
-(test-error (let ((x)) x) "let should reject incomplete bindings")
-#skip
-; Need to enhance the let implementation to validate bindings
-(test-error (let ((x 1 2)) x) "let should reject malformed bindings")
-#end
-
-; Test 20: let with wrapped operatives
-(define let-wrapped-op (wrap +))
-(test-assert 
-  (= (let ((op let-wrapped-op) (a 5) (b 7))
-       (op a b)) 12)
-  "let should work with wrapped operatives")
 
 ;------------------------------------------------------------------------------
 ; apply tests
@@ -3997,7 +3551,465 @@
   "iota should work with apply")
 
 ;------------------------------------------------------------------------------
+; Cond tests
+(lndisplayln "cond tests")
+
+; Test 1: Basic cond with true first condition
+(test-assert 
+  (= (cond ((= 1 1) 42))
+     42)
+  "cond should return value when first condition is true")
+
+; Test 2: Basic cond with false first condition, true second
+(test-assert
+  (= (cond ((= 1 2) 10)
+           ((= 2 2) 20))
+     20)
+  "cond should skip false conditions and return first true")
+
+; Test 3: Multiple conditions, second one true
+(test-assert
+  (= (cond ((= 5 6) 100)
+           ((= 3 3) 200)
+           ((= 7 7) 300))
+     200)
+  "cond should return first true condition, not evaluate later ones")
+
+; Test 4: No true conditions - should return nil
+(test-assert
+  (nil? (cond ((= 1 2) 10)
+              ((= 3 4) 20)))
+  "cond should return nil when no conditions are true")
+
+; Test 5: Empty cond - should return nil
+(test-assert 
+  (nil? (cond))
+  "cond with no clauses should return nil")
+
+; Test 6: Complex expressions in conditions and results
+(test-assert
+  (= (cond ((= (+ 1 2) 4) (* 2 3))
+           ((= (* 2 2) 4) (+ 10 5)))
+     15)
+  "cond should handle complex expressions in both test and result")
+
+; Test 7: Side effects should only occur for evaluated branches
+(define-mutable test-counter 0)
+(define increment-counter (lambda () (set! test-counter (+ test-counter 1))))
+(cond ((= 1 1) (increment-counter))
+      ((= 2 2) (increment-counter)))
+(test-assert 
+  (= test-counter 1)
+  "cond should only evaluate the first true branch")
+
+; Test 8: Using Church Booleans directly
+(test-assert 
+  (= (cond (true "correct") 
+           (false "wrong")) 
+     "correct")
+  "cond should work with Church Boolean values")
+
+; Test 9: Variable references in conditions
+(define x 5)
+(define y 10)
+(test-assert
+  (= (cond ((= x 3) "no")
+           ((= y 10) "yes")
+           ((= x 5) "maybe"))
+     "yes")
+  "cond should work with variable references")
+
+; Test 10: Nested cond expressions
+(define nested-result 
+  (cond ((= 1 2) "outer-false")
+        ((= 2 2) (cond ((= 3 4) "inner-false")
+                       ((= 5 5) "inner-true")))))
+(test-assert 
+  (= nested-result "inner-true")
+  "cond should work when nested inside other cond expressions")
+
+; Test 11: Short-circuit evaluation - later conditions shouldn't be evaluated
+(define side-effect-var 0)
+(define make-side-effect 
+  (lambda () (define side-effect-var (+ side-effect-var 1))))
+(cond ((= 1 1) "found")
+      ((make-side-effect) "should not reach here"))
+(test-assert 
+  (= side-effect-var 0)
+  "cond should not evaluate conditions after finding a true one")
+
+; Test 12: Using cond with wrapped functions
+(define wrapped-equal (wrap =))
+(test-assert 
+  (= (cond ((wrapped-equal 1 2) "no") ((wrapped-equal 3 3) "yes")) "yes")
+  "cond should work with wrapped operatives")
+
+; Test 13: Return values can be any type
+(define string-result (cond ((= 1 2) 42) ((= 2 2) "string")))
+(define number-result (cond ((= 1 1) 99) ((= 2 2) "string")))
+(test-assert 
+  (= string-result "string")
+  "cond should return string values correctly")
+(test-assert 
+  (= number-result 99)
+  "cond should return number values correctly")
+
+; Test 14: Single clause cond
+(test-assert 
+  (= (cond ((= 7 7) "single")) "single")
+  "cond with single true clause should work")
+
+(test-assert 
+  (nil? (cond ((= 7 8) "single")))
+  "cond with single false clause should return nil")
+
+; Test 15: Complex realistic example
+(define classify-number
+  (lambda (n)
+    (cond ((= n 0) "zero")
+          ((= n 1) "one") 
+          ((= n 2) "two")
+          ((nil? ()) "other"))))  ; Always true as fallback
+
+(test-assert 
+  (= (classify-number 0) "zero")
+  "cond classifier should work for zero")
+
+(test-assert 
+  (= (classify-number 1) "one")
+  "cond classifier should work for one")
+
+(test-assert 
+  (= (classify-number 99) "other")
+  "cond classifier should work for default case")
+
+;------------------------------------------------------------------------------
+; and/or/not tests
+(lndisplayln "and/or/not tests")
+
+(test-assert (and) "(and) should return true")
+(test-assert (and true) "(and true) should return true")
+(test-assert (not (and false)) "(and false) should return false") 
+(test-assert (and true true true)
+  "(and true true true) should return true")
+(test-assert (not (and false false false)) 
+  "(and false false false) should return false")
+(test-assert (not (and true false true))
+  "(and true false true) should return false")
+
+(define-mutable boolean-test-int 0)
+(define boolean-test-set! (lambda* (n) (set! boolean-test-int n) true))
+
+(and false (boolean-test-set! 1))
+(test-assert (= 0 boolean-test-int)
+  "and should short-circuit")
+
+(test-assert (not (or))
+  "(or) should return false")
+(test-assert (or true) "(or true) should return true")
+(test-assert (not (or false)) "(or false) should return false")
+(test-assert (or true true true)
+  "(or true true true) should return true")
+(test-assert (not (or false false false))
+  "(or false false false) shoud return false")
+(test-assert (or false true false)
+  "(or false true false) should return true")
+
+(set! boolean-test-int 0)
+(or true (boolean-test-int 1))
+(test-assert (= 0 boolean-test-int)
+  "or should short-circuit")
+
+(test-assert (not (not true))
+  "(not true) should return false")
+(test-assert (not false)
+  "(not false) should return true")
+
+; Nested operations
+(test-assert (and (or true false) (not false))
+  "nested boolean operations should work")
+(test-assert (or (and false true) (not false))
+  "complex nested operations should work")
+
+; Test with Church Boolean expressions
+(test-assert (and (= 1 1) (nil? ()))
+  "and should work with Church Boolean expressions")
+(test-assert (or (= 1 2) (= 2 2))
+  "or should work with Church Boolean expressions")
+(test-assert (not (= 1 2))
+  "not should work with Church Boolean expressions")
+
+; Many arguments
+(test-assert (and true true true true true true)
+  "and should handle many true arguments")
+(test-assert (not (and true true false true true))
+  "and should handle false anywhere in many arguments")
+
+;------------------------------------------------------------------------------
+; Error condition tests (now that we have try/test-error)
+(lndisplayln "misc error condition tests")
+
+; Test arithmetic errors
+(test-error (+ 1 "hello") "arithmetic operations should reject non-numeric arguments")
+(test-error (- "world" 5) "subtraction should reject string arguments")
+(test-error (* true 3) "multiplication should reject boolean arguments")
+(test-error (/ 10 "two") "division should reject non-numeric arguments")
+
+; Test list operation errors  
+(test-error (first 42) "first should reject non-list arguments")
+(test-error (rest "hello") "rest should reject non-list arguments")
+(test-error (cons) "cons should require exactly 2 arguments")
+(test-error (cons 1) "cons should require exactly 2 arguments") 
+(test-error (cons 1 2 3) "cons should require exactly 2 arguments")
+
+; Test undefined variable errors
+(test-error undefined-variable-name "accessing undefined variables should throw")
+(test-error (+ undefined-var 5) "undefined variables in expressions should throw")
+
+; Test eval errors
+(test-error (eval) "eval should require exactly 2 arguments")
+(test-error (eval 42) "eval should require exactly 2 arguments")
+(test-error (eval 1 2 3) "eval should require exactly 2 arguments")
+(test-error (eval 42 "not-env") "eval should reject non-environment second argument")
+
+; Test vau parameter errors
+(test-error (vau) "vau should require exactly 3 arguments")
+(test-error (vau (x)) "vau should require exactly 3 arguments")
+(test-error (vau (x) env) "vau should require exactly 3 arguments")
+(test-error (vau "not-list" env body) "vau should reject non-list parameter list")
+(test-error (vau (123) env body) "vau should reject non-symbol parameters")
+
+; Test define errors
+(test-error (define) "define should require exactly 2 arguments")
+(test-error (define x) "define should require exactly 2 arguments")
+(test-error (define x 1 2) "define should require exactly 2 arguments")
+(test-error (define 123 "value") "define should reject non-symbol names")
+(test-error (define "string" 42) "define should reject string names")
+
+; Test define-mutable errors
+(test-error (define-mutable) "define-mutable should require exactly 2 arguments")
+(test-error (define-mutable x) "define-mutable should require exactly 2 arguments") 
+(test-error (define-mutable 42 "value") "define-mutable should reject non-symbol names")
+
+; Test set! errors
+(test-error (set!) "set! should require exactly 2 arguments")
+(test-error (set! x) "set! should require exactly 2 arguments")
+(test-error (set! "string" 42) "set! should reject non-symbol names")
+(test-error (set! 123 "value") "set! should reject numeric names")
+
+; Test set! on immutable bindings
+(define immutable-var 42)
+(test-error (set! immutable-var 99) "set! should reject immutable bindings")
+
+; Test set! on undefined variables
+(test-error (set! completely-undefined 123) "set! should reject undefined variables")
+
+; Test wrap errors
+(test-error (wrap) "wrap should require exactly 1 argument")
+(test-error (wrap +  *) "wrap should require exactly 1 argument")
+(test-error (wrap 42) "wrap should reject non-operative arguments")
+(test-error (wrap "string") "wrap should reject non-operative arguments")
+
+; Test invoke errors  
+(test-error (invoke) "invoke should require at least 1 argument")
+(test-error (invoke 42 (list 1 2)) "invoke should reject non-operative first argument")
+(test-error (invoke + "not-list") "invoke should reject non-list second argument")
+
+; Test comparison operator edge cases
+(test-error (=) "= should require at least 2 arguments")
+(test-error (= 1) "= should require at least 2 arguments")
+
+; Test Church Boolean edge cases - operatives called as values
+(test-error (42 "true-branch" "false-branch") "integers are not operatives")
+(test-error ("hello" 1 2) "strings are not operatives")
+(test-error (() 1 2) "nil is not an operative")
+
+;------------------------------------------------------------------------------
+; Environment isolation tests
+(lndisplayln "environment isolation tests")
+
+#skip
+; I'm not sure about this one.
+; We could have `try` introduce a new environment.
+; But maybe we should leave that up to the user.
+; (Especially once we've implemented let.)
+
+; Test that errors don't corrupt environment
+(define test-env-var 100)
+(try (do (define test-env-var 200)  ; This should fail...
+         (rest "invalid"))          ; ...before this error
+     (lambda* (error) "caught"))
+; The original binding should be preserved
+(test-assert 
+  (= test-env-var 100)
+  "exceptions should not corrupt environment bindings")
+#end
+
+; Test exception in environment parameter usage
+(define env-error-vau (vau (expr) env (eval expr "not-an-env")))
+(test-error (env-error-vau (+ 1 2)) "invalid environment usage should throw")
+
+;------------------------------------------------------------------------------
+; let tests
+(lndisplayln "let tests")
+
+; Test 1: Basic let with single binding
+(test-assert 
+  (= (let ((x 10)) x) 10)
+  "let should work with single binding")
+
+; Test 2: let with multiple bindings
+(test-assert 
+  (= (let ((x 5) (y 3)) (+ x y)) 8)
+  "let should work with multiple bindings")
+
+; Test 3: let with no bindings (should work like immediate lambda invocation)
+(test-assert 
+  (= (let () 42) 42)
+  "let with empty bindings should work")
+
+; Test 4: let bindings shadow outer variables
+(define outer-let-var 100)
+(test-assert 
+  (= (let ((outer-let-var 20)) outer-let-var) 20)
+  "let bindings should shadow outer variables")
+
+(test-assert 
+  (= outer-let-var 100)
+  "let should not affect outer variable bindings")
+
+; Test 5: let with complex expressions in bindings
+(test-assert 
+  (= (let ((a (+ 2 3)) (b (* 4 5))) (+ a b)) 25)
+  "let should evaluate complex expressions in bindings")
+
+; Test 6: let with multiple body expressions (since let uses lambda*)
+(define-mutable let-side-effect 0)
+(define let-result 
+  (let ((x 10))
+    (set! let-side-effect 1)
+    (set! let-side-effect (+ let-side-effect x))
+    (* x 2)))
+(test-assert 
+  (= let-result 20)
+  "let should return value of last expression")
+
+(test-assert 
+  (= let-side-effect 11)
+  "let should execute all body expressions for side effects")
+
+; Test 7: Nested let expressions
+(test-assert 
+  (= (let ((x 5))
+       (let ((y 3))
+         (+ x y))) 8)
+  "nested let expressions should work")
+
+; Test 8: let with variable references in bindings (bindings are evaluated in outer scope)
+(define let-outer-var 15)
+(test-assert 
+  (= (let ((x let-outer-var) (y 5)) (+ x y)) 20)
+  "let bindings should access outer scope variables")
+
+; Test 9: let bindings don't see each other (parallel binding)
+(define let-base-var 10)
+(test-assert 
+  (= (let ((x let-base-var) (y let-base-var)) (+ x y)) 20)
+  "let bindings should be evaluated independently")
+
+; Test 10: let with conditional expressions
+(test-assert 
+  (= (let ((test-val 5))
+       (if (= test-val 5) 
+           "correct"
+           "wrong")) "correct")
+  "let should work with conditionals")
+
+; Test 11: let used in function definitions
+(define make-adder-with-let 
+  (lambda (base)
+    (lambda (x)
+      (let ((adjusted-base (+ base 1)))
+        (+ x adjusted-base)))))
+(define add-with-six (make-adder-with-let 5))
+(test-assert 
+  (= (add-with-six 10) 16)  ; 10 + (5+1) = 16
+  "let should work inside lambda definitions")
+
+; Test 12: let with library functions
+(test-assert 
+  (= (let ((nums (list 1 2 3)))
+       (first nums)) 1)
+  "let should work with library functions")
+
+; Test 13: let with mutable variables in body
+(define-mutable let-mutable-test 0)
+(let ((increment 5))
+  (set! let-mutable-test increment)
+  (set! let-mutable-test (+ let-mutable-test increment)))
+(test-assert 
+  (= let-mutable-test 10)
+  "let should work with mutable variable operations")
+
+; Test 14: let with recursive pattern (using library functions)
+(test-assert 
+  (= (let ((double-list (lambda (lst) (map (lambda (x) (* x 2)) lst))))
+       (first (double-list (list 3 4 5)))) 6)
+  "let should work with higher-order function patterns")
+
+; Test 15: let with Church Boolean results
+(define let-boolean-result 
+  (let ((x 1) (y 1))
+    (= x y)))  ; This returns a Church Boolean
+; We can't test Church Booleans with = directly, so test their behavior
+(test-assert 
+  (= (let ((test-bool (let ((a 2) (b 2)) (= a b))))
+       (test-bool 42 99)) 42)
+  "let should work with Church Boolean expressions")
+
+; Test 16: Complex let example with multiple concepts
+(define complex-let-result
+  (let ((items (list 10 20 30))
+        (multiplier 3))
+    (define doubled (map (lambda (x) (* x 2)) items))
+    (define first-doubled (first doubled))
+    (* first-doubled multiplier)))
+(test-assert 
+  (= complex-let-result 60)  ; (10*2)*3 = 60
+  "let should work in complex scenarios with multiple operations")
+
+; Test 17: let with string bindings
+(test-assert 
+  (= (let ((greeting "hello") (name "world"))
+       greeting) "hello")
+  "let should work with string bindings")
+
+; Test 18: let with immediate computation and side effects
+(define-mutable let-immediate-effect 0)
+(let ((side-effect-val (do (set! let-immediate-effect 42) 10)))
+  (set! let-immediate-effect (+ let-immediate-effect side-effect-val)))
+(test-assert 
+  (= let-immediate-effect 52)  ; 42 + 10
+  "let bindings should evaluate expressions with side effects immediately")
+
+; Test 19: let error conditions - malformed binding lists
+(test-error (let "not-a-list" body) "let should reject non-list binding forms")
+(test-error (let ((x)) x) "let should reject incomplete bindings")
+#skip
+; Need to enhance the let implementation to validate bindings
+(test-error (let ((x 1 2)) x) "let should reject malformed bindings")
+#end
+
+; Test 20: let with wrapped operatives
+(define let-wrapped-op (wrap +))
+(test-assert 
+  (= (let ((op let-wrapped-op) (a 5) (b 7))
+       (op a b)) 12)
+  "let should work with wrapped operatives")
+
+;------------------------------------------------------------------------------
 ; even? tests
+(lndisplayln "even?/odd? tests")
 
 ; Test 1: Basic even number tests
 (test-assert 
@@ -4195,6 +4207,7 @@
 
 ;------------------------------------------------------------------------------
 ; <=> (spaceship operator) tests
+(lndisplayln "<=>/!=/</>/<=/>= tests")
 
 ; Test 1: Basic spaceship operator functionality
 (test-assert 
