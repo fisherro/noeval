@@ -2265,11 +2265,8 @@
 ; Test wrap errors
 (test-error (wrap) "wrap should require exactly 1 argument")
 (test-error (wrap +  *) "wrap should require exactly 1 argument")
-#skip
-; I think we'd need to implement an operative? predicate to do this.
 (test-error (wrap 42) "wrap should reject non-operative arguments")
 (test-error (wrap "string") "wrap should reject non-operative arguments")
-#end
 
 ; Test invoke errors  
 (test-error (invoke) "invoke should require at least 1 argument")

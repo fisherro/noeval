@@ -81,6 +81,9 @@
     (do
       ; Evaluate the operative once when wrap is called
       (define resolved-operative (eval operative wrap-call-env))
+      ((= (q operative) (typeof resolved-operative))
+       ()
+       (raise "wrap can only be applied to operatives"))
       (vau unevaluated-args wrapped-call-env
         ; Here, the implicit env is the closure environment of this inner vau.
         ; This environment was created by the `do` block when the outer vau was
