@@ -3319,19 +3319,15 @@
   (= (first side-effect-result) 2)
   "filter with side effects should still produce correct results")
 
-#skip
-; I don't think we can expect this to work until we have type predicates.
 ; Test 14: Filter with different data types
-(define is-string (lambda (x) (= x "test")))  ; Simple string equality
-(define mixed-filter (filter is-string (list 42 "test" 99 "test" "other")))
+(define mixed-filter (filter string? (list 42 "test" 99 "test" "other")))
 (test-assert 
   (= (first mixed-filter) "test")
   "filter should work with mixed data types - first")
 
 (test-assert 
-  (= (first (rest mixed-filter)) "test")
+  (= (second mixed-filter) "test")
   "filter should work with mixed data types - second")
-#end
 
 ; Test 15: Filter result is properly structured
 (define structure-test (filter even? (list 2)))

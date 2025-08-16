@@ -20,10 +20,6 @@ Allow stack depth tracking to be turned on/off at the REPL
 
 Tests for `raise`. Add error checking to library operatives.
 
-Update library functions to use type predicates
-
-Update tests to use type predicates
-
 map*
 
 Other HOF
