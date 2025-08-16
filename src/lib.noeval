@@ -382,7 +382,25 @@
 
 (define reverse (lambda (lyst) (foldl snoc () lyst)))
 
+(define any?
+  (lambda (predicate lyst)
+    ((nil? lyst)
+     false
+     ((predicate (first lyst))
+      true
+      (any? predicate (rest lyst))))))
+
+(define all?
+  (lambda (predicate lyst)
+    ((nil? lyst)
+     true
+     ((predicate (first lyst))
+      (all? predicate (rest lyst))
+      false))))
+
 (define append (lambda* lists
+                 (unless (all? list? lists)
+                   (raise "the arguments to append must all be lists"))
                  (define append2 (lambda (list1 list2)
                                    ((nil? list1)
                                    list2
