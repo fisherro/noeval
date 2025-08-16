@@ -23,6 +23,7 @@ Summary to use as Github Copilot context so that it doesn't have to reference la
 - **Environment access**: Second parameter to `vau` gets calling environment
 - **Nil representation**: `()` not `nil`
 - **Lists**: Built from `cons` cells, terminated with `()`
+- **Environment transparency**: `do` and `try` do not create new environments - definitions made within them persist in the current environment
 
 ## Standard Library (lib.noeval)
 

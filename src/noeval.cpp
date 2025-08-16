@@ -1450,7 +1450,7 @@ int run_library_tests(env_ptr outer_env)
         }
 
         if (exception_count > 0) {
-            std::println(
+            println_red(
                 "\n✗ {} exception{} caught",
                 exception_count,
                 exception_count == 1? "": "s");
@@ -1464,7 +1464,7 @@ int run_library_tests(env_ptr outer_env)
                 std::println("\n✓ {}", result_str.substr(1, result_str.length() - 2)); // Remove quotes
                 return 0;
             } else {
-                println_red("✗ Library tests failed with result: {}", result_str);
+                println_red("\n✗ Library tests failed with result: {}", result_str);
                 return 1;
             }
         }

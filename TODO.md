@@ -16,11 +16,15 @@ test suite size down.
 
 ## Regular
 
-Tests for `raise`. Add error checking to library operatives.
+Add error checking to library operatives.
 
 map*
 
 Other HOF
+
+Support for loading and executing a file listed on the command line
+
+Maybe an "include file" that would allow breaking the tests up into multiple files? Or would it be better to implement modules?
 
 During `define`, attach the name to the value directly for debugging?
 Values can have a flat_set of names?
@@ -93,3 +97,5 @@ Do we need get-current-environment? Is it correct?
 
 Move the testing infrastructure into the library?
 Or wait until we have modules and put it in a module?
+
+Consider `do` and `try` creating their own environment
