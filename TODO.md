@@ -16,8 +16,6 @@ test suite size down.
 
 ## Regular
 
-Allow stack depth tracking to be turned on/off at the REPL
-
 Tests for `raise`. Add error checking to library operatives.
 
 map*

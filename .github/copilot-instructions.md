@@ -66,6 +66,7 @@ The interpreter uses a variant-based value system with these key types:
 - **Auto/abbreviated templates** preferred when type names aren't needed
 - **Colon spacing**: no space before, space after (conditionals, initializer lists)
 - **Constant first for equality checks**: Use `0 == x` instead of `x == 0` to prevent accidental assignment (`x = 0`). This safety pattern applies only to `==` and `!=` operators, not to ordering comparisons (`<`, `>`, `<=`, `>=`).
+- **Include trailing comma**: Always include a trailing comma in lists where it is allowed, even after the last element.
 
 ### Parser Features  
 - Comments use `;` to end of line

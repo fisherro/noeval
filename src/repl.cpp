@@ -221,6 +221,7 @@ bool handle_debug_command(const std::string& input)
         std::println("  :debug off [category]   - Disable debug output (all categories if none specified)");
         std::println("  :debug status           - Show current debug settings");
         std::println("  :debug colors on/off    - Enable/disable colored output");
+        std::println("  :debug stack-depth      - Show max stack depth after each evaluation");
         std::println("");
         std::println("Categories: {}", debug_categories | std::views::keys);
         return true;
@@ -381,10 +382,11 @@ void repl(env_ptr global_env)
         try {
             call_stack_reset_max_depth();
             auto result = eval_expression(input, global_env);
-            std::println("max stack depth: {}", call_stack_get_max_depth());
+            if (get_debug().is_enabled("stack-depth")) {
+                std::println("max stack depth: {}", call_stack_get_max_depth());
+            }
             print_result(result);
-        }
-        catch (const std::exception& e) {
+        } catch (const std::exception& e) {
             print_error(e);
         }
     }
