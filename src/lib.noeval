@@ -175,6 +175,14 @@
       (define if-expr (list if test (cons do body) ()))
       (eval if-expr env))))
 
+(define unless
+  (vau args env
+    (do
+      (define test (first args))
+      (define body (rest args))
+      (define if-expr (list if test () (cons do body)))
+      (eval if-expr env))))
+
 (define for-each (lambda (procedure lyst)
                    (if (nil? lyst)
                        ()

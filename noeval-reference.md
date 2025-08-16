@@ -28,9 +28,9 @@ Summary to use as Github Copilot context so that it doesn't have to reference la
 
 **Core**: `lambda`, `lambda*`, `vau*`, `wrap`, `apply`, `if`, `let`, `cond`
 **Lists**: `append`, `reverse`, `length`, `filter`, `map`, `foldl`, `foldr`, `list`, `snoc`, `iota`, `prepend`, `second`
-**Control**: `when`, `and`, `or`, `not`
+**Control**: `when`, `unless`, `and`, `or`, `not`
 **Predicates**: `odd?`, `even?`, `number?`, `string?`, `symbol?`, `list?`, `operative?`, `environment?`
-**I/O**: `newline`, `displayln`, `for-each`
+**I/O**: `newline`, `displayln`, `lndisplayln`, `for-each`
 **Meta**: `q`, `get-current-environment`, `unevaluated-list`, `eval-list`
 **Examples**: `countdown`, `factorial`
 **Comparisons**: `!=`

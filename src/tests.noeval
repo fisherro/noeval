@@ -3552,7 +3552,7 @@
 
 ;------------------------------------------------------------------------------
 ; Cond tests
-(lndisplayln "cond tests")
+(lndisplayln "cond/when/unless tests")
 
 ; Test 1: Basic cond with true first condition
 (test-assert 
@@ -3682,6 +3682,372 @@
 (test-assert 
   (= (classify-number 99) "other")
   "cond classifier should work for default case")
+
+;------------------------------------------------------------------------------
+; when/unless tests
+
+; Test 1: Basic when with true condition
+(define-mutable when-test-var 0)
+(when (= 1 1)
+  (set! when-test-var 42))
+(test-assert 
+  (= when-test-var 42)
+  "when should execute body when condition is true")
+
+; Test 2: when with false condition should not execute body
+(define-mutable when-false-var 0)
+(when (= 1 2)
+  (set! when-false-var 99))
+(test-assert 
+  (= when-false-var 0)
+  "when should not execute body when condition is false")
+
+; Test 3: when with multiple body expressions
+(define-mutable when-multi-var1 0)
+(define-mutable when-multi-var2 0)
+(when (= 2 2)
+  (set! when-multi-var1 10)
+  (set! when-multi-var2 20)
+  (set! when-multi-var1 (+ when-multi-var1 5)))
+(test-assert 
+  (= when-multi-var1 15)
+  "when should execute all body expressions - first variable")
+
+(test-assert 
+  (= when-multi-var2 20)
+  "when should execute all body expressions - second variable")
+
+; Test 4: when return value with true condition
+(define when-return-true (when (= 3 3) "executed"))
+(test-assert 
+  (= when-return-true "executed")
+  "when should return value of last body expression when condition is true")
+
+; Test 5: when return value with false condition
+(define when-return-false (when (= 3 4) "not-executed"))
+(test-assert 
+  (nil? when-return-false)
+  "when should return nil when condition is false")
+
+; Test 6: when with complex condition
+(define when-complex-result
+  (when (and (= 1 1) (not (= 2 3)))
+    "complex-condition-true"))
+(test-assert 
+  (= when-complex-result "complex-condition-true")
+  "when should work with complex conditions")
+
+; Test 7: when with Church Boolean condition
+(define church-bool-true (= 5 5))
+(define-mutable church-when-var 0)
+(when church-bool-true
+  (set! church-when-var 777))
+(test-assert 
+  (= church-when-var 777)
+  "when should work with Church Boolean conditions")
+
+; Test 8: when with variable reference condition
+(define test-condition true)
+(define-mutable var-cond-result 0)
+(when test-condition
+  (set! var-cond-result 123))
+(test-assert 
+  (= var-cond-result 123)
+  "when should work with variable reference conditions")
+
+; Test 9: when should not evaluate body on false (side effect test)
+(define-mutable side-effect-counter 0)
+(define increment-counter (lambda () (set! side-effect-counter (+ side-effect-counter 1))))
+(when false
+  (increment-counter)
+  (increment-counter))
+(test-assert 
+  (= side-effect-counter 0)
+  "when should not evaluate body expressions when condition is false")
+
+; Test 10: Nested when expressions
+(define-mutable nested-when-var 0)
+(when (= 1 1)
+  (when (= 2 2)
+    (set! nested-when-var 50)))
+(test-assert 
+  (= nested-when-var 50)
+  "nested when expressions should work")
+
+; Test 11: when with library functions in condition
+(define when-lib-result
+  (when (even? 4)
+    "four-is-even"))
+(test-assert 
+  (= when-lib-result "four-is-even")
+  "when should work with library function conditions")
+
+; Test 12: when with no body expressions
+(define when-no-body (when (= 1 1)))
+(test-assert 
+  (nil? when-no-body)
+  "when with no body should return nil")
+
+; Test 13: when with computed condition
+(define computed-when-result
+  (when (= (+ 2 3) (+ (* 2 2 1 1) 1))
+    "computed-match"))
+(test-assert 
+  (= computed-when-result "computed-match")
+  "when should work with computed conditions")
+
+;------------------------------------------------------------------------------
+; unless tests
+
+; Test 1: Basic unless with false condition
+(define-mutable unless-test-var 0)
+(unless (= 1 2)
+  (set! unless-test-var 42))
+(test-assert 
+  (= unless-test-var 42)
+  "unless should execute body when condition is false")
+
+; Test 2: unless with true condition should not execute body
+(define-mutable unless-true-var 0)
+(unless (= 1 1)
+  (set! unless-true-var 99))
+(test-assert 
+  (= unless-true-var 0)
+  "unless should not execute body when condition is true")
+
+; Test 3: unless with multiple body expressions
+(define-mutable unless-multi-var1 0)
+(define-mutable unless-multi-var2 0)
+(unless (= 2 3)
+  (set! unless-multi-var1 30)
+  (set! unless-multi-var2 40)
+  (set! unless-multi-var1 (+ unless-multi-var1 5)))
+(test-assert 
+  (= unless-multi-var1 35)
+  "unless should execute all body expressions - first variable")
+
+(test-assert 
+  (= unless-multi-var2 40)
+  "unless should execute all body expressions - second variable")
+
+; Test 4: unless return value with false condition
+(define unless-return-false (unless (= 3 4) "executed"))
+(test-assert 
+  (= unless-return-false "executed")
+  "unless should return value of last body expression when condition is false")
+
+; Test 5: unless return value with true condition
+(define unless-return-true (unless (= 3 3) "not-executed"))
+(test-assert 
+  (nil? unless-return-true)
+  "unless should return nil when condition is true")
+
+; Test 6: unless with complex condition
+(define unless-complex-result
+  (unless (or (= 1 2) (= 3 4))
+    "complex-condition-false"))
+(test-assert 
+  (= unless-complex-result "complex-condition-false")
+  "unless should work with complex conditions")
+
+; Test 7: unless with Church Boolean condition
+(define church-bool-false (= 5 6))
+(define-mutable church-unless-var 0)
+(unless church-bool-false
+  (set! church-unless-var 888))
+(test-assert 
+  (= church-unless-var 888)
+  "unless should work with Church Boolean conditions")
+
+; Test 8: unless with variable reference condition
+(define false-condition false)
+(define-mutable unless-var-cond-result 0)
+(unless false-condition
+  (set! unless-var-cond-result 456))
+(test-assert 
+  (= unless-var-cond-result 456)
+  "unless should work with variable reference conditions")
+
+; Test 9: unless should not evaluate body on true (side effect test)
+(define-mutable unless-side-effect-counter 0)
+(define unless-increment-counter (lambda () (set! unless-side-effect-counter (+ unless-side-effect-counter 1))))
+(unless true
+  (unless-increment-counter)
+  (unless-increment-counter))
+(test-assert 
+  (= unless-side-effect-counter 0)
+  "unless should not evaluate body expressions when condition is true")
+
+; Test 10: Nested unless expressions
+(define-mutable nested-unless-var 0)
+(unless (= 1 2)
+  (unless (= 3 4)
+    (set! nested-unless-var 75)))
+(test-assert 
+  (= nested-unless-var 75)
+  "nested unless expressions should work")
+
+; Test 11: unless with library functions in condition
+(define unless-lib-result
+  (unless (odd? 4)
+    "four-is-not-odd"))
+(test-assert 
+  (= unless-lib-result "four-is-not-odd")
+  "unless should work with library function conditions")
+
+; Test 12: unless with no body expressions
+(define unless-no-body (unless (= 1 2)))
+(test-assert 
+  (nil? unless-no-body)
+  "unless with no body should return nil")
+
+; Test 13: unless with computed condition
+(define computed-unless-result
+  (unless (= (+ 2 3) (* 3 3))
+    "computed-no-match"))
+(test-assert 
+  (= computed-unless-result "computed-no-match")
+  "unless should work with computed conditions")
+
+;------------------------------------------------------------------------------
+; when/unless complementary behavior tests
+
+; Test 1: when and unless should be opposites
+(define-mutable complementary-var1 0)
+(define-mutable complementary-var2 0)
+(define test-bool (= 7 7))
+
+(when test-bool (set! complementary-var1 100))
+(unless test-bool (set! complementary-var2 200))
+
+(test-assert 
+  (= complementary-var1 100)
+  "when should execute when condition is true")
+
+(test-assert 
+  (= complementary-var2 0)
+  "unless should not execute when condition is true")
+
+; Test 2: when and unless with false condition
+(define-mutable complementary-var3 0)
+(define-mutable complementary-var4 0)
+(define false-bool (= 7 8))
+
+(when false-bool (set! complementary-var3 300))
+(unless false-bool (set! complementary-var4 400))
+
+(test-assert 
+  (= complementary-var3 0)
+  "when should not execute when condition is false")
+
+(test-assert 
+  (= complementary-var4 400)
+  "unless should execute when condition is false")
+
+; Test 3: when/unless with same condition and opposite effects
+(define test-when-unless-condition (even? 6))
+(define when-result (when test-when-unless-condition "when-executed"))
+(define unless-result (unless test-when-unless-condition "unless-executed"))
+
+(test-assert 
+  (= when-result "when-executed")
+  "when should execute for true condition")
+
+(test-assert 
+  (nil? unless-result)
+  "unless should not execute for true condition")
+
+; Test 4: Complex mixed usage
+(define-mutable mixed-result 0)
+(let ((x 10) (y 5))
+  (when (> x y)
+    (set! mixed-result (+ mixed-result 1)))
+  (unless (< x y) 
+    (set! mixed-result (+ mixed-result 2)))
+  (when (= x 10)
+    (set! mixed-result (+ mixed-result 4)))
+  (unless (= y 10)
+    (set! mixed-result (+ mixed-result 8))))
+
+(test-assert 
+  (= mixed-result 15)  ; 1 + 2 + 4 + 8 = 15
+  "when and unless should work together in complex scenarios")
+
+; Test 5: when/unless error conditions - both need at least one argument
+(test-error (when) "when should require at least 1 argument")
+(test-error (unless) "unless should require at least 1 argument")
+
+; Test 6: when/unless with try blocks
+(define-mutable try-when-var 0)
+(try (when (= 1 1)
+       (set! try-when-var 999)
+       (rest "this will fail"))
+     (lambda* (error) 
+       (set! try-when-var 0)))
+
+(test-assert 
+  (= try-when-var 0)
+  "when should work with try blocks and error handling")
+
+; Test 7: when/unless evaluation order
+(define-mutable eval-order-test 0)
+(define side-effect-true 
+  (lambda* () 
+    (set! eval-order-test 1)
+    true))
+
+(when (side-effect-true)
+  (set! eval-order-test (+ eval-order-test 10)))
+
+(test-assert 
+  (= eval-order-test 11)
+  "when should evaluate condition before body")
+
+; Test 8: unless evaluation order
+(define-mutable unless-eval-order-test 0)
+(define side-effect-false
+  (lambda* ()
+    (set! unless-eval-order-test 2)
+    false))
+
+(unless (side-effect-false)
+  (set! unless-eval-order-test (+ unless-eval-order-test 20)))
+
+(test-assert 
+  (= unless-eval-order-test 22)
+  "unless should evaluate condition before body")
+
+; Test 9: when/unless with mutable variables
+(define-mutable mutable-condition true)
+(define-mutable mutable-result 0)
+
+(when mutable-condition
+  (set! mutable-result 100))
+(set! mutable-condition false)
+(unless mutable-condition  
+  (set! mutable-result (+ mutable-result 50)))
+
+(test-assert 
+  (= mutable-result 150)
+  "when/unless should work with mutable variables")
+
+; Test 10: Short-circuiting behavior verification
+(define-mutable short-circuit-test 0)
+(define failing-operation
+  (lambda* ()
+    (set! short-circuit-test 999)
+    (rest "this should not be called")))
+
+; This should not call failing-operation
+(when false
+  (failing-operation))
+
+(unless true
+  (failing-operation))
+
+(test-assert 
+  (= short-circuit-test 0)
+  "when/unless should short-circuit and not evaluate body on opposite conditions")
 
 ;------------------------------------------------------------------------------
 ; and/or/not tests
