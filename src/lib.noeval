@@ -46,6 +46,17 @@
 ; Construct a list from the arguments without evaluating them
 (define unevaluated-list (vau args env args))
 
+; or operative - short-circuiting logical or
+; Returns the first truthy value, or the last value if all are falsy
+; Uses Church Boolean evaluation for short-circuiting
+(define or
+  (vau operands env
+    ((nil? operands)
+     false  ; Empty or is false
+     ((eval (first operands) env)
+      true
+      (eval (cons or (rest operands)) env)))))
+
 ; Evaluates a list of items in the given env
 (define eval-list
   (vau (lyst env-expr) current-env
@@ -53,6 +64,9 @@
       ; First, evaluate our arguments
       (define target-env (eval env-expr current-env))
       (define actual-list (eval lyst current-env))
+      ((or (nil? actual-list) (= (q cons-cell) (typeof actual-list)))
+       ()
+       (raise "eval-list's first argument must be a list"))
       ; Then, make a helper to do the actual evaluation of lyst's elements
       (define eval-list-helper
         (vau (remaining) _
@@ -183,7 +197,11 @@
       (define if-expr (list if test () (cons do body)))
       (eval if-expr env))))
 
-(define for-each (lambda (procedure lyst)
+(define for-each (lambda* (procedure lyst)
+                   (unless (operative? procedure)
+                     (raise "for-each's first argument must be callable"))
+                   (unless (list? lyst)
+                     (raise "for-each's second argument must be a list"))
                    (if (nil? lyst)
                        ()
                        (do (procedure (first lyst))
@@ -205,7 +223,11 @@
 ; foldl applies a binary function to the elements of a list from left to right
 ; (foldl + 1 (list 2 3 4)) -> (+ (+ (+ 1 2) 3) 4)
 (define foldl
-  (lambda (func init lyst)
+  (lambda* (func init lyst)
+    (unless (operative? func)
+     (raise "foldl's first argument must be callable"))
+    (unless (list? lyst)
+     (raise "foldl's second argument must be a list"))
     ((nil? lyst)
      init
      (foldl func
@@ -217,7 +239,11 @@
 ; Example: (foldr + (list 1 2 3) 0) => 6
 ; Example: (foldr cons (list 1 2 3) ()) => (1 2 3)
 (define foldr
-  (lambda (func lyst init)
+  (lambda* (func lyst init)
+    (unless (operative? func)
+     (raise "foldr's first argument must be callable"))
+    (unless (list? lyst)
+     (raise "foldr's second argument must be a list"))
     ((nil? lyst)
       init
       (func (first lyst) 
@@ -281,17 +307,6 @@
       (eval (cons and (rest operands)) env)
       false))))
 
-; or operative - short-circuiting logical or
-; Returns the first truthy value, or the last value if all are falsy
-; Uses Church Boolean evaluation for short-circuiting
-(define or
-  (vau operands env
-    ((nil? operands)
-     false  ; Empty or is false
-     ((eval (first operands) env)
-      true
-      (eval (cons or (rest operands)) env)))))
-
 ; not operative - logical negation
 ; Returns the Church Boolean opposite of its argument
 (define not
@@ -308,8 +323,17 @@
 (define ÷ /)
 
 (define != (λ (x y) (¬ (= x y))))
-(define <  (λ (x y) (= -1 (<=> x y))))
-(define >  (λ (x y) (= 1 (<=> x y))))
+(define <  (λ (x y)
+             ((and (number? x)
+                   (number? y))
+              (= -1 (<=> x y))
+              (raise "< can only be applied to numbers"))))
+(define >  (λ (x y)
+             ((and (number? x)
+                   (number? y))
+              (= 1 (<=> x y))
+              (raise "> can only be applied to numbers"))))
+
 (define <= (λ (x y) (∨ (< x y) (= x y))))
 (define >= (λ (x y) (∨ (> x y) (= x y))))
 (define ≤  <=)
@@ -335,7 +359,11 @@
 ; No way to type ×?
 
 (define map
-  (lambda (proc lyst)
+  (lambda* (proc lyst)
+    (unless (operative? proc)
+     (raise "map's first argument must be callable"))
+    (unless (list? lyst)
+     (raise "map's second argument must be a list"))
     ((nil? lyst)
      ()
      (cons (proc (first lyst))
@@ -368,11 +396,18 @@
 ; applies the applicative to the arguments
 (define apply
   (lambda (applicative arg-list)
-    (eval (cons applicative (map (lambda (arg) (list q arg)) arg-list))
-          (get-current-environment))))
+     (cond ((not (operative? applicative))
+            (raise "apply's first argument must be an applicative"))
+           ((not (list? arg-list))
+            (raise "apply's second argument must be a list"))
+           (else
+            (eval (cons applicative (map (lambda (arg) (list q arg)) arg-list))
+            (get-current-environment))))))
 
 (define length
-  (lambda (lyst)
+  (lambda* (lyst)
+    (unless (list? lyst)
+      (raise "length's argument must be a list"))
     (foldl (lambda (n element)
              (+ n 1))
            0
@@ -380,10 +415,17 @@
 
 (define snoc (lambda (tail head) (cons head tail)))
 
-(define reverse (lambda (lyst) (foldl snoc () lyst)))
+(define reverse (lambda (lyst)
+                  ((list? lyst)
+                   (foldl snoc () lyst)
+                   (raise "reverse's argument must be a list"))))
 
 (define any?
-  (lambda (predicate lyst)
+  (lambda* (predicate lyst)
+    (unless (operative? predicate)
+      (raise "The first argument to any? must be a predicate"))
+    (unless (list? lyst)
+      (raise "The second argument to any? must be a list"))
     ((nil? lyst)
      false
      ((predicate (first lyst))
@@ -391,7 +433,11 @@
       (any? predicate (rest lyst))))))
 
 (define all?
-  (lambda (predicate lyst)
+  (lambda* (predicate lyst)
+    (unless (operative? predicate)
+      (raise "The first argument to all? must be a predicate"))
+    (unless (list? lyst)
+      (raise "The second argument to all? must be a list"))
     ((nil? lyst)
      true
      ((predicate (first lyst))
@@ -409,7 +455,11 @@
                                                    list2)))))
                  (foldl append2 () lists)))
 
-(define filter (lambda (predicate lyst)
+(define filter (lambda* (predicate lyst)
+                 (unless (operative? predicate)
+                   (raise "filter's first argument must be callable predicate"))
+                 (unless (list? lyst)
+                   (raise "filter's second argument must be a list"))
                  (foldl (lambda (accumulator element)
                           ((predicate element)
                            (cons element accumulator)
@@ -418,9 +468,11 @@
                         (reverse lyst))))
 
 (define iota (lambda* (count)
+               (unless (number? count)
+                 (raise "iota's argument must be a number"))
                ; "iota" backwards is "atoi"
                (define atoi (lambda (count)
-                              ((= 0 count)
+                              ((<= count 0)
                                ()
                                (let ((next (- count 1)))
                                  (cons next (atoi next))))))
@@ -428,23 +480,35 @@
 
 ; Q&D test of even?: (map even? (map (lambda (x) (- x 9)) (iota 19)))
 ; TODO: Fix this after we upgrade numbers from int to boost::cpp_rational.
-(define even? (lambda* (x) 
+(define even? (lambda* (x)
+                (unless (number? x)
+                  (raise "even? can only be applied to numbers"))
                 (define remainder (- x (* 2 (/ x 2))))
                 (= 0 remainder)))
-(define odd? (lambda (x) (not (even? x))))
+
+(define odd? (lambda (x)
+               ((number? x)
+                (not (even? x))
+                (raise "odd? can only be applied to numbers"))))
 
 (define countdown
   (lambda (n)
-    ((= n 0)
-     ()
-     (do (displayln n)
-         (countdown (- n 1))))))
+    ((number? n)
+     ((<= n 0)
+      ()
+      (do (displayln n)
+          (countdown (- n 1))))
+     (raise "countdown's argument must be a number"))))
 
 (define factorial
   (lambda* (n)
+    (unless (number? n)
+      (raise "factorial can only be calculated for numbers"))
+    (unless (>= n 0)
+      (raise "factorial is only defined for non-negative integers"))
     (define iter
       (lambda (n acc)
-        ((= n 0)
+        ((<= n 0)
          acc
          (iter (- n 1)
                (* n acc)))))

@@ -23,6 +23,8 @@ Although I will bend to cases where a library implementation is impractical.
 
 While inspired by Kernel, this interpreter is making some different choices.
 
+### Wrap & unwrap are not primitives
+
 This interpreter does not make a distinction between operatives and
 applicatives. An applicative is merely an operative that chooses to evaluate
 its arguments, and the interpreter cannot distinguish between the two.
@@ -32,8 +34,26 @@ Kernel provides `wrap` as a primitive, but this interpreter instead provides
 `invoke` invokes operatives. (And I'm not yet sure of the implications of not
 having an `unwrap` primitive.)
 
+In hindsight, I don't think this was a good choice. I was thinking that having
+the distinction between operatives and applicatives would require separate
+types, but really it could just be a `bool` on the existing operative type.
+
+The `wrap` and `unwrap` primitives would then be trivial. The code to evaluate
+operatives could check the flag and decide whether to evaluate the arguments or
+not.
+
+Then we could have `operative?`, `applicative?`, and `callable?` predicates,
+which might be useful.
+
+But this kind of insight was exactly the purpose of this project. If there's
+ever a Noeval 2, I'll probably go the other way on this.
+
+### Disabling code
+
 The `#skip` and `#end` tokens can be used, much like `#if` and `#endif` in C,
 to skip over code to temporarily disable it.
+
+### Variadic combiners
 
 While noeval does support varidic parameters, it only supports getting all the
 arguments as a single list.
@@ -48,8 +68,14 @@ fixed parameters with a rest parameter.
 In fact, the language does not fully support pairs or improper lists.
 (I expect at some point to try to move towards replacing lists with arrays.)
 
+### Single expression bodies for vau & lambda
+
 Both `vau` and `lambda` (which is in the library) only support a single
 expression for the body.
+
+The library provides `vau*` and `lambda*` that support multiexpression bodies.
+
+### The syntax of vau
 
 Several times, I almost changed...
 
@@ -57,8 +83,12 @@ Several times, I almost changed...
 
 ...but always landed on keeping with convention.
 
+### do
+
 Noeval's `do` is the equivalent of CL `progn`, Scheme `begin`, and Kernel's
 `$sequence`.
+
+### Church Booleans
 
 Noeval uses Church Booleans, which allows not having a primitive conditional.
 Arguably that's signing up for more overhead, but... Unlike Church numbers, I'm
@@ -73,6 +103,8 @@ usual print form of operatives.
 Because Noeval uses Church Booleans, other values do not represent truthiness
 or falsiness.
 
+### Limited mutability
+
 Unlike Kernel, all objects (or perhaps more precisely, all bindings) are
 immutable by default. The `define-mutable` form can be used to create a mutable
 binding, which can then be modified with the `set!` primitive.
@@ -81,11 +113,17 @@ Kernel uses an interesting trick with `unwrap` and `define` to implement `set!`
 by modifying the dynamic environment. I'm not sure whether I think this is a
 good idea or not.
 
+### Nil is spelt ()
+
 There's currently no symbolic form of `()`.
+
+### No #ignore or #inert
 
 There's currently no equivalent to Kernel's `#ignore`. The `vau` operative,
 however, will treat `()` as the environment parameter name the way Kernel
 treats `#ignore`.
+
+### There is only =
 
 Currently the only equivalence predicate is `=`, which may be closest to
 Kernel's `equal?`. It raises an error when comparing different types (with a
