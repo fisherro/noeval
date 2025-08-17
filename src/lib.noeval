@@ -249,6 +249,34 @@
       (func (first lyst) 
             (foldr func (rest lyst) init)))))
 
+(define last (lambda* (lyst)
+               (define loop (lambda (head tail)
+                              ((nil? tail) head
+                                           (loop (first tail)
+                                                 (rest tail)))))
+               ((nil? lyst) ()
+                            (loop (first lyst)
+                                  (rest lyst)))))
+
+; Returns 0 if not found.
+; Otherwise, returns the 1-based index.
+(define list-index
+  (lambda* (predicate lyst)
+    (define loop
+      (lambda (index head tail)
+        ((predicate head)
+         index
+         ((nil? tail)
+          0
+          (loop (+ index 1)
+                (first tail)
+                (rest tail))))))
+    ((nil? lyst)
+     0
+     (loop 1
+           (first lyst)
+           (rest lyst)))))
+
 ; Example of how cond is transformed into a chain of Church Booleans:
 #skip
 (cond ((= 2 0) 0)
@@ -279,18 +307,34 @@
   (lambda* (clauses)
     (foldr
       (lambda* (clause acc)
-        (define first-clause (first clause))
-        (define second-clause (second clause))
-        ((and (symbol? first-clause)
-              (= (q else) first-clause))
-         second-clause
-         (list first-clause second-clause acc)))
+        (unless (list? clause)
+          (raise "cond clause must be a list"))
+        (unless (> (length clause) 0)
+          (raise "cond clauses must have a test"))
+        (define clause-head (first clause))
+        (define body (rest clause))
+        (define body-expr ((> (length body) 1)
+                           (cons (q do) body)
+                           ((nil? body)
+                            ()
+                            (first body))))
+        ((and (symbol? clause-head)
+              (= (q else) clause-head))
+         ((nil? acc)
+          body-expr
+          (raise "else clause must be the last clause"))
+         (list clause-head body-expr acc)))
       clauses
-      (); error?
-    )))
+      ())))
 
 ; This forwards its arguments to cond-transformer to do the syntax
 ; transformation. Then it evaluates the transformed syntax.
+; (cond) returns ()
+; Each clause must have a test.
+; An empty body returns ().
+; Multiple expressions are allowed in clause bodies.
+; Validate that there is only one else clause.
+; Validate that any else clause is the last clause.
 (define cond
   (vau cond-clauses cond-dyn-env
     (do (define transformed (cond-transformer cond-clauses))
