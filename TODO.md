@@ -16,8 +16,6 @@ test suite size down.
 
 ## Regular
 
-Add error checking to library operatives.
-
 map*
 
 Other HOF
