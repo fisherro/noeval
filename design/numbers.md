@@ -53,6 +53,10 @@ If we did implement limited precision numbers for performance, however, I would
 want that to be (mostly) hidden from the Noeval code. In that case, it should
 simply be that smaller magnitude numbers transparently perform better.
 
+It also always seemed weird to me that most systems print fractional rationals
+as slashed-fractions by default. I'm used to decimal fractions being the
+default and slashed-fractions being the alternative.
+
 ## Operations that could produce irrational numbers
 
 ...which would mean having to address irrationals.

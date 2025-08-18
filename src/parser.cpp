@@ -15,7 +15,7 @@ std::string token_type_to_string(token_type type)
         case token_type::left_paren: return "LEFT_PAREN";
         case token_type::right_paren: return "RIGHT_PAREN";
         case token_type::symbol: return "SYMBOL";
-        case token_type::integer: return "INTEGER";
+        case token_type::number: return "NUMBER";
         case token_type::string_literal: return "STRING_LITERAL";
         case token_type::eof: return "EOF";
         default: return "UNKNOWN";
@@ -146,6 +146,63 @@ std::string lexer::read_string()
     return result;
 }
 
+std::string lexer::read_number()
+{
+    std::string result;
+    
+    // Handle optional negative sign
+    if (input[pos] == '-') {
+        result += input[pos++];
+    }
+    
+    // Read digits
+    while (pos < input.size() and std::isdigit(input[pos])) {
+        result += input[pos++];
+    }
+    
+    // Check for fractional format (/)
+    if (pos < input.size() and input[pos] == '/') {
+        result += input[pos++];
+        // Read denominator (must start with non-zero digit)
+        if (pos >= input.size() or not std::isdigit(input[pos]) or input[pos] == '0') {
+            throw std::runtime_error("Invalid fraction: denominator must start with non-zero digit");
+        }
+        while (pos < input.size() and std::isdigit(input[pos])) {
+            result += input[pos++];
+        }
+        return result;
+    }
+    
+    // Check for decimal format (.)
+    if (pos < input.size() and input[pos] == '.') {
+        result += input[pos++];
+        // Read fractional part
+        while (pos < input.size() and std::isdigit(input[pos])) {
+            result += input[pos++];
+        }
+        
+        // Check for repeating part in parentheses
+        if (pos < input.size() and input[pos] == '(') {
+            result += input[pos++];
+            // Read repeating digits
+            bool has_digits = false;
+            while (pos < input.size() and std::isdigit(input[pos])) {
+                result += input[pos++];
+                has_digits = true;
+            }
+            if (not has_digits) {
+                throw std::runtime_error("Invalid repeating decimal: empty parentheses");
+            }
+            if (pos >= input.size() or input[pos] != ')') {
+                throw std::runtime_error("Invalid repeating decimal: missing closing parenthesis");
+            }
+            result += input[pos++]; // consume ')'
+        }
+    }
+    
+    return result;
+}
+
 lexer::lexer(std::string text) : input(std::move(text)), pos(0) {}
     
 token lexer::next_token()
@@ -171,10 +228,11 @@ token lexer::next_token()
     if (ch == '"') {
         return token(token_type::string_literal, read_string());
     }
-    
-    if (std::isdigit(ch) || (ch == '-' && pos + 1 < input.size() && std::isdigit(input[pos + 1]))) {
-        std::string num_str = read_symbol();
-        return token(token_type::integer, num_str);
+
+    // TODO: This assumes that symbols can't begin with '-'. Which may be reasonable.
+    // TODO: "-123abc", however, gets parsed as -123 and the "abc" gets dropped.
+    if (std::isdigit(ch) or (ch == '-' and pos + 1 < input.size() and std::isdigit(input[pos + 1]))) {
+        return token(token_type::number, read_number());
     }
     
     // Everything else is a symbol
@@ -225,6 +283,110 @@ parser::parser(std::string input) : lex(std::move(input))
     advance(); // prime the pump
 }
 
+bignum parse_number_string(const std::string& num_str)
+{
+    using cpp_int = boost::multiprecision::cpp_int;
+    
+    // Check if it's a fractional format (contains '/')
+    size_t slash_pos = num_str.find('/');
+    if (slash_pos != std::string::npos) {
+        // Parse as fraction: numerator/denominator
+        std::string num_part = num_str.substr(0, slash_pos);
+        std::string den_part = num_str.substr(slash_pos + 1);
+        
+        cpp_int numerator(num_part);
+        cpp_int denominator(den_part);
+        
+        return bignum(numerator, denominator);
+    }
+    
+    // Check if it's a repeating decimal (contains parentheses)
+    size_t paren_pos = num_str.find('(');
+    if (paren_pos != std::string::npos) {
+        // Parse repeating decimal: x.y(z) = x.y + 0.000...z / (10^k - 1)
+        // where k is the number of repeating digits
+        
+        size_t close_paren = num_str.find(')', paren_pos);
+        std::string repeating_part = num_str.substr(paren_pos + 1, close_paren - paren_pos - 1);
+        std::string non_repeating = num_str.substr(0, paren_pos);
+        
+        // Parse non-repeating part
+        bignum base_value;
+        if (non_repeating.find('.') != std::string::npos) {
+            // Convert decimal to fraction
+            size_t dot_pos = non_repeating.find('.');
+            std::string integer_part = non_repeating.substr(0, dot_pos);
+            std::string fractional_part = non_repeating.substr(dot_pos + 1);
+            
+            // Handle negative numbers properly
+            bool is_negative = (non_repeating[0] == '-');
+            
+            // Parse absolute values
+            cpp_int integer_val(integer_part);
+            if (is_negative) integer_val = -integer_val; // Ensure it's negative
+            
+            cpp_int fractional_val(fractional_part);
+            cpp_int scale_factor = boost::multiprecision::pow(cpp_int(10), fractional_part.length());
+            
+            // Build numerator: for -x.y, we want -(x * scale + y)
+            cpp_int abs_integer = boost::multiprecision::abs(integer_val);
+            cpp_int numerator = abs_integer * scale_factor + fractional_val;
+            if (is_negative) numerator = -numerator;
+            
+            base_value = bignum(numerator, scale_factor);
+        } else {
+            base_value = bignum(cpp_int(non_repeating));
+        }
+        
+        // Calculate repeating part contribution
+        cpp_int rep_numerator(repeating_part);
+        size_t fractional_digits = 0;
+        size_t dot_pos = non_repeating.find('.');
+        if (dot_pos != std::string::npos) {
+            fractional_digits = non_repeating.length() - dot_pos - 1;
+        }
+        
+        cpp_int rep_denominator = boost::multiprecision::pow(cpp_int(10), fractional_digits) * 
+                                  (boost::multiprecision::pow(cpp_int(10), repeating_part.length()) - 1);
+
+        bignum repeating_value(rep_numerator, rep_denominator);
+        
+        // Handle negative numbers for repeating part
+        if (non_repeating[0] == '-' and base_value == 0) {
+            repeating_value = -repeating_value;
+        }
+        
+        return base_value + repeating_value;
+    }
+    
+    // Check if it's a regular decimal
+    if (num_str.find('.') != std::string::npos) {
+        size_t dot_pos = num_str.find('.');
+        std::string integer_part = num_str.substr(0, dot_pos);
+        std::string fractional_part = num_str.substr(dot_pos + 1);
+        
+        // Handle negative numbers properly
+        bool is_negative = (num_str[0] == '-');
+        
+        // Parse absolute values
+        cpp_int integer_val(integer_part);
+        if (is_negative) integer_val = -integer_val; // Ensure it's negative
+        
+        cpp_int fractional_val(fractional_part);
+        cpp_int scale_factor = boost::multiprecision::pow(cpp_int(10), fractional_part.length());
+        
+        // Build numerator: for -x.y, we want -(x * scale + y)
+        cpp_int abs_integer = boost::multiprecision::abs(integer_val);
+        cpp_int numerator = abs_integer * scale_factor + fractional_val;
+        if (is_negative) numerator = -numerator;
+
+        return bignum(numerator, scale_factor);
+    }
+    
+    // Simple integer
+    return bignum(cpp_int(num_str));
+}
+
 value_ptr parser::parse_expression()
 {
     NOEVAL_DEBUG(parse, "Parsing token: {}", current_token.to_string());
@@ -241,10 +403,10 @@ value_ptr parser::parse_expression()
                 return result;
             }
             
-        case token_type::integer:
+        case token_type::number:
             {
-                NOEVAL_DEBUG(parse, "Parsing integer: {}", current_token.value);
-                int val = std::stoi(current_token.value);
+                NOEVAL_DEBUG(parse, "Parsing number: {}", current_token.value);
+                bignum val = parse_number_string(current_token.value);
                 auto result = std::make_shared<value>(val);
                 advance();
                 return result;

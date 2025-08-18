@@ -24,9 +24,84 @@
 
 #define USE_TAIL_CALL 1
 
-std::string to_string(const bignum& value)
+std::string to_slash_string(const bignum& value)
 {
     return value.str();
+}
+
+// Converts a boost::multiprecision::cpp_rational to a decimal string,
+// possibly with repeating digits.
+// There is always at least one digit before the decimal point.
+// Repeating digits are enclosed in parentheses.
+std::string to_decimal_string(const bignum& value)
+{
+    using cpp_int = boost::multiprecision::cpp_int;
+    
+    // Extract numerator and denominator
+    cpp_int numerator = boost::multiprecision::numerator(value);
+    cpp_int denominator = boost::multiprecision::denominator(value);
+    
+    // Handle sign
+    bool is_negative = (numerator < 0);
+    if (is_negative) {
+        numerator = -numerator;
+    }
+    
+    std::string result;
+    if (is_negative) {
+        result += "-";
+    }
+    
+    // Integer part
+    cpp_int integer_part = numerator / denominator;
+    result += integer_part.str();
+    
+    // Check if we're done (exact division)
+    cpp_int remainder = numerator % denominator;
+    if (0 == remainder) {
+        return result;
+    }
+    
+    result += ".";
+    
+    // Track remainders to detect cycles
+    std::unordered_map<cpp_int, size_t> remainder_positions;
+    std::string decimal_part;
+    
+    while (0 != remainder) {
+        // Check if we've seen this remainder before
+        if (remainder_positions.contains(remainder)) {
+            // Found repeating cycle
+            size_t cycle_start = remainder_positions[remainder];
+            std::string non_repeating = decimal_part.substr(0, cycle_start);
+            std::string repeating = decimal_part.substr(cycle_start);
+            
+            result += non_repeating;
+            if (not repeating.empty()) {
+                result += "(" + repeating + ")";
+            }
+            return result;
+        }
+        
+        // Record this remainder's position
+        remainder_positions[remainder] = decimal_part.length();
+        
+        // Perform long division step
+        remainder *= 10;
+        cpp_int digit = remainder / denominator;
+        decimal_part += digit.str();
+        remainder = remainder % denominator;
+    }
+    
+    // No repeating cycle found (terminating decimal)
+    result += decimal_part;
+    return result;
+}
+
+
+std::string to_string(const bignum& value)
+{
+    return to_decimal_string(value);
 }
 
 std::string to_string(const std::string& value)
@@ -559,12 +634,12 @@ namespace builtins {
         }
     }
 
-    // Helper function to validate and extract integer from value
-    bignum extract_integer(const value_ptr& val, const std::string& op_name, const value_ptr& original_arg)
+    // Helper function to validate and extract number from value
+    bignum extract_number(const value_ptr& val, const std::string& op_name, const value_ptr& original_arg)
     {
         if (!std::holds_alternative<bignum>(val->data)) {
             throw evaluation_error(
-                std::format("{}: argument must be an integer, got {}", 
+                std::format("{}: argument must be a number, got {}", 
                            op_name, value_to_string(val)),
                 std::format("... {} ...", expr_context(original_arg)),
                 call_stack::format()
@@ -579,7 +654,7 @@ namespace builtins {
         auto first_val = eval(first_arg, env);
         if (!std::holds_alternative<bignum>(first_val->data)) {
             throw evaluation_error(
-                std::format("{}: argument must be an integer, got {}", 
+                std::format("{}: argument must be a number, got {}", 
                            op_name, value_to_string(first_val)),
                 std::format("({} {} ...)", op_name, expr_context(first_arg)),
                 call_stack::format()
@@ -618,7 +693,7 @@ namespace builtins {
                     [op, op_name, &env](bignum accumulator, const value_ptr& arg)
                     {
                         auto val = eval(arg, env);
-                        bignum operand = extract_integer(val, op_name, arg);
+                        bignum operand = extract_number(val, op_name, arg);
                         return op(accumulator, operand);
                     });
                     

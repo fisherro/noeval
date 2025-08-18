@@ -10,7 +10,7 @@ enum class token_type {
     left_paren,
     right_paren,
     symbol,
-    integer,
+    number,
     string_literal,
     eof
 };
@@ -39,6 +39,7 @@ private:
     void skip_whitespace_and_comments();
     std::string read_symbol();
     std::string read_string();
+    std::string read_number();
 };
 
 class parser {

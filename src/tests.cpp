@@ -89,8 +89,8 @@ void test_evaluator()
     // Test self-evaluating values
     std::println("Testing self-evaluating values:");
     
-    // Test integer
-    auto int_expr = std::make_shared<value>(42);
+    // Test integer (now rational)
+    auto int_expr = std::make_shared<value>(bignum(42));
     auto int_result = eval(int_expr, env);
     std::println("42 -> {}", value_to_string(int_result));
     
@@ -254,11 +254,22 @@ int test_arithmetic_operations()
     runner.test_eval("(* 2 3 4)", "24");
     runner.test_eval("(/ 12 3)", "4");
     runner.test_eval("(/ 24 4 2)", "3");
-    
+
+    // Test rational arithmetic that produces fractions
+    runner.test_eval("(/ 1 3)", "0.(3)");
+    runner.test_eval("(/ 22 7)", "3.(142857)");
+    runner.test_eval("(/ 1 6)", "0.1(6)");
+    runner.test_eval("(/ 5 4)", "1.25");
+    runner.test_eval("(/ 1 2)", "0.5");
+
     // Nested arithmetic
     runner.test_eval("(+ (* 2 3) (- 10 5))", "11");
     runner.test_eval("(* (+ 1 2) (+ 3 4))", "21");
-    
+
+    // Mixed fraction/decimal arithmetic
+    runner.test_eval("(+ 1/2 0.25)", "0.75");
+    runner.test_eval("(* 2/3 3/4)", "0.5");
+
     return runner.failures;
 }
 
@@ -420,7 +431,7 @@ int test_error_conditions()
     test_runner runner(env);
     
     runner.test_error("undefined-var", "Unbound variable");
-    runner.test_error("(+ 1 \"hello\")", "integer");
+    runner.test_error("(+ 1 \"hello\")", "number");
     runner.test_error("(42 1 2)", "Not an operative");
     runner.test_error("(first 42)", "not a cons cell");
     runner.test_error("(vau x)", "expected 3 arguments");
@@ -544,7 +555,7 @@ void test_lexer_comments()
     // Test that comments are properly skipped in tokenization
     lexer lex1("42 ; comment");
     auto tok1 = lex1.next_token();
-    assert(tok1.type == token_type::integer && tok1.value == "42");
+    assert(tok1.type == token_type::number && tok1.value == "42");
     auto tok2 = lex1.next_token();
     assert(tok2.type == token_type::eof);
     std::println("✓ Simple inline comment");
@@ -552,7 +563,7 @@ void test_lexer_comments()
     // Test comment at start of line
     lexer lex2("; comment\n42");
     auto tok3 = lex2.next_token();
-    assert(tok3.type == token_type::integer && tok3.value == "42");
+    assert(tok3.type == token_type::number && tok3.value == "42");
     std::println("✓ Comment at start of line");
     
     // Test comment in expression
@@ -562,9 +573,9 @@ void test_lexer_comments()
     auto tok5 = lex3.next_token();
     assert(tok5.type == token_type::symbol && tok5.value == "+");
     auto tok6 = lex3.next_token();
-    assert(tok6.type == token_type::integer && tok6.value == "1");
+    assert(tok6.type == token_type::number && tok6.value == "1");
     auto tok7 = lex3.next_token();
-    assert(tok7.type == token_type::integer && tok7.value == "2");
+    assert(tok7.type == token_type::number && tok7.value == "2");
     auto tok8 = lex3.next_token();
     assert(tok8.type == token_type::right_paren);
     std::println("✓ Comment within expression");
@@ -677,6 +688,77 @@ int test_mutable_bindings()
     return runner.failures;
 }
 
+int test_number_parsing()
+{
+    std::println("\n--- Number parsing ---");
+    auto env = create_global_environment();
+    test_runner runner(env);
+    
+    // Test basic integer parsing
+    runner.test_eval("0", "0");
+    runner.test_eval("42", "42");
+    runner.test_eval("-17", "-17");
+    
+    // Test decimal parsing
+    runner.test_eval("0.5", "0.5");
+    runner.test_eval("3.14", "3.14");
+    runner.test_eval("-2.718", "-2.718");
+    runner.test_eval("0.0", "0");
+    
+    // Test fraction parsing  
+    runner.test_eval("1/2", "0.5");
+    runner.test_eval("1/3", "0.(3)");
+    runner.test_eval("22/7", "3.(142857)");
+    runner.test_eval("-5/6", "-0.8(3)");
+    runner.test_eval("7/1", "7");
+    
+    // Test repeating decimal parsing
+    runner.test_eval("0.(3)", "0.(3)");
+    runner.test_eval("0.1(6)", "0.1(6)");
+    runner.test_eval("3.(142857)", "3.(142857)");
+    runner.test_eval("-0.(9)", "-1");  // 0.999... = 1
+    
+    // Test edge cases
+    runner.test_eval("0.25", "0.25");
+    runner.test_eval("1.0", "1");
+    runner.test_eval("10/5", "2");
+    
+    return runner.failures;
+}
+
+int test_number_operations()
+{
+    std::println("\n--- Advanced number operations ---");
+    auto env = create_global_environment();
+    test_runner runner(env);
+    
+    // Test numerator/denominator extraction
+    runner.test_eval("(numerator 22/7)", "22");
+    runner.test_eval("(denominator 22/7)", "7");
+    runner.test_eval("(numerator 0.5)", "1");
+    runner.test_eval("(denominator 0.5)", "2");
+    runner.test_eval("(numerator 42)", "42");
+    runner.test_eval("(denominator 42)", "1");
+    
+    // Test comparison with spaceship operator
+    runner.test_eval("(<=> 1 2)", "-1");
+    runner.test_eval("(<=> 2 1)", "1");
+    runner.test_eval("(<=> 2 2)", "0");
+    runner.test_eval("(<=> 1/2 0.5)", "0");
+    runner.test_eval("(<=> 1/3 0.33)", "1");  // 1/3 > 0.33
+    
+    // Test modulo with integers
+    runner.test_eval("(% 7 3)", "1");
+    runner.test_eval("(% 10 4)", "2");
+    runner.test_eval("(% -7 3)", "-1");
+    
+    // Test error conditions for modulo
+    runner.test_error("(% 1.5 2)", "must be integers");
+    runner.test_error("(% 7 2.5)", "must be integers");
+    
+    return runner.failures;
+}
+
 bool run_tests()
 {
     // Run existing tests (these could also be converted to return failure counts)
@@ -701,6 +783,9 @@ bool run_tests()
     failures += test_parameter_binding();
     std::println("{}", std::string(60, '='));
     failures += test_mutable_bindings();
+    std::println("{}", std::string(60, '='));
+    failures += test_number_parsing();
+    failures += test_number_operations();
     std::println("{}", std::string(60, '='));
 
     if (failures != 0) {

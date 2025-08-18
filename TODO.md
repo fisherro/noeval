@@ -16,7 +16,7 @@ test suite size down.
 
 ## Regular
 
-Expand parsing and strigification of numbers now that they're arbitrary precision rationals.
+What's the difference between remainder and modulo? Handle modulo for fractions?
 
 map*
 
