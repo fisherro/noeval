@@ -9,6 +9,10 @@
 #include <variant>
 #include <vector>
 
+#include <boost/multiprecision/cpp_int.hpp>
+
+using bignum = boost::multiprecision::cpp_rational;
+
 // Forward declarations
 struct environment;
 struct value;
@@ -103,7 +107,7 @@ impractical performance overhead.
 */
 struct value: std::enable_shared_from_this<value> {
     std::variant<
-        int,
+        bignum,
         std::string,
         symbol,
         cons_cell,
@@ -120,7 +124,7 @@ struct value: std::enable_shared_from_this<value> {
 };
 
 struct typeof_visitor {
-    std::string operator()(int) const { return "number"; }
+    std::string operator()(const bignum&) const { return "number"; }
     std::string operator()(const std::string&) const { return "string"; }
     std::string operator()(const symbol&) const { return "symbol"; }
     std::string operator()(const cons_cell&) const { return "cons-cell"; }
@@ -193,7 +197,7 @@ env_ptr create_global_environment();
 env_ptr reload_global_environment(bool run_tests = true);
 
 // String conversion functions
-std::string to_string(int value);
+std::string to_string(const bignum& value);
 std::string to_string(const std::string& value);
 std::string to_string(const env_ptr& env);
 std::string to_string(std::nullptr_t);

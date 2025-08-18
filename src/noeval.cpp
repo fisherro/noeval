@@ -24,7 +24,10 @@
 
 #define USE_TAIL_CALL 1
 
-std::string to_string(int value) { return std::to_string(value); }
+std::string to_string(const bignum& value)
+{
+    return value.str();
+}
 
 std::string to_string(const std::string& value)
 {
@@ -557,9 +560,9 @@ namespace builtins {
     }
 
     // Helper function to validate and extract integer from value
-    int extract_integer(const value_ptr& val, const std::string& op_name, const value_ptr& original_arg)
+    bignum extract_integer(const value_ptr& val, const std::string& op_name, const value_ptr& original_arg)
     {
-        if (!std::holds_alternative<int>(val->data)) {
+        if (!std::holds_alternative<bignum>(val->data)) {
             throw evaluation_error(
                 std::format("{}: argument must be an integer, got {}", 
                            op_name, value_to_string(val)),
@@ -567,14 +570,14 @@ namespace builtins {
                 call_stack::format()
             );
         }
-        return std::get<int>(val->data);
+        return std::get<bignum>(val->data);
     }
 
     // Helper function to evaluate and validate the first argument
-    int evaluate_first_argument(const value_ptr& first_arg, const std::string& op_name, env_ptr env)
+    bignum evaluate_first_argument(const value_ptr& first_arg, const std::string& op_name, env_ptr env)
     {
         auto first_val = eval(first_arg, env);
-        if (!std::holds_alternative<int>(first_val->data)) {
+        if (!std::holds_alternative<bignum>(first_val->data)) {
             throw evaluation_error(
                 std::format("{}: argument must be an integer, got {}", 
                            op_name, value_to_string(first_val)),
@@ -582,7 +585,7 @@ namespace builtins {
                 call_stack::format()
             );
         }
-        return std::get<int>(first_val->data);
+        return std::get<bignum>(first_val->data);
     }
 
     // Helper function to build error context for arithmetic operations
@@ -596,7 +599,7 @@ namespace builtins {
         return context;
     }
 
-    auto make_arithmetic_operative(const std::string& op_name, std::function<int(int, int)> op)
+    auto make_arithmetic_operative(const std::string& op_name, std::function<bignum(bignum, bignum)> op)
     {
         return [op_name, op](const std::vector<value_ptr>& args, env_ptr env) {
             if (args.empty()) {
@@ -608,14 +611,14 @@ namespace builtins {
             }
             
             try {
-                int initial_value = evaluate_first_argument(args[0], op_name, env);
+                bignum initial_value = evaluate_first_argument(args[0], op_name, env);
 
-                int result = std::ranges::fold_left(args | std::views::drop(1),
+                bignum result = std::ranges::fold_left(args | std::views::drop(1),
                     initial_value,
-                    [op, op_name, &env](int accumulator, const value_ptr& arg)
+                    [op, op_name, &env](bignum accumulator, const value_ptr& arg)
                     {
                         auto val = eval(arg, env);
-                        int operand = extract_integer(val, op_name, arg);
+                        bignum operand = extract_integer(val, op_name, arg);
                         return op(accumulator, operand);
                     });
                     
@@ -1097,8 +1100,8 @@ namespace builtins {
 
         auto left_unwrap  = unwrap_mutable_binding(eval(args[0], env));
         auto right_unwrap = unwrap_mutable_binding(eval(args[1], env));
-        auto left  = std::get_if<int>(&(left_unwrap->data));
-        auto right = std::get_if<int>(&(right_unwrap->data));
+        auto left  = std::get_if<bignum>(&(left_unwrap->data));
+        auto right = std::get_if<bignum>(&(right_unwrap->data));
 
         if ((not left) or (not right)) {
             throw evaluation_error(
@@ -1114,6 +1117,88 @@ namespace builtins {
         } else if (*left > *right) {
             result = 1;
         }
+        return std::make_shared<value>(result);
+    }
+
+    continuation_type numerator_operative(const std::vector<value_ptr>& args, env_ptr env)
+    {
+        if (args.size() != 1) {
+            throw evaluation_error(
+                std::format("numerator: expected 1 argument, got {}", args.size()),
+                "numerator",
+                call_stack::format()
+            );
+        }
+        auto val = eval(args[0], env);
+        auto n = std::get_if<bignum>(&val->data);
+        if (not n) {
+            throw evaluation_error(
+                std::format("numerator: argument must be a number, got {}", value_to_string(val)),
+                "numerator",
+                call_stack::format()
+            );
+        }
+        bignum numerator = boost::multiprecision::numerator(*n);
+        return std::make_shared<value>(numerator);
+    }
+
+    continuation_type denominator_operative(const std::vector<value_ptr>& args, env_ptr env)
+    {
+        if (args.size() != 1) {
+            throw evaluation_error(
+                std::format("denominator: expected 1 argument, got {}", args.size()),
+                "denominator",
+                call_stack::format()
+            );
+        }
+        auto val = eval(args[0], env);
+        auto n = std::get_if<bignum>(&val->data);
+        if (not n) {
+            throw evaluation_error(
+                std::format("denominator: argument must be a number, got {}", value_to_string(val)),
+                "denominator",
+                call_stack::format()
+            );
+        }
+        bignum denominator = boost::multiprecision::denominator(*n);
+        return std::make_shared<value>(denominator);
+    }
+
+    continuation_type modulo_operative(const std::vector<value_ptr>& args, env_ptr env)
+    {
+        // Check the number of arguments:
+        if (args.size() != 2) {
+            throw evaluation_error(
+                std::format("%: expected 2 arguments, got {}", args.size()),
+                "%",
+                call_stack::format()
+            );
+        }
+        // Evaluate the arguments:
+        auto val1 = eval(args[0], env);
+        auto val2 = eval(args[1], env);
+        // Check that they're both numbers:
+        auto n1 = std::get_if<bignum>(&val1->data);
+        auto n2 = std::get_if<bignum>(&val2->data);
+        if (not n1 or not n2) {
+            throw evaluation_error(
+                std::format("%: both arguments must be numbers"),
+                "%",
+                call_stack::format()
+            );
+        }
+        // Check that both numbers are integers (denominator = 1)
+        if ((1 != boost::multiprecision::denominator(*n1)) or (1 != boost::multiprecision::denominator(*n2))) {
+            throw evaluation_error(
+                std::format("%: both arguments must be integers"),
+                "%",
+                call_stack::format()
+            );
+        }
+        // Extract numerators and use standard modulo
+        auto num1 = boost::multiprecision::numerator(*n1);
+        auto num2 = boost::multiprecision::numerator(*n2);
+        bignum result = num1 % num2;
         return std::make_shared<value>(result);
     }
 
@@ -1150,7 +1235,7 @@ env_ptr create_global_environment()
     };
 
     auto define_arithmetic = [define_builtin](const std::string& name, 
-                    std::function<int(int, int)> op)
+                    std::function<bignum(bignum, bignum)> op)
     {
         define_builtin(name, builtins::make_arithmetic_operative(name, op));
     };
@@ -1167,10 +1252,13 @@ env_ptr create_global_environment()
     define_builtin("do", builtins::do_operative);
 #endif
     // Arithmetic
-    define_arithmetic("+", std::plus<int>{});
-    define_arithmetic("-", std::minus<int>{});
-    define_arithmetic("*", std::multiplies<int>{});
-    define_arithmetic("/", std::divides<int>{});
+    define_arithmetic("+", std::plus<bignum>{});
+    define_arithmetic("-", std::minus<bignum>{});
+    define_arithmetic("*", std::multiplies<bignum>{});
+    define_arithmetic("/", std::divides<bignum>{});
+    define_builtin("numerator", builtins::numerator_operative);
+    define_builtin("denominator", builtins::denominator_operative);
+    define_builtin("%", builtins::modulo_operative);
     // Numeric comparison
     define_builtin("<=>", builtins::spaceship_operative);
     // Lists
@@ -1345,7 +1433,7 @@ value_ptr eval(value_ptr expr, env_ptr env)
             continuation_type k = std::visit([&](const auto& v) -> continuation_type {
                 using T = std::decay_t<decltype(v)>;
                 
-                if constexpr (std::is_same_v<T, int> || 
+                if constexpr (std::is_same_v<T, bignum> || 
                             std::is_same_v<T, std::string> || 
                             std::is_same_v<T, std::nullptr_t>) {
                     return expr;

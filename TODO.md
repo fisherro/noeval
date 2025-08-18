@@ -16,6 +16,8 @@ test suite size down.
 
 ## Regular
 
+Expand parsing and strigification of numbers now that they're arbitrary precision rationals.
+
 map*
 
 Other HOF
@@ -41,11 +43,7 @@ There's a lot of common code that could be refactored in the builtin operatives
 
 Pattern matching?
 
-"Numeric tower"...or at least support of bignums
-
-* All numbers are boost::cpp_rational
-* Default formatting is (possibly) repeating decimals
-* Floats will be boost::cpp_dec_float
+Floats (boost::multiprecision::cpp_dec_float)? Symbolic irrationals?
 
 Use demangle in value_to_string?
 

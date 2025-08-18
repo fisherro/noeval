@@ -128,3 +128,7 @@ treats `#ignore`.
 Currently the only equivalence predicate is `=`, which may be closest to
 Kernel's `equal?`. It raises an error when comparing different types (with a
 few exceptions)
+
+### Numbers
+
+All numbers are arbitrary precision rationals.

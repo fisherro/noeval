@@ -168,6 +168,7 @@
 (define newline (lambda () (display "\n")))
 
 (define number? (lambda (x) (= (q number) (typeof x))))
+(define integer? (lambda (x) (and (number? x) (= 1 (denominator x)))))
 (define string? (lambda (x) (= (q string) (typeof x))))
 (define symbol? (lambda (x) (= (q symbol) (typeof x))))
 (define list? (lambda (x) (or (nil? x) (= (q cons-cell) (typeof x)))))
@@ -525,15 +526,14 @@
 ; Q&D test of even?: (map even? (map (lambda (x) (- x 9)) (iota 19)))
 ; TODO: Fix this after we upgrade numbers from int to boost::cpp_rational.
 (define even? (lambda* (x)
-                (unless (number? x)
-                  (raise "even? can only be applied to numbers"))
-                (define remainder (- x (* 2 (/ x 2))))
-                (= 0 remainder)))
+                ((integer? x)
+                 (= 0 (% x 2))
+                 (raise "even? can only be applied to integers"))))
 
 (define odd? (lambda (x)
-               ((number? x)
+               ((integer? x)
                 (not (even? x))
-                (raise "odd? can only be applied to numbers"))))
+                (raise "odd? can only be applied to integers"))))
 
 (define countdown
   (lambda (n)
