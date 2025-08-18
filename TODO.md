@@ -16,8 +16,6 @@ test suite size down.
 
 ## Regular
 
-Prompt to continue when C++ or library tests fail.
-
 map*
 
 Other HOF

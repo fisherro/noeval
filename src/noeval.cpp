@@ -1663,11 +1663,25 @@ env_ptr reload_global_environment(bool test_the_library)
         std::println("Running library tests...");
         failures += run_library_tests(global_env);
         std::println("{}", std::string(60, '='));
-        if (failures != 0) {
+        if (0 != failures) {
             println_red("\n✗ library tests failed!");
-            return nullptr;
+            
+            std::print("Library tests failed. Do you want to continue anyway? (y/N): ");
+            std::string response;
+            std::getline(std::cin, response);
+            
+            // Convert to lowercase for comparison
+            std::ranges::transform(response, response.begin(), ::tolower);
+            
+            if (response != "y" and response != "yes") {
+                std::println("Aborting due to library test failures.");
+                return nullptr;
+            }
+            
+            std::println("Continuing despite library test failures...");
+        } else {
+            std::println("\n✓ All tests passed!");
         }
-        std::println("\n✓ All tests passed!");
     }
 
     return global_env;
