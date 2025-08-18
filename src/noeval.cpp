@@ -1642,7 +1642,7 @@ int run_library_tests(env_ptr outer_env)
     }
 }
 
-env_ptr reload_global_environment(bool run_tests)
+env_ptr reload_global_environment(bool test_the_library)
 {
     // Create global environment and load library
     auto global_env = create_global_environment();
@@ -1656,7 +1656,7 @@ env_ptr reload_global_environment(bool run_tests)
         return nullptr;
     }
 
-    if (run_tests) {
+    if (test_the_library) {
         int failures{0};
         // Run library tests after loading
         std::println("\n{}", std::string(60, '='));
@@ -1676,7 +1676,19 @@ env_ptr reload_global_environment(bool run_tests)
 int main()
 {
     if (!run_tests()) {
-        return EXIT_FAILURE;
+        std::print("Tests failed. Do you want to continue anyway? (y/N): ");
+        std::string response;
+        std::getline(std::cin, response);
+        
+        // Convert to lowercase for comparison
+        std::ranges::transform(response, response.begin(), ::tolower);
+        
+        if (response != "y" && response != "yes") {
+            std::println("Exiting due to test failures.");
+            return EXIT_FAILURE;
+        }
+        
+        std::println("Continuing despite test failures...");
     }
 
     // Create global environment and load library

@@ -194,7 +194,7 @@ value_ptr eval(value_ptr expr, env_ptr env);
 env_ptr create_global_environment();
 // This creates a new global environment, loads the library, and runs the
 // library tests if specified.
-env_ptr reload_global_environment(bool run_tests = true);
+env_ptr reload_global_environment(bool test_the_library = true);
 
 // String conversion functions
 std::string to_string(const bignum& value);

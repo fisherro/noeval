@@ -324,13 +324,13 @@ bool handle_special_command(const std::string& input, env_ptr& global_env)
         std::string command, option;
         iss >> command >> option;
         
-        bool run_tests = (option != "fast");
-        auto new_env = reload_global_environment(run_tests);
+        bool test_the_library = (option != "fast");
+        auto new_env = reload_global_environment(test_the_library);
         if (new_env) {
             global_env = new_env;
             setup_completion(global_env);
             std::println("Environment reloaded successfully{}", 
-                        run_tests ? " (with tests)" : " (skipping tests)");
+                        test_the_library? " (with tests)": " (skipping tests)");
         } else {
             std::println("Failed to reload environment");
         }
