@@ -126,6 +126,12 @@ std::string to_string(const env_ptr& env)
         static_cast<const void*>(env.get())); 
 }
 
+std::string to_string(const env_weak_ptr& env)
+{ 
+    return std::format("#<environment:{}>",
+        static_cast<const void*>(env.lock().get())); 
+}
+
 std::string to_string(std::nullptr_t) { return "()"; }
 
 // Helper function to print values for debugging
@@ -227,6 +233,13 @@ value_ptr unwrap_mutable_binding(value_ptr value)
         return mb->value;
     }
     return value;
+}
+
+bool operator==(const env_weak_ptr& lhs, const env_weak_ptr& rhs)
+{
+    // Two weak_ptrs are equal if they point to the same object
+    // This handles the case where both are expired (both lock() returns nullptr)
+    return lhs.lock() == rhs.lock();
 }
 
 // Should be const references...
@@ -548,7 +561,7 @@ namespace builtins {
     // Helper function to extract environment from evaluated value
     env_ptr extract_target_environment(value_ptr env_val, const std::vector<value_ptr>& args)
     {
-        if (!std::holds_alternative<env_ptr>(env_val->data)) {
+        if (!std::holds_alternative<env_weak_ptr>(env_val->data)) {
             throw evaluation_error(
                 std::format("eval: second argument must evaluate to an environment, got {}",
                         value_to_string(env_val)),
@@ -557,9 +570,19 @@ namespace builtins {
             );
         }
         
-        auto target_env = std::get<env_ptr>(env_val->data);
+        auto target_env_weak = std::get<env_weak_ptr>(env_val->data);
+        auto target_env = target_env_weak.lock();
+        
+        if (!target_env) {
+            throw evaluation_error(
+                "eval: environment reference has expired",
+                std::format("(eval {} {})", expr_context(args[0]), expr_context(args[1])),
+                call_stack::format()
+            );
+        }
+        
         NOEVAL_DEBUG(operative, "Target environment for evaluation: {}", 
-                  static_cast<const void*>(target_env.get()));
+            static_cast<const void*>(target_env.get()));
         
         return target_env;
     }

@@ -19,6 +19,7 @@ struct value;
 
 using value_ptr = std::shared_ptr<value>;
 using env_ptr = std::shared_ptr<environment>;
+using env_weak_ptr = std::weak_ptr<environment>;
 
 // Tail call captures the eval arguments for the next iteration of eval when
 // a tail call happens.
@@ -113,7 +114,7 @@ struct value: std::enable_shared_from_this<value> {
         cons_cell,
         operative,
         builtin_operative,
-        env_ptr,
+        env_weak_ptr,
         mutable_binding,
         std::nullptr_t  // for nil
     > data;
@@ -130,7 +131,7 @@ struct typeof_visitor {
     std::string operator()(const cons_cell&) const { return "cons-cell"; }
     std::string operator()(const operative&) const { return "operative"; }
     std::string operator()(const builtin_operative&) const { return "operative"; }
-    std::string operator()(env_ptr) const { return "environment"; }
+    std::string operator()(env_weak_ptr) const { return "environment"; }
     std::string operator()(const mutable_binding& mb) const;
     std::string operator()(std::nullptr_t) const { return "nil"; }
 };
