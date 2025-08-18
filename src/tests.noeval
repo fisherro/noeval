@@ -5707,6 +5707,30 @@
 (test-error (<= "hello" 5) "<= should propagate spaceship operator errors - wrong types")
 (test-error (>= 5 "world") ">= should propagate spaceship operator errors - wrong types")
 
+;------------------------------------------------------------------------------
+; modulo tests
+(lndisplayln "modulo tests")
+
+(test-assert (= (modulo 22/7 1/3)
+                0.(142857))
+             "modulo should work with non-integer values")
+
+(test-assert (= (modulo 7 3)
+                1)
+             "modulo should give the same result as remainder for positive values")
+
+(test-assert (= (modulo -7 3)
+                2)
+             "modulo should give a different result than remainder for negative dividend and positive modulus")
+
+(test-assert (= (modulo 7 -3)
+                -2)
+             "modulo should give a different result than remainder for positive dividend and negative modulus")
+
+(test-assert (= (modulo -7 -3)
+                -1)
+             "modulo should give the same result as remainder for negative values")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Show test results
 (if (= test-failures 0)

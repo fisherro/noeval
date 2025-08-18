@@ -16,7 +16,9 @@ test suite size down.
 
 ## Regular
 
-What's the difference between remainder and modulo? Handle modulo for fractions?
+Prompt to continue when C++ or library tests fail.
+
+Option for REPL reload command to not run library tests.
 
 map*
 

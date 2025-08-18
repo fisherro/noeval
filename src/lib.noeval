@@ -527,13 +527,26 @@
 ; TODO: Fix this after we upgrade numbers from int to boost::cpp_rational.
 (define even? (lambda* (x)
                 ((integer? x)
-                 (= 0 (% x 2))
+                 (= 0 (remainder x 2))
                  (raise "even? can only be applied to integers"))))
 
 (define odd? (lambda (x)
                ((integer? x)
                 (not (even? x))
                 (raise "odd? can only be applied to integers"))))
+
+(define abs (lambda (x)
+              ((< x 0)
+               (- 0 x)
+               x)))
+
+(define modulo (lambda (x y)
+                 (let ((r (remainder x y)))
+                   ((= r 0)
+                    0
+                    ((< (* r y) 0)
+                     (+ r y)
+                     r)))))
 
 (define countdown
   (lambda (n)

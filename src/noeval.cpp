@@ -1239,41 +1239,42 @@ namespace builtins {
         return std::make_shared<value>(denominator);
     }
 
-    continuation_type modulo_operative(const std::vector<value_ptr>& args, env_ptr env)
+    continuation_type remainder_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
-        // Check the number of arguments:
         if (args.size() != 2) {
             throw evaluation_error(
-                std::format("%: expected 2 arguments, got {}", args.size()),
-                "%",
+                std::format("remainder: expected 2 arguments, got {}", args.size()),
+                "remainder",
                 call_stack::format()
             );
         }
-        // Evaluate the arguments:
+        
         auto val1 = eval(args[0], env);
         auto val2 = eval(args[1], env);
-        // Check that they're both numbers:
+        
         auto n1 = std::get_if<bignum>(&val1->data);
         auto n2 = std::get_if<bignum>(&val2->data);
         if (not n1 or not n2) {
             throw evaluation_error(
-                std::format("%: both arguments must be numbers"),
-                "%",
+                "remainder: both arguments must be numbers",
+                "remainder",
                 call_stack::format()
             );
         }
-        // Check that both numbers are integers (denominator = 1)
-        if ((1 != boost::multiprecision::denominator(*n1)) or (1 != boost::multiprecision::denominator(*n2))) {
-            throw evaluation_error(
-                std::format("%: both arguments must be integers"),
-                "%",
-                call_stack::format()
-            );
-        }
-        // Extract numerators and use standard modulo
-        auto num1 = boost::multiprecision::numerator(*n1);
-        auto num2 = boost::multiprecision::numerator(*n2);
-        bignum result = num1 % num2;
+        
+        // For rationals: a remainder b = a - truncate(a/b) * b
+        bignum quotient = *n1 / *n2;
+        
+        // Truncate toward zero for rational numbers
+        // Convert to integer directly (this truncates toward zero)
+        using cpp_int = boost::multiprecision::cpp_int;
+        cpp_int truncated_int = boost::multiprecision::numerator(quotient) / 
+                            boost::multiprecision::denominator(quotient);
+        
+        // Convert back to bignum (rational)
+        bignum truncated_quotient{truncated_int};
+        
+        bignum result = *n1 - truncated_quotient * *n2;
         return std::make_shared<value>(result);
     }
 
@@ -1333,7 +1334,7 @@ env_ptr create_global_environment()
     define_arithmetic("/", std::divides<bignum>{});
     define_builtin("numerator", builtins::numerator_operative);
     define_builtin("denominator", builtins::denominator_operative);
-    define_builtin("%", builtins::modulo_operative);
+    define_builtin("remainder", builtins::remainder_operative);
     // Numeric comparison
     define_builtin("<=>", builtins::spaceship_operative);
     // Lists

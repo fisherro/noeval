@@ -6,7 +6,7 @@ Summary to use as Github Copilot context so that it doesn't have to reference la
 
 **Control**: `vau`, `eval`, `define`, `invoke`, `do`, `try`, `raise`
 **Arithmetic**: `+`, `-`, `*`, `/` (evaluate all arguments)
-**Numeric operations**: `numerator`, `denominator`, `%` (modulo for integers)
+**Numeric operations**: `numerator`, `denominator`, `remainder`
 **Numeric comparisons**: `<=>` (evaluate all arguments)
 **Lists**: `cons`, `first`, `rest`, `nil?` (evaluate all arguments)
 **Predicates**: `=` (evaluate all arguments)
@@ -26,7 +26,6 @@ Summary to use as Github Copilot context so that it doesn't have to reference la
 - **Lists**: Built from `cons` cells, terminated with `()`
 - **Environment transparency**: `do` and `try` do not create new environments - definitions made within them persist in the current environment
 - **Numbers**: Arbitrary precision rationals (fractions) - all arithmetic preserves exact precision
-- **Integer operations**: `%` (modulo) requires integer arguments (denominator = 1)
 - **Rational decomposition**: `numerator` and `denominator` extract parts of fractions
 
 ## Standard Library (lib.noeval)
@@ -40,3 +39,4 @@ Summary to use as Github Copilot context so that it doesn't have to reference la
 **Examples**: `countdown`, `factorial`
 **Comparisons**: `!=`
 **Numeric comparisons**: `<`, `>`, `<=`, `>=`
+**Numeric operations**: `abs`, `modulo`

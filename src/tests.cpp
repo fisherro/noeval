@@ -748,13 +748,13 @@ int test_number_operations()
     runner.test_eval("(<=> 1/3 0.33)", "1");  // 1/3 > 0.33
     
     // Test modulo with integers
-    runner.test_eval("(% 7 3)", "1");
-    runner.test_eval("(% 10 4)", "2");
-    runner.test_eval("(% -7 3)", "-1");
+    runner.test_eval("(remainder 7 3)", "1");
+    runner.test_eval("(remainder 10 4)", "2");
+    runner.test_eval("(remainder -7 3)", "-1");
     
-    // Test error conditions for modulo
-    runner.test_error("(% 1.5 2)", "must be integers");
-    runner.test_error("(% 7 2.5)", "must be integers");
+    // Test remainder with rational numbers (now supported)
+    runner.test_eval("(remainder 1.5 2)", "1.5");  // 1.5 - truncate(1.5/2) * 2 = 1.5 - 0 * 2 = 1.5
+    runner.test_eval("(remainder 7 2.5)", "2");    // 7 - truncate(7/2.5) * 2.5 = 7 - 2 * 2.5 = 2
     
     return runner.failures;
 }
