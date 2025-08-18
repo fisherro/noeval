@@ -204,7 +204,7 @@ std::string lexer::read_number()
 }
 
 lexer::lexer(std::string text) : input(std::move(text)), pos(0) {}
-    
+
 token lexer::next_token()
 {
     skip_whitespace_and_comments();
@@ -229,9 +229,23 @@ token lexer::next_token()
         return token(token_type::string_literal, read_string());
     }
 
-    // TODO: "-123abc", however, gets parsed as -123 and the "abc" gets dropped.
     if (std::isdigit(ch) or (ch == '-' and pos + 1 < input.size() and std::isdigit(input[pos + 1]))) {
-        return token(token_type::number, read_number());
+        size_t start_pos = pos;
+        std::string number_str = read_number();
+        
+        // Validate that we're at a proper token boundary after reading the number
+        if (pos < input.size() and 
+            not std::isspace(input[pos]) and 
+            input[pos] != '(' and 
+            input[pos] != ')' and 
+            input[pos] != ';') {
+            // Not at a valid boundary - this means we have something like "-123abc"
+            // Reset position and treat the whole thing as a symbol
+            pos = start_pos;
+            return token(token_type::symbol, read_symbol());
+        }
+        
+        return token(token_type::number, number_str);
     }
     
     // Everything else is a symbol
