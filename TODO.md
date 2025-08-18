@@ -16,6 +16,8 @@ test suite size down.
 
 ## Regular
 
+Fix memory leaks due to environment cycles.
+
 map*
 
 Other HOF

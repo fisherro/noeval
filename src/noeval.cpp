@@ -1712,6 +1712,10 @@ int main()
     std::println("Starting REPL...");
     repl(global_env);
 
+    // Check for unreclaimed environment cycles:
+    global_env.reset();
+    std::println("Environment count: {}", environment::count);
+
 #ifdef TEST_FOR_MOVE_ONLY_FUNCTION
     std::println("---");
     std::println("move_only_function support: {}", 

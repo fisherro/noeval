@@ -136,12 +136,16 @@ struct typeof_visitor {
 };
 
 // Environment for variable bindings
-struct environment {
+struct environment final {
+    // To detect whether we end up with unreclaimed cycles.
+    static inline size_t count{0};
+
     std::unordered_map<std::string, value_ptr> bindings;
     env_ptr parent;
     
-    environment(env_ptr p = nullptr) : parent(std::move(p)) {}
-    
+    environment(env_ptr p = nullptr) : parent(std::move(p)) { ++count; }
+    ~environment() { --count; }
+
     value_ptr lookup(const std::string& name) const;
     void define(const std::string& name, value_ptr val);
     std::vector<std::string> get_all_symbols() const;
