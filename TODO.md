@@ -18,8 +18,6 @@ test suite size down.
 
 Prompt to continue when C++ or library tests fail.
 
-Option for REPL reload command to not run library tests.
-
 map*
 
 Other HOF

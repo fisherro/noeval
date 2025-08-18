@@ -301,7 +301,7 @@ bool is_special_command(const std::string& input)
 }
 
 // Handle special commands (returns true if command was handled)
-bool handle_special_command(const std::string& input)
+bool handle_special_command(const std::string& input, env_ptr& global_env)
 {
     if (handle_debug_command(input)) {
         return true;
@@ -310,11 +310,30 @@ bool handle_special_command(const std::string& input)
     if (input == ":help") {
         std::println("Special commands:");
         std::println("  :help          - Show this help");
-        std::println("  :reload        - Recreate the global environment and reload the library");
+        std::println("  :reload        - Recreate the global environment and reload the library (with tests)");
+        std::println("  :reload fast   - Recreate the global environment and reload the library (skip tests)");
         std::println("  :debug ...     - Debug control commands (:debug help for details)");
         std::println("  quit, exit     - Exit the REPL");
         std::println("");
         std::println("Or enter any Noeval expression to evaluate it.");
+        return true;
+    }
+    
+    if (input.starts_with(":reload")) {
+        std::istringstream iss(input);
+        std::string command, option;
+        iss >> command >> option;
+        
+        bool run_tests = (option != "fast");
+        auto new_env = reload_global_environment(run_tests);
+        if (new_env) {
+            global_env = new_env;
+            setup_completion(global_env);
+            std::println("Environment reloaded successfully{}", 
+                        run_tests ? " (with tests)" : " (skipping tests)");
+        } else {
+            std::println("Failed to reload environment");
+        }
         return true;
     }
     
@@ -361,14 +380,7 @@ void repl(env_ptr global_env)
         
         // Handle special commands first
         if (is_special_command(input)) {
-            // Handle reload command specially
-            if (input == ":reload") {
-                auto new_env = reload_global_environment();
-                if (new_env) global_env = new_env;
-                continue;
-            }
-
-            if (handle_special_command(input)) {
+            if (handle_special_command(input, global_env)) {
                 continue; // Command was handled
             }
             
