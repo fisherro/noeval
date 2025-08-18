@@ -229,7 +229,6 @@ token lexer::next_token()
         return token(token_type::string_literal, read_string());
     }
 
-    // TODO: This assumes that symbols can't begin with '-'. Which may be reasonable.
     // TODO: "-123abc", however, gets parsed as -123 and the "abc" gets dropped.
     if (std::isdigit(ch) or (ch == '-' and pos + 1 < input.size() and std::isdigit(input[pos + 1]))) {
         return token(token_type::number, read_number());
