@@ -1670,8 +1670,6 @@ bool load_library_file(const std::string& filename, env_ptr env)
 }
 
 // Function to run library tests from file
-// TODO: Can't do environment::collect in here because we haven't updated
-//       environment::global_env yet.
 int run_library_tests(env_ptr outer_env)
 {
     std::println("Running library tests from file...");
