@@ -405,4 +405,6 @@ void repl(env_ptr global_env)
 #if 0
     write_history(history_file.c_str());
 #endif
+    // Reset the completion_env to decrement the reference count
+    completion_env.reset();
 }

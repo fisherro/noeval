@@ -137,13 +137,27 @@ struct typeof_visitor {
 
 // Environment for variable bindings
 struct environment final {
-    // To detect whether we end up with unreclaimed cycles.
+    // Keep a count of all constructed (& not destructed) environments for debugging
     static inline size_t count{0};
+    // Registry of all environments used for garbage collection
+    // weak_ptr can't be used with unordered_set until owner_hash is implemented
+    static inline std::set<std::weak_ptr<environment>, std::owner_less<std::weak_ptr<environment>>> registry;
 
+private:
+    // Private ctor; must use environment::make to create instances
+    environment(env_ptr p = nullptr) : parent(std::move(p)) { ++count; }
+
+public:
     std::unordered_map<std::string, value_ptr> bindings;
     env_ptr parent;
-    
-    environment(env_ptr p = nullptr) : parent(std::move(p)) { ++count; }
+
+    static std::shared_ptr<environment> make(env_ptr parent = nullptr)
+    {
+        auto env = std::shared_ptr<environment>(new environment(std::move(parent)));
+        registry.insert(env);
+        return env;
+    }
+
     ~environment() { --count; }
 
     value_ptr lookup(const std::string& name) const;

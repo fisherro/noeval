@@ -84,7 +84,7 @@ void test_parser()
 
 void test_evaluator()
 {
-    auto env = std::make_shared<environment>();
+    auto env = environment::make();
     
     // Test self-evaluating values
     std::println("Testing self-evaluating values:");

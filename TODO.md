@@ -16,7 +16,9 @@ test suite size down.
 
 ## Regular
 
-Fix memory leaks due to environment cycles.
+Make PoC environment collection not a PoC
+
+Garbage collection between top-level evaluations is OK, but what about for long running evaluations? When can we collect?
 
 map*
 

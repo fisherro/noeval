@@ -1302,7 +1302,7 @@ void add_church_boleans(env_ptr env)
 // Create a global environment with built-ins
 env_ptr create_global_environment()
 {
-    auto env = std::make_shared<environment>();
+    auto env = environment::make();
 
     auto define_builtin = [env](const std::string& name, 
                     std::function<continuation_type(const std::vector<value_ptr>&, env_ptr)> func)
@@ -1396,7 +1396,7 @@ void bind_parameters(const param_pattern& params, value_ptr operands, env_ptr ta
 continuation_type operate_operative(const operative& op, value_ptr operands, env_ptr env)
 {
     // Create new environment for the operative
-    auto new_env = std::make_shared<environment>(op.closure_env);
+    auto new_env = environment::make(op.closure_env);
 
     // Bind parameters to unevaluated operands
     try {
@@ -1495,6 +1495,82 @@ continuation_type eval_operation(const cons_cell& cell, env_ptr env)
         call_stack::format()
     );
 }
+
+///////////////////////////////////////////////////////////////////////////////
+
+void mark_environment(std::unordered_set<environment*>& marked, environment* env);
+
+/*
+ * We need to recursively check this values for env_ptrs:
+ * `env_ptr`
+ * `cons_cell::car`
+ * `cons_cell::cdr`
+ * `operative::closure_env`
+ * `operative::body`?
+ * `mutable_binding::value`
+ */
+void mark_value(std::unordered_set<environment*>& marked, value* v)
+{
+    if (not v) return;
+    if (std::holds_alternative<env_ptr>(v->data)) {
+        mark_environment(marked, std::get<env_ptr>(v->data).get());
+    } else if (std::holds_alternative<cons_cell>(v->data)) {
+        auto& cell = std::get<cons_cell>(v->data);
+        mark_value(marked, cell.car.get());
+        mark_value(marked, cell.cdr.get());
+    } else if (std::holds_alternative<operative>(v->data)) {
+        auto& op = std::get<operative>(v->data);
+        mark_environment(marked, op.closure_env.get());
+        mark_value(marked, op.body.get());
+    } else if (std::holds_alternative<mutable_binding>(v->data)) {
+        auto& mb = std::get<mutable_binding>(v->data);
+        mark_value(marked, mb.value.get());
+    }
+}
+
+void mark_environment(std::unordered_set<environment*>& marked, environment* env)
+{
+    if (not env) return;
+    if (marked.contains(env)) return;
+    marked.insert(env);
+    mark_environment(marked, env->parent.get());
+    for (const auto& binding: env->bindings) {
+        mark_value(marked, binding.second.get());
+    }
+}
+
+std::unordered_set<environment*> mark_root(environment* root)
+{
+    if (not root) {
+        std::println("{}: NO ROOT!", __func__);
+        return {};
+    }
+    std::println("{}: Root: {}", __func__, static_cast<void*>(root));
+    std::unordered_set<environment*> marked;
+    mark_environment(marked, root);
+    std::println("{}: Marked {} environments", __func__, marked.size());
+    return marked;
+}
+
+void sweep(std::unordered_set<environment*>& marked)
+{
+    for (const auto& entry: environment::registry) {
+        auto p = entry.lock();
+        if (not p) continue;
+        if (marked.contains(p.get())) continue;
+        p->bindings.clear();
+        p->parent.reset();
+    }
+}
+
+void cleanup_registry()
+{
+    std::erase_if(environment::registry, [](const auto& entry) {
+        return entry.expired();
+    });
+}
+
+///////////////////////////////////////////////////////////////////////////////
 
 value_ptr eval(value_ptr expr, env_ptr env)
 {
@@ -1599,7 +1675,7 @@ int run_library_tests(env_ptr outer_env)
         auto expressions = p.parse_all();
         
         // Make an isolated test environment
-        auto env = std::make_shared<environment>(outer_env);
+        auto env = environment::make(outer_env);
 
         value_ptr result;
         size_t exception_count{0};
@@ -1712,8 +1788,37 @@ int main()
     repl(global_env);
 
     // Check for unreclaimed environment cycles:
+    std::println("Environments after repl: {}; registry: {}", environment::count, environment::registry.size());
+    cleanup_registry();
+    std::println("Environments after cleanup_registry: {}; registry: {}", environment::count, environment::registry.size());
+    auto marked = mark_root(global_env.get());
+    sweep(marked);
+    cleanup_registry();
+    std::println("Environments after sweep: {}; registry: {}", environment::count, environment::registry.size());
     global_env.reset();
-    std::println("Environment count: {}", environment::count);
+
+    std::println("Environments after global_env.reset: {}; registry: {}", environment::count, environment::registry.size());
+    std::unordered_set<environment*> empty;
+    sweep(empty);
+    cleanup_registry();
+    std::println("Environments after 2nd sweep: {}; registry: {}", environment::count, environment::registry.size());
+
+    if (not environment::registry.empty()) {
+        std::println("Last environment standing use count (before lock): {}", environment::registry.begin()->use_count());
+        env_ptr last_env_standing = environment::registry.begin()->lock();
+        std::println("Last environment standing: {}", static_cast<const void*>(last_env_standing.get()));
+        std::println("Current bindings:");
+        if (last_env_standing->bindings.empty()) {
+            std::println("  (none)");
+        } else {
+            for (const auto& [key, value]: last_env_standing->bindings) {
+                std::println("  {} -> {}", key, value_to_string(value));
+            }
+        }
+        if (last_env_standing->parent) {
+            std::println("Parent env: {}", static_cast<const void*>(last_env_standing->parent.get()));
+        }
+    }
 
 #ifdef TEST_FOR_MOVE_ONLY_FUNCTION
     std::println("---");
