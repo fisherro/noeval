@@ -1646,8 +1646,7 @@ env_ptr reload_global_environment(bool test_the_library)
 {
     // Create global environment and load library
     auto global_env = create_global_environment();
-    global_env->define("env", std::make_shared<value>(global_env));
-    
+
     // Load standard library
     std::println("Loading standard library...");
     bool library_ok = load_library_file("src/lib.noeval", global_env);
