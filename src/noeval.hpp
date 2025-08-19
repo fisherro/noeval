@@ -6,6 +6,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <variant>
 #include <vector>
 
@@ -137,26 +138,34 @@ struct typeof_visitor {
 
 // Environment for variable bindings
 struct environment final {
+private:
     // Keep a count of all constructed (& not destructed) environments for debugging
     static inline size_t count{0};
+
     // Registry of all environments used for garbage collection
     // weak_ptr can't be used with unordered_set until owner_hash is implemented
     static inline std::set<std::weak_ptr<environment>, std::owner_less<std::weak_ptr<environment>>> registry;
 
-private:
-    // Private ctor; must use environment::make to create instances
-    environment(env_ptr p = nullptr) : parent(std::move(p)) { ++count; }
-
-public:
     std::unordered_map<std::string, value_ptr> bindings;
     env_ptr parent;
 
-    static std::shared_ptr<environment> make(env_ptr parent = nullptr)
-    {
-        auto env = std::shared_ptr<environment>(new environment(std::move(parent)));
-        registry.insert(env);
-        return env;
-    }
+    // Private ctor; must use environment::make to create instances
+    environment(env_ptr p = nullptr) : parent(std::move(p)) { ++count; }
+
+    static void cleanup_registry();
+    static std::unordered_set<environment*> mark();
+    static void mark_value(std::unordered_set<environment*>& marked, value* v);
+    static void mark_environment(std::unordered_set<environment*>& marked, environment* env);
+    static void sweep(std::unordered_set<environment*>& marked);
+
+public:
+    static inline env_ptr global_env;
+
+    static void collect();
+    static size_t get_constructed_count() { return count; }
+    static size_t get_registered_count() { return registry.size(); }
+
+    static std::shared_ptr<environment> make(env_ptr parent = nullptr);
 
     ~environment() { --count; }
 
@@ -212,7 +221,7 @@ value_ptr eval(value_ptr expr, env_ptr env);
 env_ptr create_global_environment();
 // This creates a new global environment, loads the library, and runs the
 // library tests if specified.
-env_ptr reload_global_environment(bool test_the_library = true);
+bool reload_global_environment(bool test_the_library = true);
 
 // String conversion functions
 std::string to_string(const bignum& value);

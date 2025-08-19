@@ -16,7 +16,9 @@ test suite size down.
 
 ## Regular
 
-Make PoC environment collection not a PoC
+Collect after each top-level evaluation when loading the library.
+
+Collect after each top-level evaluation when running the library tests.
 
 Garbage collection between top-level evaluations is OK, but what about for long running evaluations? When can we collect?
 

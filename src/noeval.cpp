@@ -1498,8 +1498,6 @@ continuation_type eval_operation(const cons_cell& cell, env_ptr env)
 
 ///////////////////////////////////////////////////////////////////////////////
 
-void mark_environment(std::unordered_set<environment*>& marked, environment* env);
-
 /*
  * We need to recursively check this values for env_ptrs:
  * `env_ptr`
@@ -1509,7 +1507,7 @@ void mark_environment(std::unordered_set<environment*>& marked, environment* env
  * `operative::body`?
  * `mutable_binding::value`
  */
-void mark_value(std::unordered_set<environment*>& marked, value* v)
+void environment::mark_value(std::unordered_set<environment*>& marked, value* v)
 {
     if (not v) return;
     if (std::holds_alternative<env_ptr>(v->data)) {
@@ -1528,7 +1526,7 @@ void mark_value(std::unordered_set<environment*>& marked, value* v)
     }
 }
 
-void mark_environment(std::unordered_set<environment*>& marked, environment* env)
+void environment::mark_environment(std::unordered_set<environment*>& marked, environment* env)
 {
     if (not env) return;
     if (marked.contains(env)) return;
@@ -1539,22 +1537,17 @@ void mark_environment(std::unordered_set<environment*>& marked, environment* env
     }
 }
 
-std::unordered_set<environment*> mark_root(environment* root)
+std::unordered_set<environment*> environment::mark()
 {
-    if (not root) {
-        std::println("{}: NO ROOT!", __func__);
-        return {};
-    }
-    std::println("{}: Root: {}", __func__, static_cast<void*>(root));
+    if (not global_env) return {};
     std::unordered_set<environment*> marked;
-    mark_environment(marked, root);
-    std::println("{}: Marked {} environments", __func__, marked.size());
+    mark_environment(marked, global_env.get());
     return marked;
 }
 
-void sweep(std::unordered_set<environment*>& marked)
+void environment::sweep(std::unordered_set<environment*>& marked)
 {
-    for (const auto& entry: environment::registry) {
+    for (const auto& entry: registry) {
         auto p = entry.lock();
         if (not p) continue;
         if (marked.contains(p.get())) continue;
@@ -1563,11 +1556,30 @@ void sweep(std::unordered_set<environment*>& marked)
     }
 }
 
-void cleanup_registry()
+void environment::cleanup_registry()
 {
-    std::erase_if(environment::registry, [](const auto& entry) {
+    std::erase_if(registry, [](const auto& entry) {
         return entry.expired();
     });
+}
+
+std::shared_ptr<environment> environment::make(env_ptr parent)
+{
+    auto env = std::shared_ptr<environment>(new environment(std::move(parent)));
+    registry.insert(env);
+    return env;
+}
+
+void environment::collect()
+{
+    std::println("Before collection: Undestructed environments: {}", environment::get_constructed_count());
+    std::println("Before collection: Registered environments  : {}", environment::get_registered_count());
+    cleanup_registry();
+    auto marked = mark();
+    sweep(marked);
+    cleanup_registry();
+    std::println("After collection : Undestructed environments: {}", environment::get_constructed_count());
+    std::println("After collection : Registered environments  : {}", environment::get_registered_count());
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1658,6 +1670,8 @@ bool load_library_file(const std::string& filename, env_ptr env)
 }
 
 // Function to run library tests from file
+// TODO: Can't do environment::collect in here because we haven't updated
+//       environment::global_env yet.
 int run_library_tests(env_ptr outer_env)
 {
     std::println("Running library tests from file...");
@@ -1718,25 +1732,28 @@ int run_library_tests(env_ptr outer_env)
     }
 }
 
-env_ptr reload_global_environment(bool test_the_library)
+bool reload_global_environment(bool test_the_library)
 {
     // Create global environment and load library
-    auto global_env = create_global_environment();
+    environment::global_env = create_global_environment();
+    environment::collect();
 
     // Load standard library
     std::println("Loading standard library...");
-    bool library_ok = load_library_file("src/lib.noeval", global_env);
+    bool library_ok = load_library_file("src/lib.noeval", environment::global_env);
     if (not library_ok) {
         std::println("Loading the library failed!");
-        return nullptr;
+        return false;
     }
+    environment::collect();
 
     if (test_the_library) {
         int failures{0};
         // Run library tests after loading
         std::println("\n{}", std::string(60, '='));
         std::println("Running library tests...");
-        failures += run_library_tests(global_env);
+        failures += run_library_tests(environment::global_env);
+        environment::collect();
         std::println("{}", std::string(60, '='));
         if (0 != failures) {
             println_red("\n✗ library tests failed!");
@@ -1750,7 +1767,7 @@ env_ptr reload_global_environment(bool test_the_library)
             
             if (response != "y" and response != "yes") {
                 std::println("Aborting due to library test failures.");
-                return nullptr;
+                return false;
             }
             
             std::println("Continuing despite library test failures...");
@@ -1759,7 +1776,7 @@ env_ptr reload_global_environment(bool test_the_library)
         }
     }
 
-    return global_env;
+    return true;
 }
 
 int main()
@@ -1781,44 +1798,14 @@ int main()
     }
 
     // Create global environment and load library
-    auto global_env = reload_global_environment(true);
-    if (not global_env) return EXIT_FAILURE;
+    bool ok = reload_global_environment(true);
+    if (not ok) return EXIT_FAILURE;
 
     std::println("Starting REPL...");
-    repl(global_env);
+    repl();
 
-    // Check for unreclaimed environment cycles:
-    std::println("Environments after repl: {}; registry: {}", environment::count, environment::registry.size());
-    cleanup_registry();
-    std::println("Environments after cleanup_registry: {}; registry: {}", environment::count, environment::registry.size());
-    auto marked = mark_root(global_env.get());
-    sweep(marked);
-    cleanup_registry();
-    std::println("Environments after sweep: {}; registry: {}", environment::count, environment::registry.size());
-    global_env.reset();
-
-    std::println("Environments after global_env.reset: {}; registry: {}", environment::count, environment::registry.size());
-    std::unordered_set<environment*> empty;
-    sweep(empty);
-    cleanup_registry();
-    std::println("Environments after 2nd sweep: {}; registry: {}", environment::count, environment::registry.size());
-
-    if (not environment::registry.empty()) {
-        std::println("Last environment standing use count (before lock): {}", environment::registry.begin()->use_count());
-        env_ptr last_env_standing = environment::registry.begin()->lock();
-        std::println("Last environment standing: {}", static_cast<const void*>(last_env_standing.get()));
-        std::println("Current bindings:");
-        if (last_env_standing->bindings.empty()) {
-            std::println("  (none)");
-        } else {
-            for (const auto& [key, value]: last_env_standing->bindings) {
-                std::println("  {} -> {}", key, value_to_string(value));
-            }
-        }
-        if (last_env_standing->parent) {
-            std::println("Parent env: {}", static_cast<const void*>(last_env_standing->parent.get()));
-        }
-    }
+    environment::global_env.reset();
+    environment::collect();
 
 #ifdef TEST_FOR_MOVE_ONLY_FUNCTION
     std::println("---");

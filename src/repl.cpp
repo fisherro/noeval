@@ -16,8 +16,6 @@
 #include "parser.hpp"
 #include "repl.hpp"
 
-static env_ptr completion_env{nullptr};
-
 std::string get_history_file()
 {
     const char* home = std::getenv("HOME");
@@ -46,9 +44,9 @@ char* symbol_generator(const char* prefix, int state)
         matches.clear();
         match_index = 0;
         
-        if (completion_env) {
+        if (environment::global_env) {
             // Get all symbols from the environment
-            auto symbols = completion_env->get_all_symbols();
+            auto symbols = environment::global_env->get_all_symbols();
             // So annoying that we have std::bind_back, but it doesn't work
             // with overload sets.
             auto string_starts_with = [](const std::string& str, const char* prefix) {
@@ -88,7 +86,6 @@ char** symbol_completion(const char* text, int start, int)
 // Initialize tab completion
 void setup_completion(env_ptr env)
 {
-    completion_env = env;
     rl_attempted_completion_function = symbol_completion;
     rl_completer_word_break_characters = " \t\n()";
 }
@@ -301,7 +298,7 @@ bool is_special_command(const std::string& input)
 }
 
 // Handle special commands (returns true if command was handled)
-bool handle_special_command(const std::string& input, env_ptr& global_env)
+bool handle_special_command(const std::string& input)
 {
     if (handle_debug_command(input)) {
         return true;
@@ -325,10 +322,9 @@ bool handle_special_command(const std::string& input, env_ptr& global_env)
         iss >> command >> option;
         
         bool test_the_library = (option != "fast");
-        auto new_env = reload_global_environment(test_the_library);
-        if (new_env) {
-            global_env = new_env;
-            setup_completion(global_env);
+        bool ok = reload_global_environment(test_the_library);
+        if (ok) {
+            setup_completion(environment::global_env);
             std::println("Environment reloaded successfully{}", 
                         test_the_library? " (with tests)": " (skipping tests)");
         } else {
@@ -361,14 +357,14 @@ void print_error(const std::exception& e)
 }
 
 // Simple REPL with multi-line support
-void repl(env_ptr global_env)
+void repl()
 {
 #if 0
     // I'm not ready to enable saving the history yet.
     auto history_file = get_history_file();
     read_history(history_file.c_str());
 #endif
-    setup_completion(global_env);
+    setup_completion(environment::global_env);
 
     print_welcome();
     
@@ -380,7 +376,7 @@ void repl(env_ptr global_env)
         
         // Handle special commands first
         if (is_special_command(input)) {
-            if (handle_special_command(input, global_env)) {
+            if (handle_special_command(input)) {
                 continue; // Command was handled
             }
             
@@ -393,11 +389,12 @@ void repl(env_ptr global_env)
         
         try {
             call_stack_reset_max_depth();
-            auto result = eval_expression(input, global_env);
+            auto result = eval_expression(input, environment::global_env);
             if (get_debug().is_enabled("stack-depth")) {
                 std::println("max stack depth: {}", call_stack_get_max_depth());
             }
             print_result(result);
+            environment::collect();
         } catch (const std::exception& e) {
             print_error(e);
         }
@@ -405,6 +402,4 @@ void repl(env_ptr global_env)
 #if 0
     write_history(history_file.c_str());
 #endif
-    // Reset the completion_env to decrement the reference count
-    completion_env.reset();
 }
