@@ -84,7 +84,7 @@ char** symbol_completion(const char* text, int start, int)
 }
 
 // Initialize tab completion
-void setup_completion(env_ptr env)
+void setup_completion()
 {
     rl_attempted_completion_function = symbol_completion;
     rl_completer_word_break_characters = " \t\n()";
@@ -219,6 +219,7 @@ bool handle_debug_command(const std::string& input)
         std::println("  :debug status           - Show current debug settings");
         std::println("  :debug colors on/off    - Enable/disable colored output");
         std::println("  :debug stack-depth      - Show max stack depth after each evaluation");
+        std::println("  :debug gc               - Show garbage collection info");
         std::println("");
         std::println("Categories: {}", debug_categories | std::views::keys);
         return true;
@@ -324,7 +325,6 @@ bool handle_special_command(const std::string& input)
         bool test_the_library = (option != "fast");
         bool ok = reload_global_environment(test_the_library);
         if (ok) {
-            setup_completion(environment::global_env);
             std::println("Environment reloaded successfully{}", 
                         test_the_library? " (with tests)": " (skipping tests)");
         } else {
@@ -364,7 +364,7 @@ void repl()
     auto history_file = get_history_file();
     read_history(history_file.c_str());
 #endif
-    setup_completion(environment::global_env);
+    setup_completion();
 
     print_welcome();
     
@@ -390,9 +390,7 @@ void repl()
         try {
             call_stack_reset_max_depth();
             auto result = eval_expression(input, environment::global_env);
-            if (get_debug().is_enabled("stack-depth")) {
-                std::println("max stack depth: {}", call_stack_get_max_depth());
-            }
+            NOEVAL_DEBUG(stack-depth, "max stack depth: {}", call_stack_get_max_depth());
             print_result(result);
             environment::collect();
         } catch (const std::exception& e) {

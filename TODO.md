@@ -16,11 +16,9 @@ test suite size down.
 
 ## Regular
 
-Collect after each top-level evaluation when loading the library.
+Validate debug categories when using :debug on
 
-Collect after each top-level evaluation when running the library tests.
-
-Garbage collection between top-level evaluations is OK, but what about for long running evaluations? When can we collect?
+REPL command to show environment stats (undestructed and registered)
 
 map*
 

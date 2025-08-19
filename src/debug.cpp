@@ -19,7 +19,8 @@ std::unordered_map<std::string, std::string> debug_categories{
     {"parse", "\033[31m"},       // Red
     {"library", "\033[95m"},     // Light magenta
     {"error", "\033[91m"},       // Light red
-    {"stack-depth", "\033[0m"},   // Reset
+    {"stack-depth", "\033[0m"},  // Reset
+    {"gc", "\033[0m"},           // Reset
     {"all", "\033[0m"},          // Reset
     {"none", "\033[0m"},         // Reset
 };

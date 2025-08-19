@@ -45,3 +45,27 @@ Then, when we want to collect, we:
 3. Remove expired pointers from the registry.
 
 Collection should only be done between evaluations.
+
+## Additional collection point possibilities
+
+Currently, collection is done after evaluating a top-level expression when...
+
+* Loading the library
+* Running the library tests
+* In the REPL
+
+(We may want to change it, at some point, so that it isn't run after *every*
+top-level expression.)
+
+Once we have ways for Noeval code to get input, though, there could be very
+long running top-level expressions. So here are additional points where we may
+add collection in the future.
+
+* `operate_operative`
+* `cons`
+* Arithmetic operations (Could be added to them through the `make_arithmetic_operative` function.)
+
+Generally: After operatives evaluate their arguments but before they construct
+their results.
+
+Alternatively, collection could be triggered in `environment::make`.

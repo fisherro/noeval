@@ -1542,6 +1542,11 @@ std::unordered_set<environment*> environment::mark()
     if (not global_env) return {};
     std::unordered_set<environment*> marked;
     mark_environment(marked, global_env.get());
+    for (const auto& root: additional_roots) {
+        if (auto p = root.lock()) {
+            mark_environment(marked, p.get());
+        }
+    }
     return marked;
 }
 
@@ -1558,6 +1563,9 @@ void environment::sweep(std::unordered_set<environment*>& marked)
 
 void environment::cleanup_registry()
 {
+    std::erase_if(additional_roots, [](const auto& entry) {
+        return entry.expired();
+    });
     std::erase_if(registry, [](const auto& entry) {
         return entry.expired();
     });
@@ -1572,14 +1580,14 @@ std::shared_ptr<environment> environment::make(env_ptr parent)
 
 void environment::collect()
 {
-    std::println("Before collection: Undestructed environments: {}", environment::get_constructed_count());
-    std::println("Before collection: Registered environments  : {}", environment::get_registered_count());
+    NOEVAL_DEBUG(gc, "Before collection: Undestructed environments: {}", environment::get_constructed_count());
+    NOEVAL_DEBUG(gc, "Before collection: Registered environments  : {}", environment::get_registered_count());
     cleanup_registry();
     auto marked = mark();
     sweep(marked);
     cleanup_registry();
-    std::println("After collection : Undestructed environments: {}", environment::get_constructed_count());
-    std::println("After collection : Registered environments  : {}", environment::get_registered_count());
+    NOEVAL_DEBUG(gc, "After collection : Undestructed environments: {}", environment::get_constructed_count());
+    NOEVAL_DEBUG(gc, "After collection : Registered environments  : {}", environment::get_registered_count());
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1650,10 +1658,11 @@ bool load_library_file(const std::string& filename, env_ptr env)
         parser p(content);
         auto expressions = p.parse_all();
         
-        for (const auto& expr : expressions) {
+        for (const auto& expr: expressions) {
             try {
                 auto result = eval(expr, env);
                 NOEVAL_DEBUG(library, "Loaded: {} => {}", value_to_string(expr), value_to_string(result));
+                environment::collect();
             } catch (const std::exception& e) {
                 ok = false;
                 std::println("  Error loading expression '{}': {}", value_to_string(expr), e.what());
@@ -1688,12 +1697,14 @@ int run_library_tests(env_ptr outer_env)
         
         // Make an isolated test environment
         auto env = environment::make(outer_env);
+        environment::add_additional_root(env);
 
         value_ptr result;
         size_t exception_count{0};
         for (const auto& expr: expressions) {
             try {
                 result = eval(expr, env);
+                environment::collect();
             } catch (const std::exception& e) {
                 std::println("\nError in test: {}", value_to_string(expr));
                 std::println("Error: {}", e.what());
@@ -1743,7 +1754,6 @@ bool reload_global_environment(bool test_the_library)
         std::println("Loading the library failed!");
         return false;
     }
-    environment::collect();
 
     if (test_the_library) {
         int failures{0};
@@ -1751,7 +1761,6 @@ bool reload_global_environment(bool test_the_library)
         std::println("\n{}", std::string(60, '='));
         std::println("Running library tests...");
         failures += run_library_tests(environment::global_env);
-        environment::collect();
         std::println("{}", std::string(60, '='));
         if (0 != failures) {
             println_red("\n✗ library tests failed!");

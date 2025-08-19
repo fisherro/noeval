@@ -145,6 +145,7 @@ private:
     // Registry of all environments used for garbage collection
     // weak_ptr can't be used with unordered_set until owner_hash is implemented
     static inline std::set<std::weak_ptr<environment>, std::owner_less<std::weak_ptr<environment>>> registry;
+    static inline std::set<std::weak_ptr<environment>, std::owner_less<std::weak_ptr<environment>>> additional_roots;
 
     std::unordered_map<std::string, value_ptr> bindings;
     env_ptr parent;
@@ -162,6 +163,7 @@ public:
     static inline env_ptr global_env;
 
     static void collect();
+    static void add_additional_root(env_ptr env) { additional_roots.insert(env); }
     static size_t get_constructed_count() { return count; }
     static size_t get_registered_count() { return registry.size(); }
 
