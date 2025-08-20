@@ -19,7 +19,7 @@
 std::string get_history_file()
 {
     const char* home = std::getenv("HOME");
-    if (!home) {
+    if (not home) {
         throw std::runtime_error("HOME environment variable not set");
     }
     return std::format("{}/.noeval_history", home);
@@ -39,7 +39,7 @@ char* symbol_generator(const char* prefix, int state)
     static std::vector<std::string> matches;
     static size_t match_index{0};
 
-    if (state == 0) {
+    if (0 == state) {
         // First call - generate all matches
         matches.clear();
         match_index = 0;
@@ -76,7 +76,7 @@ char** symbol_completion(const char* text, int start, int)
     rl_attempted_completion_over = 1;
     
     // Only complete at word boundaries or after certain characters
-    if (start == 0 || strchr("( \t\n", rl_line_buffer[start - 1])) {
+    if (0 == start or strchr("( \t\n", rl_line_buffer[start - 1])) {
         return rl_completion_matches(text, symbol_generator);
     }
     
@@ -120,9 +120,9 @@ bool is_complete_expression(const std::string& input)
         }
         
         if (in_string) {
-            if (ch == '\\') {
+            if ('\\' == ch) {
                 escaped = true;
-            } else if (ch == '"') {
+            } else if ('"' == ch) {
                 in_string = false;
             }
         } else {
@@ -148,7 +148,7 @@ bool is_complete_expression(const std::string& input)
     // 1. Not in a string
     // 2. Parentheses are balanced
     // 3. We have at least some non-whitespace content
-    return !in_string && paren_count == 0;
+    return not in_string and 0 == paren_count;
 }
 
 // Read a complete expression from the user, handling multi-line input
@@ -166,7 +166,7 @@ std::string read_expression()
         if (input.empty() and accumulated_input.empty()) return "";
         
         // Add the new line to accumulated input
-        if (!accumulated_input.empty()) {
+        if (not accumulated_input.empty()) {
             accumulated_input += " ";  // Add space between lines
         }
         accumulated_input += input;
@@ -182,7 +182,7 @@ std::string read_expression()
         }
         
         // Check for special commands
-        if (trimmed == "quit" || trimmed == "exit") {
+        if ("quit" == trimmed or "exit" == trimmed) {
             return trimmed;
         }
         
@@ -198,21 +198,21 @@ std::string read_expression()
 // Check if input is a quit command
 bool is_quit_command(const std::string& input)
 {
-    return input == "quit" || input == "exit";
+    return "quit" == input or "exit" == input;
 }
 
 // Helper function to handle debug commands
 bool handle_debug_command(const std::string& input)
 {
-    if (!input.starts_with(":debug")) {
+    if (not input.starts_with(":debug")) {
         return false; // Not a debug command
     }
     
     std::istringstream iss(input);
     std::string command, action, category;
     iss >> command >> action;
-    
-    if (action == "help" || action.empty()) {
+
+    if ("help" == action or action.empty()) {
         std::println("Debug commands:");
         std::println("  :debug on [category]    - Enable debug output (all categories if none specified)");
         std::println("  :debug off [category]   - Disable debug output (all categories if none specified)");
@@ -225,8 +225,8 @@ bool handle_debug_command(const std::string& input)
         std::println("Categories: {}", debug_categories | std::views::keys);
         return true;
     }
-    
-    if (action == "status") {
+
+    if ("status" == action) {
         std::println("Debug status:");
         std::println("  Colors: {}", get_debug().are_colors_enabled()? "enabled": "disabled");
         std::println("  Enabled categories:");
@@ -242,13 +242,13 @@ bool handle_debug_command(const std::string& input)
         }
         return true;
     }
-    
-    if (action == "colors") {
+
+    if ("colors" == action) {
         iss >> category; // Actually the on/off value
-        if (category == "on") {
+        if ("on" == category) {
             get_debug().set_colors(true);
             std::println("Debug colors enabled");
-        } else if (category == "off") {
+        } else if ("off" == category) {
             get_debug().set_colors(false);
             std::println("Debug colors disabled");
         } else {
@@ -256,8 +256,8 @@ bool handle_debug_command(const std::string& input)
         }
         return true;
     }
-    
-    if (action == "on") {
+
+    if ("on" == action) {
         iss >> category;
         if (category.empty()) {
             get_debug().enable_all();
@@ -272,8 +272,8 @@ bool handle_debug_command(const std::string& input)
         }
         return true;
     }
-    
-    if (action == "off") {
+
+    if ("off" == action) {
         iss >> category;
         if (category.empty()) {
             get_debug().disable_all();
@@ -289,7 +289,7 @@ bool handle_debug_command(const std::string& input)
         return true;
     }
 
-    if (action == "env-counts") {
+    if ("env-counts" == action) {
         std::println("Environment counts:");
         std::println("  Constructed: {}", environment::get_constructed_count());
         std::println("  Registered:  {}", environment::get_registered_count());
@@ -303,7 +303,7 @@ bool handle_debug_command(const std::string& input)
 // Check if input is a special command
 bool is_special_command(const std::string& input)
 {
-    return input.starts_with(":") || input == "quit" || input == "exit";
+    return input.starts_with(":") or "quit" == input or "exit" == input;
 }
 
 // Handle special commands (returns true if command was handled)
@@ -312,8 +312,8 @@ bool handle_special_command(const std::string& input)
     if (handle_debug_command(input)) {
         return true;
     }
-    
-    if (input == ":help") {
+
+    if (":help" == input) {
         std::println("Special commands:");
         std::println("  :help          - Show this help");
         std::println("  :reload        - Recreate the global environment and reload the library (with tests)");

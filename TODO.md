@@ -22,8 +22,6 @@ Otherwise immediately removes.
 Then dtor will call unregister.
 That way the dtor removing from the registry can't mess up collection
 
-REPL command to show environment stats (undestructed and registered)
-
 Ensure REPL tab completion works for REPL special commands
 
 map*
