@@ -16,7 +16,11 @@ test suite size down.
 
 ## Regular
 
-Validate debug categories when using :debug on
+environment::unregister:
+Does nothing when collection is in progress.
+Otherwise immediately removes.
+Then dtor will call unregister.
+That way the dtor removing from the registry can't mess up collection
 
 REPL command to show environment stats (undestructed and registered)
 
@@ -97,3 +101,5 @@ Move the testing infrastructure into the library?
 Or wait until we have modules and put it in a module?
 
 Consider `do` and `try` creating their own environment
+
+Add validation of the bindings structures to let

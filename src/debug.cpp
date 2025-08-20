@@ -33,7 +33,12 @@ debug_controller& get_debug()
 }
 
 void debug_controller::enable(const std::string& category)
-{ enabled_categories.insert(category); }
+{
+    if (not debug_categories.contains(category)) {
+        throw std::runtime_error("Unknown debug category: " + category);
+    }
+    enabled_categories.insert(category);
+}
 
 void debug_controller::disable(const std::string& category)
 { enabled_categories.erase(category); }
