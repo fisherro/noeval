@@ -16,13 +16,17 @@ test suite size down.
 
 ## Regular
 
-string->list and list->string
+string->list and list->string tests
+
+update noeval-reference
 
 string library functions: string-length, string-append, string-ref, substring
 
 more string library functions: strings->string, string->codepoint-string
 
 UTF-8 library functions: codepoints->utf8, utf8->codepoints
+
+Make value ctor private and provide a value::make static member function
 
 File I/O
 

@@ -20,6 +20,7 @@
 #include "parser.hpp"
 #include "repl.hpp"
 #include "tests.hpp"
+#include "unicode.hpp"
 #include "utils.hpp"
 
 #define USE_TAIL_CALL 1
@@ -1278,6 +1279,106 @@ namespace builtins {
         return std::make_shared<value>(result);
     }
 
+    continuation_type string_to_list_operative(const std::vector<value_ptr>& args, env_ptr env)
+    {
+        if (args.size() != 1) {
+            throw evaluation_error(
+                std::format("string->list: expected 1 argument, got {}", args.size()),
+                "string->list",
+                call_stack::format()
+            );
+        }
+        
+        auto str_val = eval(args[0], env);
+        if (!std::holds_alternative<std::string>(str_val->data)) {
+            throw evaluation_error(
+                std::format("string->list: argument must be a string, got {}", value_to_string(str_val)),
+                "string->list",
+                call_stack::format()
+            );
+        }
+        
+        const auto& str = std::get<std::string>(str_val->data);
+        // Inefficient conversion but safer than a reinterpret_cast:
+        // (There's an argument that `value` should use std::u8string instead.)
+        const std::u8string utf8(str.begin(), str.end());
+        const auto utf32 = utf8_to_utf32(utf8);
+        auto result = std::make_shared<value>(nullptr);
+        
+        // Build the list in reverse order
+        for (auto it = utf32.rbegin(); it != utf32.rend(); ++it) {
+            result = std::make_shared<value>(cons_cell{
+                std::make_shared<value>(bignum{*it}), result});
+        }
+        
+        return result;
+    }
+
+    char32_t bignum_to_char32(const bignum& rational)
+    {
+        namespace bmp = boost::multiprecision;
+        if (1 != bmp::denominator(rational)) {
+            throw std::invalid_argument("bignum_to_char32: argument must be an integer");
+        }
+        bmp::cpp_int numerator = bmp::numerator(rational);
+        if ((numerator < 0) or (numerator > 0x10FFFF)) {
+            throw std::invalid_argument("bignum_to_char32: argument out of range");
+        }
+        char32_t codepoint = numerator.convert_to<char32_t>();
+        if (codepoint >= 0xD800 && codepoint <= 0xDFFF) {
+            throw std::invalid_argument("bignum_to_char32: argument must not be a surrogate");
+        }
+        return codepoint;
+    }
+
+    continuation_type list_to_string_operative(const std::vector<value_ptr>& args, env_ptr env)
+    {
+        if (args.size() != 1) {
+            throw evaluation_error(
+                std::format("list->string: expected 1 argument, got {}", args.size()),
+                "list->string",
+                call_stack::format()
+            );
+        }
+        
+        auto list_val = eval(args[0], env);
+
+        if (std::holds_alternative<nullptr_t>(list_val->data)) {
+            return std::make_shared<value>(std::string{});
+        }
+
+        if (!std::holds_alternative<cons_cell>(list_val->data)) {
+            throw evaluation_error(
+                std::format("list->string: argument must be a list, got {}", value_to_string(list_val)),
+                "list->string",
+                call_stack::format()
+            );
+        }
+        
+        std::u32string result;
+        auto current = list_val;
+        
+        // Traverse the list and convert each bignum to char32_t
+        while (std::holds_alternative<cons_cell>(current->data)) {
+            const auto& cell = std::get<cons_cell>(current->data);
+            if (!std::holds_alternative<bignum>(cell.car->data)) {
+                throw evaluation_error(
+                    "list->string: all elements must be numbers",
+                    "list->string",
+                    call_stack::format()
+                );
+            }
+            bignum bn = std::get<bignum>(cell.car->data);
+            result.push_back(bignum_to_char32(bn));
+            current = cell.cdr;
+        }
+
+        std::u8string utf8 = utf32_to_utf8(result);
+        std::string s(utf8.begin(), utf8.end());
+
+        return std::make_shared<value>(s);
+    }
+
 } // namespace builtins
 
 void add_church_boleans(env_ptr env)
@@ -1342,6 +1443,9 @@ env_ptr create_global_environment()
     define_builtin("first", builtins::first_operative);
     define_builtin("rest", builtins::rest_operative);
     define_builtin("nil?", builtins::nil_p_operative);
+    // Strings
+    define_builtin("string->list", builtins::string_to_list_operative);
+    define_builtin("list->string", builtins::list_to_string_operative);
     // Equality
     define_builtin("=", builtins::equal_operative);
     // I/O
