@@ -24,6 +24,8 @@ That way the dtor removing from the registry can't mess up collection
 
 REPL command to show environment stats (undestructed and registered)
 
+Ensure REPL tab completion works for REPL special commands
+
 map*
 
 Other HOF
@@ -103,3 +105,5 @@ Or wait until we have modules and put it in a module?
 Consider `do` and `try` creating their own environment
 
 Add validation of the bindings structures to let
+
+Add GC collection points to more places.
