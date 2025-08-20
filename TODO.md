@@ -16,11 +16,20 @@ test suite size down.
 
 ## Regular
 
+string->list and list->string
+
+string library functions: string-length, string-append, string-ref, substring
+
+File I/O
+
 environment::unregister:
 Does nothing when collection is in progress.
 Otherwise immediately removes.
 Then dtor will call unregister.
-That way the dtor removing from the registry can't mess up collection
+That way the dtor removing from the registry can't mess up collection.
+And add max-constructed stat to measure this improvement.
+
+Add max-garbage stat
 
 Ensure REPL tab completion works for REPL special commands
 
@@ -59,7 +68,7 @@ Look for places we could simplify code with ranges
 
 Revisit escaping in string literals (what scheme do we want to use?)
 
-Replace lists with arrays?
+Replace lists with arrays? Or maybe Clojure/Scala style vectors? Or RRB trees?
 
 > I'll avoid set-car!/set-cdr! for now...a set-array-element! might happen
 > And that might be needed for a good promise implementation
@@ -96,6 +105,9 @@ Rewrite any uses of if into Church Boolean form in the library
 Do we need get-current-environment? Is it correct?
 
 `for-each*` that can handle *n*-ary procedures?
+
+Makes `value` formattable by std::format and std::print and then use them to
+expose formattting functions to Noeval.
 
 Move the testing infrastructure into the library?
 Or wait until we have modules and put it in a module?
