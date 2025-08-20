@@ -20,6 +20,10 @@ string->list and list->string
 
 string library functions: string-length, string-append, string-ref, substring
 
+more string library functions: strings->string, string->codepoint-string
+
+UTF-8 library functions: codepoints->utf8, utf8->codepoints
+
 File I/O
 
 environment::unregister:
