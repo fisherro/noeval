@@ -7,6 +7,7 @@
 #include "noeval.hpp"
 #include "parser.hpp"
 #include "tests.hpp"
+#include "unicode.hpp"
 #include "utils.hpp"
 
 // Helper function for running tests
@@ -759,6 +760,217 @@ int test_number_operations()
     return runner.failures;
 }
 
+int test_unicode_functions()
+{
+    std::println("\n--- Unicode conversion functions ---");
+    int failures = 0;
+    
+    auto test_utf32_to_utf8 = [&](const std::u32string& input, const std::string& expected_hex) -> bool {
+        try {
+            auto result = utf32_to_utf8(input);
+            std::string hex_result;
+            for (char8_t byte : result) {
+                hex_result += std::format("{:02X}", static_cast<uint8_t>(byte));
+            }
+            if (hex_result == expected_hex) {
+                std::println("✓ UTF-32 to UTF-8: U+{} => {}", 
+                           [&]() {
+                               std::string codepoints;
+                               for (char32_t cp : input) {
+                                   if (not codepoints.empty()) codepoints += " ";
+                                   codepoints += std::format("{:04X}", static_cast<uint32_t>(cp));
+                               }
+                               return codepoints;
+                           }(), hex_result);
+                return true;
+            } else {
+                println_red("✗ UTF-32 to UTF-8: expected {}, got {}", expected_hex, hex_result);
+                failures++;
+                return false;
+            }
+        } catch (const std::exception& e) {
+            println_red("✗ UTF-32 to UTF-8: threw exception: {}", e.what());
+            failures++;
+            return false;
+        }
+    };
+    
+    auto test_utf8_to_utf32 = [&](const std::string& input_hex, const std::u32string& expected) -> bool {
+        try {
+            // Convert hex string to u8string
+            std::u8string input;
+            for (size_t i = 0; i < input_hex.length(); i += 2) {
+                std::string byte_str = input_hex.substr(i, 2);
+                auto byte_val = static_cast<char8_t>(std::stoi(byte_str, nullptr, 16));
+                input.push_back(byte_val);
+            }
+            
+            auto result = utf8_to_utf32(input);
+            if (result == expected) {
+                std::println("✓ UTF-8 to UTF-32: {} => U+{}", input_hex,
+                           [&]() {
+                               std::string codepoints;
+                               for (char32_t cp : result) {
+                                   if (not codepoints.empty()) codepoints += " ";
+                                   codepoints += std::format("{:04X}", static_cast<uint32_t>(cp));
+                               }
+                               return codepoints;
+                           }());
+                return true;
+            } else {
+                println_red("✗ UTF-8 to UTF-32: wrong result");
+                failures++;
+                return false;
+            }
+        } catch (const std::exception& e) {
+            println_red("✗ UTF-8 to UTF-32: threw exception: {}", e.what());
+            failures++;
+            return false;
+        }
+    };
+    
+    auto test_utf32_error = [&](const std::u32string& input, const std::string& expected_error) -> bool {
+        try {
+            auto result = utf32_to_utf8(input);
+            println_red("✗ UTF-32 error test: expected error containing '{}', but got result", expected_error);
+            failures++;
+            return false;
+        } catch (const std::exception& e) {
+            std::string error_msg = e.what();
+            if (error_msg.find(expected_error) != std::string::npos) {
+                std::println("✓ UTF-32 error: correctly threw error containing '{}'", expected_error);
+                return true;
+            } else {
+                println_red("✗ UTF-32 error: expected '{}', got '{}'", expected_error, error_msg);
+                failures++;
+                return false;
+            }
+        }
+    };
+    
+    auto test_utf8_error = [&](const std::string& input_hex, const std::string& expected_error) -> bool {
+        try {
+            // Convert hex string to u8string
+            std::u8string input;
+            for (size_t i = 0; i < input_hex.length(); i += 2) {
+                std::string byte_str = input_hex.substr(i, 2);
+                auto byte_val = static_cast<char8_t>(std::stoi(byte_str, nullptr, 16));
+                input.push_back(byte_val);
+            }
+            
+            auto result = utf8_to_utf32(input);
+            println_red("✗ UTF-8 error test: expected error containing '{}', but got result", expected_error);
+            failures++;
+            return false;
+        } catch (const std::exception& e) {
+            std::string error_msg = e.what();
+            if (error_msg.find(expected_error) != std::string::npos) {
+                std::println("✓ UTF-8 error: correctly threw error containing '{}'", expected_error);
+                return true;
+            } else {
+                println_red("✗ UTF-8 error: expected '{}', got '{}'", expected_error, error_msg);
+                failures++;
+                return false;
+            }
+        }
+    };
+    
+    // Test basic ASCII characters (1-byte UTF-8)
+    std::println("\n--- ASCII characters ---");
+    test_utf32_to_utf8(U"A", "41");
+    test_utf32_to_utf8(U"Hello", "48656C6C6F");
+    test_utf8_to_utf32("41", U"A");
+    test_utf8_to_utf32("48656C6C6F", U"Hello");
+    
+    // Test 2-byte UTF-8 sequences
+    std::println("\n--- 2-byte sequences ---");
+    test_utf32_to_utf8(U"é", "C3A9");        // U+00E9 (Latin small letter e with acute)
+    test_utf32_to_utf8(U"ñ", "C3B1");        // U+00F1 (Latin small letter n with tilde)
+    test_utf8_to_utf32("C3A9", U"é");
+    test_utf8_to_utf32("C3B1", U"ñ");
+    
+    // Test 3-byte UTF-8 sequences
+    std::println("\n--- 3-byte sequences ---");
+    test_utf32_to_utf8(U"€", "E282AC");      // U+20AC (Euro sign)
+    test_utf32_to_utf8(U"한", "ED959C");      // U+D55C (Korean character)
+    test_utf8_to_utf32("E282AC", U"€");
+    test_utf8_to_utf32("ED959C", U"한");
+    
+    // Test 4-byte UTF-8 sequences
+    std::println("\n--- 4-byte sequences ---");
+    test_utf32_to_utf8(U"𝄞", "F09D849E");     // U+1D11E (Musical symbol treble clef)
+    test_utf32_to_utf8(U"😀", "F09F9880");     // U+1F600 (Grinning face emoji)
+    test_utf8_to_utf32("F09D849E", U"𝄞");
+    test_utf8_to_utf32("F09F9880", U"😀");
+    
+    // Test boundary conditions
+    std::println("\n--- Boundary conditions ---");
+    test_utf32_to_utf8(std::u32string(1, 0x7F), "7F");           // Last 1-byte
+    test_utf32_to_utf8(std::u32string(1, 0x80), "C280");         // First 2-byte
+    test_utf32_to_utf8(std::u32string(1, 0x7FF), "DFBF");        // Last 2-byte
+    test_utf32_to_utf8(std::u32string(1, 0x800), "E0A080");      // First 3-byte
+    test_utf32_to_utf8(std::u32string(1, 0xFFFF), "EFBFBF");     // Last 3-byte
+    test_utf32_to_utf8(std::u32string(1, 0x10000), "F0908080");  // First 4-byte
+    test_utf32_to_utf8(std::u32string(1, 0x10FFFF), "F48FBFBF"); // Last valid Unicode
+    
+    // Test empty string
+    std::println("\n--- Empty string ---");
+    test_utf32_to_utf8(U"", "");
+    test_utf8_to_utf32("", U"");
+    
+    // Test mixed character lengths
+    std::println("\n--- Mixed sequences ---");
+    test_utf32_to_utf8(U"A€😀", "41E282ACF09F9880");
+    test_utf8_to_utf32("41E282ACF09F9880", U"A€😀");
+    
+    // Test error conditions - Invalid codepoints
+    std::println("\n--- Invalid codepoint errors ---");
+    test_utf32_error(std::u32string(1, 0x110000), "must be <= U+10FFFF");     // Too high
+    test_utf32_error(std::u32string(1, 0xD800), "surrogate pair range");      // Surrogate
+    test_utf32_error(std::u32string(1, 0xDFFF), "surrogate pair range");      // Surrogate
+    
+    // Test error conditions - Invalid UTF-8
+    std::println("\n--- Invalid UTF-8 errors ---");
+    test_utf8_error("80", "Invalid UTF-8 start byte");           // Continuation byte as start
+    test_utf8_error("C0", "Truncated UTF-8 sequence");           // Incomplete 2-byte
+    test_utf8_error("E0A0", "Truncated UTF-8 sequence");         // Incomplete 3-byte
+    test_utf8_error("F0908080FF", "Invalid UTF-8 start byte");   // Valid 4-byte + truly invalid start byte
+    test_utf8_error("C080", "Overlong UTF-8 encoding");          // Overlong 2-byte for ASCII
+    test_utf8_error("E08080", "Overlong UTF-8 encoding");        // Overlong 3-byte
+    test_utf8_error("F0808080", "Overlong UTF-8 encoding");      // Overlong 4-byte
+    test_utf8_error("EDA080", "surrogate pair");                 // UTF-8 encoded surrogate
+    test_utf8_error("F7BFBFBF", "outside Unicode range");        // Beyond U+10FFFF
+    test_utf8_error("C020", "Invalid UTF-8 continuation byte");  // Space instead of continuation
+    
+    // Test round-trip conversion
+    std::println("\n--- Round-trip conversion ---");
+    auto test_roundtrip = [&](const std::u32string& original) -> bool {
+        try {
+            auto utf8_result = utf32_to_utf8(original);
+            auto utf32_result = utf8_to_utf32(utf8_result);
+            if (utf32_result == original) {
+                std::println("✓ Round-trip: {} characters", original.length());
+                return true;
+            } else {
+                println_red("✗ Round-trip failed");
+                failures++;
+                return false;
+            }
+        } catch (const std::exception& e) {
+            println_red("✗ Round-trip threw: {}", e.what());
+            failures++;
+            return false;
+        }
+    };
+    
+    test_roundtrip(U"Hello, 世界! 🌍");
+    test_roundtrip(U"Mixed: AéЯ中🎵");
+    test_roundtrip(std::u32string(1, 0x10FFFF)); // Maximum valid codepoint
+    
+    std::println("Unicode function tests completed: {} failures", failures);
+    return failures;
+}
+
 bool run_tests()
 {
     // Run existing tests (these could also be converted to return failure counts)
@@ -786,6 +998,7 @@ bool run_tests()
     std::println("{}", std::string(60, '='));
     failures += test_number_parsing();
     failures += test_number_operations();
+    failures += test_unicode_functions();
     std::println("{}", std::string(60, '='));
 
     if (failures != 0) {
