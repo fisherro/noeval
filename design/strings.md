@@ -29,3 +29,14 @@ Potential string-related library functions include
 * `utf8->codepoints` Takes a list of numbers representing the bytes of a UTF-8 sequence and returns a list of numbers representing the Unicode codepoints of the sequence. Invalid byte values or invalid UTF-8 sequences will raise an error.
 * `strings->string` Takes a list of strings and converts them into a single string.
 * `string->codepoint-strings` Converts a string into a list of single-codepoint strings.
+
+## Notes
+
+I've considered replacing lists with arrays or a more array-like data
+structure. I've considered eliminating strings in favor of arrays of numbers.
+We're currently using boost::multiprecision::cpp_rational as our number type,
+which (for zero) is 64-bytes on the current architecture. For 32-bit integers,
+cpp_rational should not need to allocate memory. Still, they're twice the size
+of char32_t, and even for Chinese texts, UTF-8 tends to be about 25% smaller
+than UTF-32. So, best case, we're probably still looking at cpp_rational
+strings being 60% larger than UTF-8. For straight ASCII, it is > 80%.
