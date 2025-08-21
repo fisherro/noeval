@@ -1318,15 +1318,19 @@ namespace builtins {
     {
         namespace bmp = boost::multiprecision;
         if (1 != bmp::denominator(rational)) {
-            throw std::invalid_argument("bignum_to_char32: argument must be an integer");
+            throw std::invalid_argument("list->string: codepoint must be an integer");
         }
         bmp::cpp_int numerator = bmp::numerator(rational);
         if ((numerator < 0) or (numerator > 0x10FFFF)) {
-            throw std::invalid_argument("bignum_to_char32: argument out of range");
+            throw std::invalid_argument(
+                std::format("list->string: Invalid Unicode codepoint {} (must be 0-0x10FFFF)",
+                    numerator.str()));
         }
         char32_t codepoint = numerator.convert_to<char32_t>();
         if (codepoint >= 0xD800 && codepoint <= 0xDFFF) {
-            throw std::invalid_argument("bignum_to_char32: argument must not be a surrogate");
+            throw std::invalid_argument(
+                std::format("list->string: Invalid Unicode codepoint U+{:X} (surrogate pair range not allowed)",
+                    static_cast<uint32_t>(codepoint)));
         }
         return codepoint;
     }

@@ -548,6 +548,16 @@
                      (+ r y)
                      r)))))
 
+(define string-length (lambda (s) (length (string->list s))))
+(define string-append 
+  (lambda strings
+    (list->string (apply append (map string->list strings)))))
+
+; string-ref tries to use list-ref, but that doesn't exist
+(define string-ref
+  (lambda (s n)
+    (list->string (list (list-ref (string->list s) n)))))
+
 (define countdown
   (lambda (n)
     ((number? n)

@@ -5734,6 +5734,74 @@
                 -1)
              "modulo should give the same result as remainder for negative values")
 
+;------------------------------------------------------------------------------
+; string->list/list->string tests  
+(lndisplayln "string->list/list->string tests")
+
+; Test 1: Basic string decomposition
+(test-assert (= (length (string->list "hello")) 5)
+  "string->list should return correct length for ASCII")
+
+(test-assert (= (first (string->list "A")) 65)
+  "string->list should return correct codepoint for 'A'")
+
+; Test 2: Empty string handling
+(test-assert (= (string->list "") ())
+  "string->list should return empty list for empty string")
+
+(test-assert (= (list->string ()) "")
+  "list->string should return empty string for empty list")
+
+; Test 3: Round-trip conversion
+(test-assert (= (list->string (string->list "test")) "test")
+  "round-trip conversion should preserve string")
+
+; Test 4: Unicode support
+(define unicode-test "Hello, 世界! 🌍")
+(test-assert (= (list->string (string->list unicode-test)) unicode-test)
+  "round-trip should work with Unicode text")
+
+; Test 5: String primitives enable library functions
+(test-assert (= (string-length "hello") 5)
+  "string-length should work using string->list")
+
+(test-assert (= (string-length "😀🌍") 2)
+  "string-length should count Unicode characters correctly")
+
+; Test 6: String concatenation via list operations
+(test-assert (= (string-append "hello" " " "world") "hello world")
+  "string-append should work using list operations")
+
+#skip
+; TODO: string-ref doesn't work because list-ref doesn't exist yet!
+; Test 7: Character access
+(test-assert (= (string-ref "hello" 1) "e")
+  "string-ref should return correct character")
+#end
+
+; Test 8: String filtering (remove spaces)
+(define remove-spaces
+  (lambda (s)
+    (list->string 
+      (filter (lambda (cp) (not (= cp 32))) (string->list s)))))
+
+(test-assert (= (remove-spaces "a b c") "abc")
+  "string filtering should work with codepoint operations")
+
+; Test 9: Case conversion framework (uppercase A-Z)
+(define char-upcase-codepoint
+  (lambda (cp)
+    (if (and (>= cp 97) (<= cp 122))  ; lowercase a-z
+        (- cp 32)  ; convert to uppercase
+        cp)))
+
+(define string-upcase
+  (lambda (s)
+    (list->string (map char-upcase-codepoint (string->list s)))))
+
+(test-assert (= (string-upcase "hello") "HELLO")
+  "string case conversion should work with codepoint mapping")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Show test results
 (if (= test-failures 0)

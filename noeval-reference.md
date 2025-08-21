@@ -9,6 +9,7 @@ Summary to use as Github Copilot context so that it doesn't have to reference la
 **Numeric operations**: `numerator`, `denominator`, `remainder`
 **Numeric comparisons**: `<=>` (evaluate all arguments)
 **Lists**: `cons`, `first`, `rest`, `nil?` (evaluate all arguments)
+**Strings**: `string->list` and `list->string` convert to/from lists of Unicode codepoints as Noeval numbers
 **Predicates**: `=` (evaluate all arguments)
 **I/O**: `write`, `display`, `flush` (evaluate all arguments)
 **Mutation**: `define-mutable`, `set!`

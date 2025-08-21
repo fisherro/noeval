@@ -971,6 +971,39 @@ int test_unicode_functions()
     return failures;
 }
 
+int test_string_primitives()
+{
+    std::println("\n--- String conversion primitives ---");
+    auto env = create_global_environment();
+    test_runner runner(env);
+    
+    // Basic conversions
+    runner.test_eval("(string->list \"hi\")", "(104 105)");
+    runner.test_eval("(list->string (cons 104 (cons 105 ())))", "\"hi\"");
+    runner.test_eval("(string->list \"\")", "()");
+    runner.test_eval("(list->string ())", "\"\"");
+    
+    // Unicode support
+    runner.test_eval("(string->list \"é\")", "(233)");  // U+00E9
+    runner.test_eval("(list->string (cons 233 ()))", "\"é\"");
+    runner.test_eval("(string->list \"😀\")", "(128512)");  // U+1F600
+    runner.test_eval("(list->string (cons 128512 ()))", "\"😀\"");
+    
+    // Round-trip conversion
+    runner.test_eval("(list->string (string->list \"Hello, 世界!\"))", "\"Hello, 世界!\"");
+    
+    // Error conditions
+    runner.test_error("(string->list)", "expected 1 argument");
+    runner.test_error("(string->list 42)", "argument must be a string");
+    runner.test_error("(list->string 42)", "argument must be a list");
+    runner.test_error("(list->string (cons \"not-number\" ()))", "all elements must be numbers");
+    runner.test_error("(list->string (cons 0.5 ()))", "must be an integer");
+    runner.test_error("(list->string (cons 1114112 ()))", "Invalid Unicode codepoint");  // 0x110000
+    runner.test_error("(list->string (cons 55296 ()))", "surrogate");  // 0xD800
+    
+    return runner.failures;
+}
+
 bool run_tests()
 {
     // Run existing tests (these could also be converted to return failure counts)
@@ -999,6 +1032,7 @@ bool run_tests()
     failures += test_number_parsing();
     failures += test_number_operations();
     failures += test_unicode_functions();
+    failures += test_string_primitives();
     std::println("{}", std::string(60, '='));
 
     if (failures != 0) {
