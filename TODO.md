@@ -123,3 +123,7 @@ Consider `do` and `try` creating their own environment
 Add validation of the bindings structures to let
 
 Add GC collection points to more places.
+
+Function overloading or multimethods
+
+User-defined types?
