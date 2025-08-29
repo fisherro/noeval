@@ -419,10 +419,13 @@
      (raise "map's first argument must be callable"))
     (unless (list? lyst)
      (raise "map's second argument must be a list"))
-    ((nil? lyst)
-     ()
-     (cons (proc (first lyst))
-           (map proc (rest lyst))))))
+    (define loop
+      (lambda (lyst)
+        ((nil? lyst)
+         ()
+         (cons (proc (first lyst))
+               (loop (rest lyst))))))
+    (loop lyst)))
 
 #skip
 ; Example let transformation:
