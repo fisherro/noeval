@@ -16,8 +16,6 @@ test suite size down.
 
 ## Regular
 
-Revisit argument validation in library functions...especially recursive ones
-
 Breakup library tests into multiple files
 
 update noeval-reference
