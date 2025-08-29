@@ -618,9 +618,14 @@
     (loop n lyst)))
 
 (define string-length (lambda (s) (length (string->list s))))
+
 (define string-append 
   (lambda strings
     (list->string (apply append (map string->list strings)))))
+
+(define strings->string
+  (lambda (strings)
+    (apply string-append strings)))
 
 (define string-nth
   (lambda (s n)
@@ -669,6 +674,13 @@
                    dropped
                    (take (- end start)
                           dropped)))))
+
+(define string->codepoint-strings
+  (lambda (s)
+    (cond ((not (string? s))
+           (raise "string->codepoint-strings' argument must be a string"))
+          (else
+           (map list->string (map list (string->list s)))))))
 
 (define countdown
   (lambda (n)

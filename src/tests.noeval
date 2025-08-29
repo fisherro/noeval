@@ -6839,6 +6839,264 @@
   (= (substring mixed-unicode 6) "中文")
   "substring should handle Unicode at end of mixed string")
 
+;------------------------------------------------------------------------------
+; strings->string tests
+(lndisplayln "strings->string tests")
+
+; Test 1: Basic string concatenation
+(test-assert 
+  (= (strings->string (list "hello" " " "world")) "hello world")
+  "strings->string should concatenate multiple strings")
+
+; Test 2: Empty list should return empty string
+(test-assert 
+  (= (strings->string ()) "")
+  "strings->string with empty list should return empty string")
+
+; Test 3: Single string should return itself
+(test-assert 
+  (= (strings->string (list "hello")) "hello")
+  "strings->string with single string should return that string")
+
+; Test 4: Multiple empty strings
+(test-assert 
+  (= (strings->string (list "" "" "")) "")
+  "strings->string with multiple empty strings should return empty string")
+
+; Test 5: Mixed empty and non-empty strings
+(test-assert 
+  (= (strings->string (list "a" "" "b" "" "c")) "abc")
+  "strings->string should handle mixed empty and non-empty strings")
+
+; Test 6: Longer string list
+(test-assert 
+  (= (strings->string (list "The" " " "quick" " " "brown" " " "fox")) "The quick brown fox")
+  "strings->string should work with longer lists")
+
+; Test 7: Unicode strings
+(test-assert 
+  (= (strings->string (list "Hello" " " "世界" "!" " " "🌍")) "Hello 世界! 🌍")
+  "strings->string should handle Unicode characters")
+
+; Test 8: Special characters and whitespace
+(test-assert 
+  (= (strings->string (list "a\nb" "\t" "c\r\nd")) "a\nb\tc\r\nd")
+  "strings->string should handle special characters and whitespace")
+
+; Test 9: Numbers as strings (should work)
+(test-assert 
+  (= (strings->string (list "123" "456" "789")) "123456789")
+  "strings->string should work with numeric strings")
+
+; Test 10: Single character strings
+(test-assert 
+  (= (strings->string (list "a" "b" "c" "d" "e")) "abcde")
+  "strings->string should work with single character strings")
+
+; Test 11: strings->string with library-generated lists
+(define word-list (map (lambda (n) (list->string (list (+ 65 n)))) (iota 5)))
+(test-assert 
+  (= (strings->string word-list) "ABCDE")
+  "strings->string should work with library-generated string lists")
+
+; Test 12: strings->string with filter results
+(define vowel-strings (filter (lambda (s) (any? (lambda (c) (or (= c 65) (= c 69) (= c 73) (= c 79) (= c 85))) (string->list s))) 
+                             (list "A" "B" "E" "F" "I" "J")))
+(test-assert 
+  (= (strings->string vowel-strings) "AEI")
+  "strings->string should work with filtered string lists")
+
+; Test 13: strings->string with apply
+(test-assert 
+  (= (apply strings->string (list (list "x" "y" "z"))) "xyz")
+  "strings->string should work with apply")
+
+; Test 14: Composition with other string functions
+(test-assert 
+  (= (string-length (strings->string (list "ab" "cd" "ef"))) 6)
+  "strings->string result should work with other string functions")
+
+; Test 15: Error conditions - non-string elements
+(test-error (strings->string (list "hello" 42 "world")) "strings->string should reject non-string elements")
+(test-error (strings->string (list "a" true "b")) "strings->string should reject boolean elements")
+(test-error (strings->string (list "x" () "y")) "strings->string should reject nil elements")
+
+;------------------------------------------------------------------------------
+; string->codepoint-strings tests
+(lndisplayln "string->codepoint-strings tests")
+
+; Test 1: Basic ASCII string decomposition
+(define hello-codepoints (string->codepoint-strings "hello"))
+(test-assert 
+  (= (length hello-codepoints) 5)
+  "string->codepoint-strings should create correct number of elements")
+
+(test-assert 
+  (= (first hello-codepoints) "h")
+  "string->codepoint-strings should preserve first character")
+
+(test-assert 
+  (= (first (rest hello-codepoints)) "e")
+  "string->codepoint-strings should preserve second character")
+
+; Test 2: Empty string should return empty list
+(test-assert 
+  (nil? (string->codepoint-strings ""))
+  "string->codepoint-strings with empty string should return empty list")
+
+; Test 3: Single character string
+(define single-char (string->codepoint-strings "A"))
+(test-assert 
+  (= (length single-char) 1)
+  "string->codepoint-strings with single char should return single-element list")
+
+(test-assert 
+  (= (first single-char) "A")
+  "string->codepoint-strings should preserve single character")
+
+; Test 4: Unicode characters
+(define unicode-chars (string->codepoint-strings "🌍世"))
+(test-assert 
+  (= (length unicode-chars) 2)
+  "string->codepoint-strings should handle Unicode characters correctly")
+
+(test-assert 
+  (= (first unicode-chars) "🌍")
+  "string->codepoint-strings should preserve Unicode emoji")
+
+(test-assert 
+  (= (first (rest unicode-chars)) "世")
+  "string->codepoint-strings should preserve Unicode CJK characters")
+
+; Test 5: Mixed ASCII and Unicode
+(define mixed-chars (string->codepoint-strings "A🌍B"))
+(test-assert 
+  (= (length mixed-chars) 3)
+  "string->codepoint-strings should handle mixed ASCII/Unicode")
+
+(test-assert 
+  (= (first mixed-chars) "A")
+  "string->codepoint-strings should preserve ASCII in mixed content")
+
+(test-assert 
+  (= (first (rest mixed-chars)) "🌍")
+  "string->codepoint-strings should preserve Unicode in mixed content")
+
+; Test 6: Special characters
+(define special-chars (string->codepoint-strings "\n\t\r"))
+(test-assert 
+  (= (length special-chars) 3)
+  "string->codepoint-strings should handle special characters")
+
+(test-assert 
+  (= (first special-chars) "\n")
+  "string->codepoint-strings should preserve newline")
+
+; Test 7: Numbers as characters
+(define digit-chars (string->codepoint-strings "123"))
+(test-assert 
+  (= (first digit-chars) "1")
+  "string->codepoint-strings should handle digit characters")
+
+(test-assert 
+  (= (first (rest digit-chars)) "2")
+  "string->codepoint-strings should preserve digit order")
+
+; Test 8: Whitespace characters
+(define space-chars (string->codepoint-strings "a b c"))
+(test-assert 
+  (= (length space-chars) 5)
+  "string->codepoint-strings should count spaces as characters")
+
+(test-assert 
+  (= (first (rest space-chars)) " ")
+  "string->codepoint-strings should preserve spaces")
+
+; Test 9: Round-trip conversion
+(test-assert 
+  (= (strings->string (string->codepoint-strings "test")) "test")
+  "string->codepoint-strings should round-trip with strings->string")
+
+(test-assert 
+  (= (strings->string (string->codepoint-strings "Hello, 世界!")) "Hello, 世界!")
+  "round-trip should work with Unicode content")
+
+; Test 10: Longer string
+(define long-string "The quick brown fox jumps over the lazy dog")
+(define long-chars (string->codepoint-strings long-string))
+(test-assert 
+  (= (length long-chars) (string-length long-string))
+  "string->codepoint-strings length should match string-length")
+
+(test-assert 
+  (= (strings->string long-chars) long-string)
+  "round-trip should work with longer strings")
+
+; Test 11: string->codepoint-strings with library functions
+(define vowel-chars (filter (lambda (s) (any? (lambda (c) (or (= s "a") (= s "e") (= s "i") (= s "o") (= s "u"))) (list s)))
+                           (string->codepoint-strings "hello world")))
+(test-assert 
+  (= (length vowel-chars) 3)
+  "string->codepoint-strings should work with filter")
+
+; Test 12: Character counting with string->codepoint-strings
+(define char-count (foldl (lambda (acc char) (+ acc 1)) 0 (string->codepoint-strings "count me")))
+(test-assert 
+  (= char-count 8)
+  "string->codepoint-strings should work with fold operations")
+
+; Test 13: string->codepoint-strings with map
+(define upper-case-check (map (lambda (s) (and (>= (first (string->list s)) 65) (<= (first (string->list s)) 90)))
+                             (string->codepoint-strings "ABC")))
+(test-assert 
+  (all? (lambda (x) (= x true)) upper-case-check)
+  "string->codepoint-strings should work with character analysis")
+
+; Test 14: string->codepoint-strings with apply
+(test-assert 
+  (= (length (apply string->codepoint-strings (list "test"))) 4)
+  "string->codepoint-strings should work with apply")
+
+; Test 15: Error conditions
+(test-error (string->codepoint-strings) "string->codepoint-strings should require exactly 1 argument")
+(test-error (string->codepoint-strings "hello" "world") "string->codepoint-strings should require exactly 1 argument")
+(test-error (string->codepoint-strings 42) "string->codepoint-strings should reject non-string arguments")
+(test-error (string->codepoint-strings true) "string->codepoint-strings should reject boolean arguments")
+(test-error (string->codepoint-strings ()) "string->codepoint-strings should reject nil arguments")
+
+; Test 16: Composition tests
+(define compose-test "programming")
+(test-assert 
+  (= (first (string->codepoint-strings compose-test))
+     (string-nth compose-test 0))
+  "string->codepoint-strings should be consistent with string-nth")
+
+; Test 17: Edge case - very long Unicode string
+(define unicode-test "😀😃😄😁🤣😂🙂🙃😉😊😇")
+(test-assert 
+  (= (strings->string (string->codepoint-strings unicode-test)) unicode-test)
+  "string->codepoint-strings should handle long Unicode strings")
+
+; Test 18: Special Unicode categories
+(define mixed-unicode "Café naïve résumé")
+(test-assert 
+  (> (length (string->codepoint-strings mixed-unicode)) 0)
+  "string->codepoint-strings should handle accented characters")
+
+; Test 19: Performance test with moderate string
+(define medium-string (strings->string (map (lambda (n) "x") (iota 50))))
+(test-assert 
+  (= (length (string->codepoint-strings medium-string)) 50)
+  "string->codepoint-strings should handle moderately long strings")
+
+; Test 20: Character manipulation pipeline
+(define reverse-string 
+  (lambda (s) 
+    (strings->string (reverse (string->codepoint-strings s)))))
+(test-assert 
+  (= (reverse-string "hello") "olleh")
+  "string->codepoint-strings should enable string manipulation")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Show test results
 (if (= test-failures 0)

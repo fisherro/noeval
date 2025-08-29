@@ -22,7 +22,7 @@ string-related primitives.
 Potential string-related library functions include
 
 * `string-length` which gives the number of codepoints
-* `string-ref` which will return a single codepoint string
+* `string-nth` which will return a single codepoint string
 * `substring`
 * `string-append`
 * `codepoints->utf8` Takes a list of numbers representing Unicode codepoints and returns a list of numbers representing the corresponding UTF-8 byte values. Invalid Unicode codepoints will raise an error.

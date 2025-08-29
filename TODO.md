@@ -22,8 +22,6 @@ Breakup library tests into multiple files
 
 update noeval-reference
 
-more string library functions: strings->string, string->codepoint-string
-
 UTF-8 library functions: codepoints->utf8, utf8->codepoints
 
 A special form for "requires contracts" to standardize argument checking?
