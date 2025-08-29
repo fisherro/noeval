@@ -20,8 +20,6 @@ Revisit argument validation in library functions...especially recursive ones
 
 Breakup library tests into multiple files
 
-string library functions: string-ref, substring
-
 update noeval-reference
 
 more string library functions: strings->string, string->codepoint-string

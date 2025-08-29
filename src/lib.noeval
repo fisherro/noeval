@@ -204,10 +204,12 @@
                      (raise "for-each's first argument must be callable"))
                    (unless (list? lyst)
                      (raise "for-each's second argument must be a list"))
-                   (if (nil? lyst)
-                       ()
-                       (do (procedure (first lyst))
-                           (for-each procedure (rest lyst))))))
+                   (define loop (lambda (loop-lyst)
+                                  ((nil? loop-lyst)
+                                   ()
+                                   (do (procedure (first loop-lyst))
+                                       (loop (rest loop-lyst))))))
+                   (loop lyst)))
 
 ; Should optionally take a separator?
 (define displayln
