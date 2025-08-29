@@ -501,11 +501,14 @@
       (raise "The first argument to any? must be a predicate"))
     (unless (list? lyst)
       (raise "The second argument to any? must be a list"))
-    ((nil? lyst)
-     false
-     ((predicate (first lyst))
-      true
-      (any? predicate (rest lyst))))))
+    (define loop
+      (lambda (lyst)
+        ((nil? lyst)
+         false
+        ((predicate (first lyst))
+         true
+         (loop (rest lyst))))))
+    (loop lyst)))
 
 (define all?
   (lambda* (predicate lyst)
@@ -513,11 +516,14 @@
       (raise "The first argument to all? must be a predicate"))
     (unless (list? lyst)
       (raise "The second argument to all? must be a list"))
-    ((nil? lyst)
-     true
-     ((predicate (first lyst))
-      (all? predicate (rest lyst))
-      false))))
+    (define loop
+      (lambda (lyst)
+        ((nil? lyst)
+         true
+         ((predicate (first lyst))
+          (loop (rest lyst))
+          false))))
+    (loop lyst)))
 
 (define append (lambda* lists
                  (unless (all? list? lists)
