@@ -591,11 +591,14 @@
       (raise "drop's first argument must be a non-negative integer"))
     (unless (list? lyst)
       (raise "drop's second argument must be a list"))
-    ((or (nil? lyst)
-         (<= n 0))
-     lyst
-     (drop (- n 1)
-           (rest lyst)))))
+    (define loop
+      (lambda (n lyst)
+        ((or (nil? lyst)
+             (<= n 0))
+         lyst
+         (loop (- n 1)
+               (rest lyst)))))
+    (loop n lyst)))
 
 (define take
   (lambda* (n lyst)
@@ -604,12 +607,15 @@
       (raise "take's first argument must be a non-negative integer"))
     (unless (list? lyst)
       (raise "take's second argument must be a list"))
-    ((or (nil? lyst)
-         (<= n 0))
-     ()
-     (cons (first lyst)
-           (take (- n 1)
-                 (rest lyst))))))
+    (define loop
+      (lambda (n lyst)
+        ((or (nil? lyst)
+             (<= n 0))
+         ()
+         (cons (first lyst)
+               (loop (- n 1)
+                     (rest lyst))))))
+    (loop n lyst)))
 
 (define string-length (lambda (s) (length (string->list s))))
 (define string-append 
