@@ -118,9 +118,18 @@ struct value: std::enable_shared_from_this<value> {
         mutable_binding,
         std::nullptr_t  // for nil
     > data;
-    
+
+private:
     template<typename T>
     value(T&& t) : data(std::forward<T>(t)) {}
+
+public:
+    template<typename T>
+    static std::shared_ptr<value> make(T&& v)
+    {
+        return std::shared_ptr<value>(new value(std::forward<T>(v)));
+    }
+
     friend bool operator==(value& lhs, value& rhs);
 };
 

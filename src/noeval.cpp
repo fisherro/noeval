@@ -150,7 +150,7 @@ std::string value_to_string(const continuation_type& k)
         std::string operator()(const tail_call& tc) const {
             return std::format("(tail-call {} {})",
                 value_to_string(tc.expr),
-                value_to_string(std::make_shared<value>(tc.env)));
+                value_to_string(value::make(tc.env)));
         }
         std::string operator()(const value_ptr& v) const {
             return value_to_string(v);
@@ -169,7 +169,8 @@ std::string value_type_string(const value_ptr& val)
 std::string cons_cell::to_string() const
 {
     // Reconstruct the value_ptr for this cons_cell to reuse value_to_string
-    auto this_val = std::make_shared<value>(*this);
+    // Double ownership!? No, this makes a copy.
+    auto this_val = value::make(*this);
     
     std::string result = "(";
     auto current = this_val;
@@ -362,12 +363,12 @@ std::vector<value_ptr> list_to_vector(value_ptr list)
 // Helper to construct a Noeval list from C++ values
 value_ptr make_list(std::initializer_list<value_ptr> elements)
 {
-    value_ptr result = std::make_shared<value>(nullptr); // Start with nil
+    value_ptr result = value::make(nullptr); // Start with nil
     
     // Build list backwards
     for (auto it = elements.end(); it != elements.begin(); ) {
         --it;
-        result = std::make_shared<value>(cons_cell{*it, result});
+        result = value::make(cons_cell{*it, result});
     }
     
     return result;
@@ -376,7 +377,7 @@ value_ptr make_list(std::initializer_list<value_ptr> elements)
 value_ptr quote(value_ptr expr)
 {
     return make_list({
-        std::make_shared<value>(symbol{"q"}),
+        value::make(symbol{"q"}),
         expr
     });
 }
@@ -493,7 +494,7 @@ namespace builtins {
             }
             
             // Create the operative
-            return std::make_shared<value>(operative{
+            return value::make(operative{
                 std::move(param_pattern),
                 std::move(env_param_name),
                 body_expr,
@@ -698,7 +699,7 @@ namespace builtins {
                         return op(accumulator, operand);
                     });
                     
-                return std::make_shared<value>(result);
+                return value::make(result);
             } catch (const evaluation_error&) {
                 throw; // Re-throw evaluation errors as-is
             } catch (const std::exception& e) {
@@ -727,7 +728,7 @@ namespace builtins {
         auto first_val = eval(args[0], env);
         auto rest_val = eval(args[1], env);
         
-        return std::make_shared<value>(cons_cell{first_val, rest_val});
+        return value::make(cons_cell{first_val, rest_val});
     }
 
     // Evaluates argument
@@ -763,13 +764,13 @@ namespace builtins {
     // Helper to build `(eval symbol env)`
     value_ptr make_eval_expression(std::string_view symbol_name)
     {
-        return std::make_shared<value>(cons_cell{
-            std::make_shared<value>(symbol{"eval"}),
-            std::make_shared<value>(cons_cell{
-                std::make_shared<value>(symbol{symbol_name}),
-                std::make_shared<value>(cons_cell{
-                    std::make_shared<value>(symbol{"env"}),
-                    std::make_shared<value>(nullptr)  // nil
+        return value::make(cons_cell{
+            value::make(symbol{"eval"}),
+            value::make(cons_cell{
+                value::make(symbol{symbol_name}),
+                value::make(cons_cell{
+                    value::make(symbol{"env"}),
+                    value::make(nullptr)  // nil
                 })
             })
         });
@@ -820,7 +821,7 @@ namespace builtins {
         auto arg_vector = list_to_vector(arg_list);
         
         // Create a new expression: (operative arg1 arg2 ...)
-        auto call_expr = std::make_shared<value>(cons_cell{op_expr, arg_list});
+        auto call_expr = value::make(cons_cell{op_expr, arg_list});
         
         return eval(call_expr, env);
     }
@@ -830,11 +831,11 @@ namespace builtins {
     {
         if (args.empty()) {
             // Empty do returns nil
-            return std::make_shared<value>(nullptr);
+            return value::make(nullptr);
         }
         
         try {
-            value_ptr result = std::make_shared<value>(nullptr); // default to nil
+            value_ptr result = value::make(nullptr); // default to nil
             
             // Evaluate each expression in sequence, keeping the last result
             for (const auto& expr: std::ranges::subrange{args.begin(), args.end() - 1}) {
@@ -959,7 +960,7 @@ namespace builtins {
         
         // Flush the standard output
         std::fflush(stdout);
-        return std::make_shared<value>(nullptr);  // Return nil
+        return value::make(nullptr);  // Return nil
     }
 
     continuation_type define_mutable_operative(const std::vector<value_ptr>& args, env_ptr env)
@@ -988,7 +989,7 @@ namespace builtins {
             auto val = eval(val_expr, env);
             
             // Wrap the value in a mutable_binding
-            auto mutable_val = std::make_shared<value>(mutable_binding{val});
+            auto mutable_val = value::make(mutable_binding{val});
             env->define(sym_name, mutable_val);
             return val;  // Return the original value, not the wrapper
         } catch (const evaluation_error&) {
@@ -1084,24 +1085,24 @@ namespace builtins {
             result = eval(try_expr, env);
         } catch (const evaluation_error& e) {
             error_val = make_list({
-                std::make_shared<value>(symbol{"error"}),
-                std::make_shared<value>(e.message),
-                std::make_shared<value>(e.context),
-                std::make_shared<value>(e.stack_trace)
+                value::make(symbol{"error"}),
+                value::make(e.message),
+                value::make(e.context),
+                value::make(e.stack_trace)
             });
         } catch (const std::exception& e) {
             error_val = make_list({
-                std::make_shared<value>(symbol{"error"}),
-                std::make_shared<value>(e.what()),
-                std::make_shared<value>(std::string{}),  // context
-                std::make_shared<value>(std::string{})   // stack trace
+                value::make(symbol{"error"}),
+                value::make(e.what()),
+                value::make(std::string{}),  // context
+                value::make(std::string{})   // stack trace
             });
         } catch (...) {
             error_val = make_list({
-                std::make_shared<value>(symbol{"error"}),
-                std::make_shared<value>(std::string{"unknown error"}),
-                std::make_shared<value>(std::string{}),  // context
-                std::make_shared<value>(std::string{})   // stack trace
+                value::make(symbol{"error"}),
+                value::make(std::string{"unknown error"}),
+                value::make(std::string{}),  // context
+                value::make(std::string{})   // stack trace
             });
         }
 
@@ -1161,7 +1162,7 @@ namespace builtins {
         }
         auto arg = eval(args[0], env);
         std::string type = std::visit(typeof_visitor{}, arg->data);
-        return std::make_shared<value>(symbol{type});
+        return value::make(symbol{type});
     }
 
     continuation_type spaceship_operative(const std::vector<value_ptr>& args, env_ptr env)
@@ -1193,7 +1194,7 @@ namespace builtins {
         } else if (*left > *right) {
             result = 1;
         }
-        return std::make_shared<value>(result);
+        return value::make(result);
     }
 
     continuation_type numerator_operative(const std::vector<value_ptr>& args, env_ptr env)
@@ -1215,7 +1216,7 @@ namespace builtins {
             );
         }
         bignum numerator = boost::multiprecision::numerator(*n);
-        return std::make_shared<value>(numerator);
+        return value::make(numerator);
     }
 
     continuation_type denominator_operative(const std::vector<value_ptr>& args, env_ptr env)
@@ -1237,7 +1238,7 @@ namespace builtins {
             );
         }
         bignum denominator = boost::multiprecision::denominator(*n);
-        return std::make_shared<value>(denominator);
+        return value::make(denominator);
     }
 
     continuation_type remainder_operative(const std::vector<value_ptr>& args, env_ptr env)
@@ -1276,7 +1277,7 @@ namespace builtins {
         bignum truncated_quotient{truncated_int};
         
         bignum result = *n1 - truncated_quotient * *n2;
-        return std::make_shared<value>(result);
+        return value::make(result);
     }
 
     continuation_type string_to_list_operative(const std::vector<value_ptr>& args, env_ptr env)
@@ -1303,12 +1304,12 @@ namespace builtins {
         // (There's an argument that `value` should use std::u8string instead.)
         const std::u8string utf8(str.begin(), str.end());
         const auto utf32 = utf8_to_utf32(utf8);
-        auto result = std::make_shared<value>(nullptr);
+        auto result = value::make(nullptr);
         
         // Build the list in reverse order
         for (auto it = utf32.rbegin(); it != utf32.rend(); ++it) {
-            result = std::make_shared<value>(cons_cell{
-                std::make_shared<value>(bignum{*it}), result});
+            result = value::make(cons_cell{
+                value::make(bignum{*it}), result});
         }
         
         return result;
@@ -1348,7 +1349,7 @@ namespace builtins {
         auto list_val = eval(args[0], env);
 
         if (std::holds_alternative<nullptr_t>(list_val->data)) {
-            return std::make_shared<value>(std::string{});
+            return value::make(std::string{});
         }
 
         if (!std::holds_alternative<cons_cell>(list_val->data)) {
@@ -1380,14 +1381,14 @@ namespace builtins {
         std::u8string utf8 = utf32_to_utf8(result);
         std::string s(utf8.begin(), utf8.end());
 
-        return std::make_shared<value>(s);
+        return value::make(s);
     }
 
 } // namespace builtins
 
 void add_church_boleans(env_ptr env)
 {
-    auto true_value = std::make_shared<value>(operative{
+    auto true_value = value::make(operative{
             param_pattern{false, {"x", "y"}},
             "env",
             builtins::make_eval_expression("x"),
@@ -1395,7 +1396,7 @@ void add_church_boleans(env_ptr env)
             "true"});
     env->define("true", true_value);
 
-    auto false_value = std::make_shared<value>(operative{
+    auto false_value = value::make(operative{
             param_pattern{false, {"x", "y"}},
             "env",
             builtins::make_eval_expression("y"),
@@ -1412,7 +1413,7 @@ env_ptr create_global_environment()
     auto define_builtin = [env](const std::string& name, 
                     std::function<continuation_type(const std::vector<value_ptr>&, env_ptr)> func)
     {
-        env->define(name, std::make_shared<value>(builtin_operative{name, std::move(func)}));
+        env->define(name, value::make(builtin_operative{name, std::move(func)}));
     };
 
     auto define_arithmetic = [define_builtin](const std::string& name, 
@@ -1519,7 +1520,7 @@ continuation_type operate_operative(const operative& op, value_ptr operands, env
     // We use nil as the equivalent to Kernel's #ignore for vau's
     // environment parameter.
     if (not op.env_param.empty()) {
-        new_env->define(op.env_param, std::make_shared<value>(env));
+        new_env->define(op.env_param, value::make(env));
     }
 
     // Evaluate body in new environment
@@ -1567,7 +1568,7 @@ value_ptr eval_symbol(const symbol& sym, env_ptr env)
 continuation_type eval_operation(const cons_cell& cell, env_ptr env)
 {
     // Convert cons_cell back to value_ptr for easier handling
-    auto expr = std::make_shared<value>(cell);
+    auto expr = value::make(cell);
     
     if (is_nil(expr)) {
         throw evaluation_error("Cannot evaluate empty list", "()", call_stack::format());

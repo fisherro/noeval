@@ -91,31 +91,31 @@ void test_evaluator()
     std::println("Testing self-evaluating values:");
     
     // Test integer (now rational)
-    auto int_expr = std::make_shared<value>(bignum(42));
+    auto int_expr = value::make(bignum(42));
     auto int_result = eval(int_expr, env);
     std::println("42 -> {}", value_to_string(int_result));
     
     // Test string
-    auto str_expr = std::make_shared<value>(std::string("hello"));
+    auto str_expr = value::make(std::string("hello"));
     auto str_result = eval(str_expr, env);
     std::println("\"hello\" -> {}", value_to_string(str_result));
     
     // Test nil
-    auto nil_expr = std::make_shared<value>(nullptr);
+    auto nil_expr = value::make(nullptr);
     auto nil_result = eval(nil_expr, env);
     std::println("nil -> {}", value_to_string(nil_result));
     
     // Test variable binding and lookup
     std::println("\nTesting variable binding:");
-    env->define("x", std::make_shared<value>(123));
-    auto sym_expr = std::make_shared<value>(symbol{"x"});
+    env->define("x", value::make(123));
+    auto sym_expr = value::make(symbol{"x"});
     auto sym_result = eval(sym_expr, env);
     std::println("x -> {}", value_to_string(sym_result));
     
     // Test undefined variable (should throw)
     std::println("\nTesting undefined variable:");
     try {
-        auto undef_expr = std::make_shared<value>(symbol{"undefined"});
+        auto undef_expr = value::make(symbol{"undefined"});
         eval(undef_expr, env);
     } catch (const std::exception& e) {
         std::println("Error (expected): {}", e.what());
@@ -160,14 +160,14 @@ void test_eval()
     auto eval_expr1 = p1.parse();
     
     // We need to bind 'env' to the current environment for this test
-    env->define("env", std::make_shared<value>(env));
+    env->define("env", value::make(env));
     
     auto result1 = eval(eval_expr1, env);
     std::println("(eval 42 env) -> {}", value_to_string(result1));
     
     // Test 2: Eval a symbol - first define a variable, then eval it
     std::println("\nTest 2: Eval a symbol");
-    env->define("x", std::make_shared<value>(123));
+    env->define("x", value::make(123));
     parser p2("(eval x env)");
     auto eval_expr2 = p2.parse();
     auto result2 = eval(eval_expr2, env);
@@ -228,7 +228,7 @@ int test_variable_operations()
     test_runner runner(env);
     
     // Test nil symbol lookup
-    env->define("nil-val", std::make_shared<value>(nullptr));
+    env->define("nil-val", value::make(nullptr));
     runner.test_eval("nil-val", "()");
     
     // Test variable definition and lookup
@@ -280,7 +280,7 @@ int test_list_operations()
     auto env = create_global_environment();
     test_runner runner(env);
     
-    env->define("nil-val", std::make_shared<value>(nullptr));
+    env->define("nil-val", value::make(nullptr));
     
     runner.test_eval("(cons 1 nil-val)", "(1)");
     runner.test_eval("(cons 1 (cons 2 nil-val))", "(1 2)");
@@ -298,7 +298,7 @@ int test_church_booleans()
     auto env = create_global_environment();
     test_runner runner(env);
     
-    env->define("nil-val", std::make_shared<value>(nullptr));
+    env->define("nil-val", value::make(nullptr));
     
     // Test that Church Booleans work as selectors
     runner.test_eval("((nil? nil-val) \"true\" \"false\")", "\"true\"");
@@ -320,7 +320,7 @@ int test_vau_operatives()
     test_runner runner(env);
 
     // Set up environment
-    env->define("global-env", std::make_shared<value>(env));
+    env->define("global-env", value::make(env));
     
     // Test 1: Basic vau operative creation
     runner.test_eval("(vau (x) env x)", "(operative (x) env x)");
@@ -347,7 +347,7 @@ int test_vau_operatives()
     runner.test_eval("(define evaluator (vau (x) e (eval x e)))", "(operative (x) e (eval x e))");
     
     // Test 7: Need to provide environment for evaluator to work
-    env->define("current-env", std::make_shared<value>(env));
+    env->define("current-env", value::make(env));
     runner.test_eval("(evaluator (+ 10 5))", "15");
     
     // Test 8: Operative that manipulates its environment parameter
@@ -376,7 +376,7 @@ int test_vau_operatives()
     // Test 13: Verify () doesn't create environment binding
     runner.test_eval("(define test-no-binding (vau (x) () (eval x global-env)))", 
                     "(operative (x)  (eval x global-env))");
-    env->define("test-value", std::make_shared<value>(42));
+    env->define("test-value", value::make(42));
     runner.test_eval("(test-no-binding test-value)", "42");
 
     // Test 15: Compare behavior with named vs ignored environment parameter
@@ -397,7 +397,7 @@ int test_eval_operative()
     test_runner runner(env);
     
     // Set up environment
-    env->define("global-env", std::make_shared<value>(env));
+    env->define("global-env", value::make(env));
     runner.test_eval("(define x 123)", "123");  // Define x for later tests
     
     runner.test_eval("(eval 42 global-env)", "42");
@@ -405,7 +405,7 @@ int test_eval_operative()
     runner.test_eval("(eval (+ 2 3) global-env)", "5");
     
     // Complex eval scenarios
-    env->define("nil-val", std::make_shared<value>(nullptr));
+    env->define("nil-val", value::make(nullptr));
     runner.test_eval("(define expr (cons (+ 1 1) nil-val))", "(2)");  // cons evaluates its arguments
     
     return runner.failures;
@@ -417,7 +417,7 @@ int test_invoke_operative()
     auto env = create_global_environment();
     test_runner runner(env);
     
-    env->define("nil-val", std::make_shared<value>(nullptr));
+    env->define("nil-val", value::make(nullptr));
 
     runner.test_eval("(invoke + (cons 1 (cons 2 (cons 3 nil-val))))", "6");
     runner.test_eval("(invoke * (cons 2 (cons 3 (cons 4 nil-val))))", "24");
@@ -487,7 +487,7 @@ int test_parameter_binding()
         }
     };
     
-    env->define("nil-val", std::make_shared<value>(nullptr));
+    env->define("nil-val", value::make(nullptr));
     
     // Test fixed parameter binding
     std::println("\n--- Fixed parameters ---");
@@ -596,7 +596,7 @@ int test_operative_as_first_element()
     auto env = create_global_environment();
     test_runner runner(env);
     
-    env->define("nil-val", std::make_shared<value>(nullptr));
+    env->define("nil-val", value::make(nullptr));
     
     // Test 1: Direct operative value invocation
     // This should work: ((vau args env args) 1 2 3)
@@ -681,7 +681,7 @@ int test_mutable_bindings()
     runner.test_eval("counter", "2");
     
     // Test 12: Mutable binding with nil value
-    env->define("nil-val", std::make_shared<value>(nullptr));
+    env->define("nil-val", value::make(nullptr));
     runner.test_eval("(define-mutable nullable nil-val)", "()");
     runner.test_eval("(set! nullable 42)", "42");
     runner.test_eval("nullable", "42");

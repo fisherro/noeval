@@ -16,6 +16,8 @@ test suite size down.
 
 ## Regular
 
+Member functions to extract values from the value type.
+
 Breakup library tests into multiple files
 
 update noeval-reference
@@ -23,8 +25,6 @@ update noeval-reference
 more string library functions: strings->string, string->codepoint-string
 
 UTF-8 library functions: codepoints->utf8, utf8->codepoints
-
-Make value ctor private and provide a value::make static member function
 
 A special form for "requires contracts" to standardize argument checking?
 

@@ -309,7 +309,7 @@ value_ptr parser::parse_list()
     
     if (current_token.type == token_type::right_paren) {
         advance(); // consume ')'
-        return std::make_shared<value>(nullptr); // nil
+        return value::make(nullptr); // nil
     }
     
     // Parse elements
@@ -334,9 +334,9 @@ value_ptr parser::parse_list()
     advance(); // consume ')'
     
     // Build cons cells from right to left
-    value_ptr result = std::make_shared<value>(nullptr); // nil
+    value_ptr result = value::make(nullptr); // nil
     for (auto it = elements.rbegin(); it != elements.rend(); ++it) {
-        result = std::make_shared<value>(cons_cell{*it, result});
+        result = value::make(cons_cell{*it, result});
     }
     
     return result;
@@ -462,7 +462,7 @@ value_ptr parser::parse_expression()
         case token_type::symbol:
             {
                 NOEVAL_DEBUG(parse, "Parsing symbol: {}", current_token.value);
-                auto result = std::make_shared<value>(symbol{current_token.value});
+                auto result = value::make(symbol{current_token.value});
                 advance();
                 return result;
             }
@@ -471,7 +471,7 @@ value_ptr parser::parse_expression()
             {
                 NOEVAL_DEBUG(parse, "Parsing number: {}", current_token.value);
                 bignum val = parse_number_string(current_token.value);
-                auto result = std::make_shared<value>(val);
+                auto result = value::make(val);
                 advance();
                 return result;
             }
@@ -479,7 +479,7 @@ value_ptr parser::parse_expression()
         case token_type::string_literal:
             {
                 NOEVAL_DEBUG(parse, "Parsing string literal: {}", current_token.value);
-                auto result = std::make_shared<value>(current_token.value);
+                auto result = value::make(current_token.value);
                 advance();
                 return result;
             }
