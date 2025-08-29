@@ -478,12 +478,15 @@
     (unless (and (integer? n)
                  (>= n 0))
             (raise "nth's second argument must be a non-negative integer"))
-    ((nil? lyst)
-     (raise "nth: index out of bounds")
-     ((= n 0)
-      (first lyst)
-      (nth (rest lyst)
-           (- n 1))))))
+    (define loop
+      (lambda (lyst n)
+        ((nil? lyst)
+         (raise "nth: index out of bounds")
+         ((= n 0)
+          (first lyst)
+          (loop (rest lyst)
+                (- n 1))))))
+    (loop lyst n)))
 
 (define snoc (lambda (tail head) (cons head tail)))
 
