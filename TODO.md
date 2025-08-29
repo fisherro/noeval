@@ -16,15 +16,21 @@ test suite size down.
 
 ## Regular
 
-update noeval-reference
+Revisit argument validation in library functions...especially recursive ones
+
+Breakup library tests into multiple files
 
 string library functions: string-ref, substring
+
+update noeval-reference
 
 more string library functions: strings->string, string->codepoint-string
 
 UTF-8 library functions: codepoints->utf8, utf8->codepoints
 
 Make value ctor private and provide a value::make static member function
+
+A special form for "requires contracts" to standardize argument checking?
 
 File I/O
 

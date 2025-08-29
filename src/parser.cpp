@@ -22,64 +22,85 @@ std::string token_type_to_string(token_type type)
     }
 }
 
-token::token(token_type t, std::string v): type(t), value(std::move(v)) {}
+token::token(token_type t, std::string v, position p)
+: type(t), value(std::move(v)), pos(p) {}
 
 std::string token::to_string() const
 {
-    return std::format("Token({}, '{}')", token_type_to_string(type), value);
+    return std::format("Token({}, '{}') at {}", token_type_to_string(type), value, pos.to_string());
 }
+
+#if 0
+void lexer::update_position(char ch)
+{
+    if (ch == '\n') {
+        current_pos.line++;
+        current_pos.column = 1;
+    } else {
+        current_pos.column++;
+    }
+    current_pos.offset++;
+}
+#endif
 
 bool lexer::matches_keyword(const std::string& keyword)
 {
-    if (pos + keyword.length() > input.size()) return false;
+    if (current_pos_.offset() + keyword.length() > input_.size()) return false;
     
     // Check if the keyword matches
     for (size_t i = 0; i < keyword.length(); ++i) {
-        if (input[pos + i] != keyword[i]) return false;
+        if (input_[current_pos_.offset() + i] != keyword[i]) return false;
     }
     
     // Ensure it's followed by whitespace, end of input, or newline
-    size_t next_pos = pos + keyword.length();
-    return next_pos >= input.size() || 
-            std::isspace(input[next_pos]) || 
-            input[next_pos] == '\n';
+    size_t next_pos = current_pos_.offset() + keyword.length();
+    return next_pos >= input_.size() or 
+            std::isspace(input_[next_pos]) or 
+            input_[next_pos] == '\n';
 }
 
 void lexer::skip_disabled_block()
 {
-    pos += 5; // skip "#skip"
+    // Skip "#skip"
+    for (int i = 0; i < 5; ++i) {
+        advance();
+    }
     
     int nesting_depth = 1; // We're already inside one skip block
     
-    while (pos < input.size() && nesting_depth > 0) {
+    while (not at_end() and nesting_depth > 0) {
         // Check for nested #skip
-        if (pos + 5 <= input.size() && input.substr(pos, 5) == "#skip") {
+        if (current_pos_.offset() + 5 <= input_.size() and input_.substr(current_pos_.offset(), 5) == "#skip") {
             // Verify it's a proper keyword (followed by whitespace or end of input)
-            if (pos + 5 >= input.size() || 
-                std::isspace(input[pos + 5]) || 
-                input[pos + 5] == '\n') {
+            if (current_pos_.offset() + 5 >= input_.size() or 
+                std::isspace(input_[current_pos_.offset() + 5]) or 
+                input_[current_pos_.offset() + 5] == '\n') {
                 nesting_depth++;
-                pos += 5;
+                for (int i = 0; i < 5; ++i) {
+                    advance();
+                }
                 continue;
             }
         }
         
         // Check for #end
-        if (pos + 4 <= input.size() && input.substr(pos, 4) == "#end") {
+        if (current_pos_.offset() + 4 <= input_.size() and input_.substr(current_pos_.offset(), 4) == "#end") {
             // Verify it's a proper keyword (followed by whitespace or end of input)
-            if (pos + 4 >= input.size() || 
-                std::isspace(input[pos + 4]) || 
-                input[pos + 4] == '\n') {
+            if (current_pos_.offset() + 4 >= input_.size() or 
+                std::isspace(input_[current_pos_.offset() + 4]) or 
+                input_[current_pos_.offset() + 4] == '\n') {
                 nesting_depth--;
-                pos += 4;
-                if (nesting_depth == 0) {
+                for (int i = 0; i < 4; ++i) {
+                    advance();
+                }
+                if (0 == nesting_depth) {
                     return; // Found the matching #end
                 }
                 continue;
             }
         }
         
-        ++pos;
+        advance();
     }
     
     throw std::runtime_error("Unterminated #skip block - missing #end");
@@ -87,18 +108,20 @@ void lexer::skip_disabled_block()
 
 void lexer::skip_whitespace_and_comments()
 {
-    while (pos < input.size()) {
-        if (std::isspace(input[pos])) {
-            ++pos;
-        } else if (input[pos] == ';') {
+    while (not at_end()) {
+        char ch = current_char();
+        if (std::isspace(ch)) {
+            advance();
+        } else if (ch == ';') {
             // Skip comment - everything until newline or end of input
-            while (pos < input.size() && input[pos] != '\n') {
-                ++pos;
+            while (not at_end() and current_char() != '\n') {
+                advance();
             }
-            // pos now points to newline or end, will be incremented in next iteration
-        } else if (pos + 5 <= input.size() && input.substr(pos, 5) == "#skip") {
+            // Will advance past newline in next iteration if present
+        } else if (current_pos_.offset() + 5 <= input_.size() and input_.substr(current_pos_.offset(), 5) == "#skip") {
             // Check if #skip is followed by whitespace or end of input
-            if (pos + 5 >= input.size() || std::isspace(input[pos + 5]) || input[pos + 5] == '\n') {
+            char next_ch = peek(5);
+            if (next_ch == '\0' or std::isspace(next_ch) or next_ch == '\n') {
                 skip_disabled_block();
             } else {
                 break; // Not a skip directive, treat as regular token
@@ -112,12 +135,13 @@ void lexer::skip_whitespace_and_comments()
 std::string lexer::read_symbol()
 {
     std::string result;
-    while (pos < input.size() && 
-            !std::isspace(input[pos]) && 
-            input[pos] != '(' && 
-            input[pos] != ')' &&
-            input[pos] != ';') {  // Stop at semicolon to prevent comments in symbols
-        result += input[pos++];
+    while (not at_end() and 
+           not std::isspace(current_char()) and 
+           current_char() != '(' and 
+           current_char() != ')' and
+           current_char() != ';') {
+        result += current_char();
+        advance();
     }
     return result;
 }
@@ -125,24 +149,28 @@ std::string lexer::read_symbol()
 std::string lexer::read_string()
 {
     std::string result;
-    ++pos; // skip opening quote
-    while (pos < input.size() && input[pos] != '"') {
-        if (input[pos] == '\\' && pos + 1 < input.size()) {
-            ++pos; // skip backslash
-            switch (input[pos]) {
+    advance(); // skip opening quote
+    
+    while (not at_end() and current_char() != '"') {
+        if (current_char() == '\\' and not at_end()) {
+            advance(); // skip backslash
+            if (at_end()) break; // Protect against malformed strings
+            
+            switch (current_char()) {
                 case 'n' : result += '\n';       break;
                 case 't' : result += '\t';       break;
                 case '\\': result += '\\';       break;
                 case '"' : result += '"';        break;
                 case 'e' : result += '\033';     break;
-                default  : result += input[pos]; break;
+                default  : result += current_char(); break;
             }
         } else {
-            result += input[pos];
+            result += current_char();
         }
-        ++pos;
+        advance();
     }
-    if (pos < input.size()) ++pos; // skip closing quote
+    
+    if (not at_end()) advance(); // skip closing quote
     return result;
 }
 
@@ -151,105 +179,118 @@ std::string lexer::read_number()
     std::string result;
     
     // Handle optional negative sign
-    if (input[pos] == '-') {
-        result += input[pos++];
+    if (current_char() == '-') {
+        result += current_char();
+        advance();
     }
     
     // Read digits
-    while (pos < input.size() and std::isdigit(input[pos])) {
-        result += input[pos++];
+    while (not at_end() and std::isdigit(current_char())) {
+        result += current_char();
+        advance();
     }
     
     // Check for fractional format (/)
-    if (pos < input.size() and input[pos] == '/') {
-        result += input[pos++];
+    if (not at_end() and current_char() == '/') {
+        result += current_char();
+        advance();
+        
         // Read denominator (must start with non-zero digit)
-        if (pos >= input.size() or not std::isdigit(input[pos]) or input[pos] == '0') {
+        if (at_end() or not std::isdigit(current_char()) or current_char() == '0') {
             throw std::runtime_error("Invalid fraction: denominator must start with non-zero digit");
         }
-        while (pos < input.size() and std::isdigit(input[pos])) {
-            result += input[pos++];
+        while (not at_end() and std::isdigit(current_char())) {
+            result += current_char();
+            advance();
         }
         return result;
     }
     
     // Check for decimal format (.)
-    if (pos < input.size() and input[pos] == '.') {
-        result += input[pos++];
+    if (not at_end() and current_char() == '.') {
+        result += current_char();
+        advance();
+        
         // Read fractional part
-        while (pos < input.size() and std::isdigit(input[pos])) {
-            result += input[pos++];
+        while (not at_end() and std::isdigit(current_char())) {
+            result += current_char();
+            advance();
         }
         
         // Check for repeating part in parentheses
-        if (pos < input.size() and input[pos] == '(') {
-            result += input[pos++];
+        if (not at_end() and current_char() == '(') {
+            result += current_char();
+            advance();
+            
             // Read repeating digits
             bool has_digits = false;
-            while (pos < input.size() and std::isdigit(input[pos])) {
-                result += input[pos++];
+            while (not at_end() and std::isdigit(current_char())) {
+                result += current_char();
+                advance();
                 has_digits = true;
             }
             if (not has_digits) {
                 throw std::runtime_error("Invalid repeating decimal: empty parentheses");
             }
-            if (pos >= input.size() or input[pos] != ')') {
+            if (at_end() or current_char() != ')') {
                 throw std::runtime_error("Invalid repeating decimal: missing closing parenthesis");
             }
-            result += input[pos++]; // consume ')'
+            result += current_char();
+            advance(); // consume ')'
         }
     }
     
     return result;
 }
 
-lexer::lexer(std::string text) : input(std::move(text)), pos(0) {}
+lexer::lexer(std::string text) : input_(std::move(text)), current_pos_(1, 1, 0) {}
 
 token lexer::next_token()
 {
     skip_whitespace_and_comments();
 
-    if (pos >= input.size()) {
-        return token(token_type::eof);
+    if (at_end()) {
+        return token(token_type::eof, "", current_pos_);
     }
     
-    char ch = input[pos];
+    position token_start = current_pos_;  // Remember where this token starts
+    char ch = current_char();
     
     if (ch == '(') {
-        ++pos;
-        return token(token_type::left_paren);
+        advance();
+        return token(token_type::left_paren, "", token_start);
     }
     
     if (ch == ')') {
-        ++pos;
-        return token(token_type::right_paren);
+        advance();
+        return token(token_type::right_paren, "", token_start);
     }
     
     if (ch == '"') {
-        return token(token_type::string_literal, read_string());
+        return token(token_type::string_literal, read_string(), token_start);
     }
 
-    if (std::isdigit(ch) or (ch == '-' and pos + 1 < input.size() and std::isdigit(input[pos + 1]))) {
-        size_t start_pos = pos;
+    if (std::isdigit(ch) or (ch == '-' and not at_end() and std::isdigit(peek()))) {
+        position start_position = current_pos_;
         std::string number_str = read_number();
         
         // Validate that we're at a proper token boundary after reading the number
-        if (pos < input.size() and 
-            not std::isspace(input[pos]) and 
-            input[pos] != '(' and 
-            input[pos] != ')' and 
-            input[pos] != ';') {
+        if (not at_end() and 
+            not std::isspace(current_char()) and 
+            current_char() != '(' and 
+            current_char() != ')' and 
+            current_char() != ';') {
             // Not at a valid boundary - this means we have something like "-123abc"
             // Reset position and treat the whole thing as a symbol
-            pos = start_pos;
-            return token(token_type::symbol, read_symbol());
+            current_pos_ = start_position;
+            return token(token_type::symbol, read_symbol(), token_start);
         }
         
-        return token(token_type::number, number_str);
+        return token(token_type::number, number_str, token_start);
     }
     
     // Everything else is a symbol
-    return token(token_type::symbol, read_symbol());
+    return token(token_type::symbol, read_symbol(), token_start);
 }
 
 void parser::advance()
@@ -263,6 +304,7 @@ value_ptr parser::parse_list()
     if (current_token.type != token_type::left_paren) {
         throw std::runtime_error("Expected '('");
     }
+    auto open_paren_position = current_token.pos;  // Remember where this list started
     advance(); // consume '('
     
     if (current_token.type == token_type::right_paren) {
@@ -276,9 +318,18 @@ value_ptr parser::parse_list()
             current_token.type != token_type::eof) {
         elements.push_back(parse_expression());
     }
-    
+
     if (current_token.type != token_type::right_paren) {
-        throw std::runtime_error("Expected ')'");
+        if (current_token.type == token_type::eof) {
+            throw std::runtime_error(std::format("Expected ')' to close list opened at line {}, but reached end of input", 
+                                                open_paren_position.line()));
+        } else {
+            throw std::runtime_error(std::format("Expected ')' to close list opened at {} but found {} ('{}') at {}", 
+                                                open_paren_position.to_string(),
+                                                token_type_to_string(current_token.type), 
+                                                current_token.value,
+                                                current_token.pos.to_string()));
+        }
     }
     advance(); // consume ')'
     

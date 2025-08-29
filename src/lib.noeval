@@ -169,6 +169,7 @@
 
 (define number? (lambda (x) (= (q number) (typeof x))))
 (define integer? (lambda (x) (and (number? x) (= 1 (denominator x)))))
+(define non-negative-integer? (lambda (x) (and (integer? x) (>= x 0))))
 (define string? (lambda (x) (= (q string) (typeof x))))
 (define symbol? (lambda (x) (= (q symbol) (typeof x))))
 (define list? (lambda (x) (or (nil? x) (= (q cons-cell) (typeof x)))))
@@ -220,6 +221,7 @@
     (apply displayln args)))
 
 (define second (lambda (lyst) (first (rest lyst))))
+(define third (lambda (lyst) (first (rest (rest lyst)))))
 
 ; foldl applies a binary function to the elements of a list from left to right
 ; (foldl + 1 (list 2 3 4)) -> (+ (+ (+ 1 2) 3) 4)
@@ -368,6 +370,7 @@
 (define ÷ /)
 
 (define != (λ (x y) (¬ (= x y))))
+(define <> !=)
 (define <  (λ (x y)
              ((and (number? x)
                    (number? y))
@@ -457,6 +460,20 @@
              (+ n 1))
            0
            lyst)))
+
+(define nth
+  (lambda* (lyst n)
+    (unless (list? lyst)
+            (raise "nth's first argument must be a list"))
+    (unless (and (integer? n)
+                 (>= n 0))
+            (raise "nth's second argument must be a non-negative integer"))
+    ((nil? lyst)
+     (raise "nth: index out of bounds")
+     ((= n 0)
+      (first lyst)
+      (nth (rest lyst)
+           (- n 1))))))
 
 (define snoc (lambda (tail head) (cons head tail)))
 
@@ -548,15 +565,85 @@
                      (+ r y)
                      r)))))
 
+(define drop
+  (lambda* (n lyst)
+    (unless (and (integer? n)
+                 (>= n 0))
+      (raise "drop's first argument must be a non-negative integer"))
+    (unless (list? lyst)
+      (raise "drop's second argument must be a list"))
+    ((or (nil? lyst)
+         (<= n 0))
+     lyst
+     (drop (- n 1)
+           (rest lyst)))))
+
+(define take
+  (lambda* (n lyst)
+    (unless (and (integer? n)
+                 (>= n 0))
+      (raise "take's first argument must be a non-negative integer"))
+    (unless (list? lyst)
+      (raise "take's second argument must be a list"))
+    ((or (nil? lyst)
+         (<= n 0))
+     ()
+     (cons (first lyst)
+           (take (- n 1)
+                 (rest lyst))))))
+
 (define string-length (lambda (s) (length (string->list s))))
 (define string-append 
   (lambda strings
     (list->string (apply append (map string->list strings)))))
 
-; string-ref tries to use list-ref, but that doesn't exist
-(define string-ref
+(define string-nth
   (lambda (s n)
-    (list->string (list (list-ref (string->list s) n)))))
+    (list->string (list (nth (string->list s)
+                             n)))))
+
+; Maybe a helper for lambda argument validation?
+(define check
+  (lambda (val pred msg)
+          ((pred val)
+           val
+           (raise msg))))
+
+(define clamp
+  (lambda (input lower higher)
+    (cond ((< input lower)
+           lower)
+          ((> input higher)
+           higher)
+          (else input))))
+
+(define substring
+  (lambda* args
+    (define nargs (length args))
+    (unless (or (= nargs 2)
+                (= nargs 3))
+            (raise "must have 2 or 3 args"))
+    (define lyst (string->list (check (first args)
+                                      string?
+                                      "1st arg must be a string")))
+    (define len (length lyst))
+    (define start (clamp (check (second args)
+                                non-negative-integer?
+                                "start must be a non-negative integer")
+                         0
+                         len))
+    (define dropped (drop start lyst))
+    (define end ((= nargs 2)
+                 len
+                 (clamp (check (third args)
+                               non-negative-integer?
+                               "3rd arg must be a non-negative integer")
+                        start
+                        len)))
+    (list->string ((= end len)
+                   dropped
+                   (take (- end start)
+                          dropped)))))
 
 (define countdown
   (lambda (n)

@@ -2077,7 +2077,7 @@
 
 ;------------------------------------------------------------------------------
 ; prepend tests (list* equivalent)
-(lndisplayln "prepend/for-each/foldl/foldr/map/apply/length/reverse/append/filter/iota tests")
+(lndisplayln "list functions tests")
 
 ; Test 1: Basic prepend with single final argument
 (test-assert 
@@ -3712,6 +3712,735 @@
 (test-error (filter "not-function" (list 1 2)) "filter should reject non-function predicates")
 (test-error (filter even? 42) "filter should reject non-list second argument")
 (test-error (filter even? "not-list") "filter should reject string second argument")
+
+;------------------------------------------------------------------------------
+; nth tests
+
+; Test 1: Basic nth functionality
+(define test-list (list 10 20 30 40 50))
+(test-assert 
+  (= (nth test-list 0) 10)
+  "nth should return first element with index 0")
+
+(test-assert 
+  (= (nth test-list 1) 20)
+  "nth should return second element with index 1")
+
+(test-assert 
+  (= (nth test-list 2) 30)
+  "nth should return third element with index 2")
+
+(test-assert 
+  (= (nth test-list 4) 50)
+  "nth should return last element with correct index")
+
+; Test 2: Single element list
+(define single-list (list 42))
+(test-assert 
+  (= (nth single-list 0) 42)
+  "nth should work with single element list")
+
+; Test 3: nth with different data types
+(define mixed-list (list "hello" 123 true (list 1 2)))
+(test-assert 
+  (= (nth mixed-list 0) "hello")
+  "nth should work with strings")
+
+(test-assert 
+  (= (nth mixed-list 1) 123)
+  "nth should work with numbers")
+
+(test-assert 
+  (= ((nth mixed-list 2) "yes" "no") "yes")
+  "nth should work with Church Booleans")
+
+(test-assert 
+  (= (first (nth mixed-list 3)) 1)
+  "nth should work with nested lists")
+
+; Test 4: nth with library-generated lists
+(define iota-list (iota 5))  ; (0 1 2 3 4)
+(test-assert 
+  (= (nth iota-list 0) 0)
+  "nth should work with iota-generated lists - first")
+
+(test-assert 
+  (= (nth iota-list 3) 3)
+  "nth should work with iota-generated lists - middle")
+
+(test-assert 
+  (= (nth iota-list 4) 4)
+  "nth should work with iota-generated lists - last")
+
+; Test 5: nth with filtered lists
+(define even-list (filter even? (iota 10)))  ; (0 2 4 6 8)
+(test-assert 
+  (= (nth even-list 0) 0)
+  "nth should work with filtered lists - first")
+
+(test-assert 
+  (= (nth even-list 2) 4)
+  "nth should work with filtered lists - middle")
+
+(test-assert 
+  (= (nth even-list 4) 8)
+  "nth should work with filtered lists - last")
+
+; Test 6: nth with mapped lists
+(define doubled-list (map (lambda (x) (* x 2)) (list 1 2 3 4)))
+(test-assert 
+  (= (nth doubled-list 0) 2)
+  "nth should work with mapped lists - first")
+
+(test-assert 
+  (= (nth doubled-list 3) 8)
+  "nth should work with mapped lists - last")
+
+; Test 7: nth with reversed lists
+(define original-list (list 1 2 3 4 5))
+(define reversed-list (reverse original-list))
+(test-assert 
+  (= (nth reversed-list 0) 5)
+  "nth should work with reversed lists - first")
+
+(test-assert 
+  (= (nth reversed-list 4) 1)
+  "nth should work with reversed lists - last")
+
+; Test 8: nth with appended lists
+(define appended-list (append (list 1 2) (list 3 4)))
+(test-assert 
+  (= (nth appended-list 0) 1)
+  "nth should work with appended lists - first part")
+
+(test-assert 
+  (= (nth appended-list 2) 3)
+  "nth should work with appended lists - second part")
+
+; Test 9: nth with prepended lists
+(define prepended-list (prepend 10 20 (list 30 40)))
+(test-assert 
+  (= (nth prepended-list 0) 10)
+  "nth should work with prepended lists - prepended part")
+
+(test-assert 
+  (= (nth prepended-list 2) 30)
+  "nth should work with prepended lists - original part")
+
+; Test 10: nth used in higher-order functions
+(define get-second (lambda (lst) (nth lst 1)))
+(test-assert 
+  (= (get-second (list (q a) (q b) (q c))) (q b))
+  "nth should work in higher-order functions")
+
+; Test 11: nth with apply
+(test-assert 
+  (= (apply nth (list (list 7 8 9) 1)) 8)
+  "nth should work with apply")
+
+; Test 12: nth used in fold operations
+(define first-elements (map (lambda (lst) (nth lst 0)) (list (list 1 2) (list 3 4) (list 5 6))))
+(test-assert 
+  (= (first first-elements) 1)
+  "nth should work in map operations - first result")
+
+(test-assert 
+  (= (nth first-elements 2) 5)
+  "nth should work in map operations - third result")
+
+; Test 13: nth with string elements
+(define string-list (list "first" "second" "third"))
+(test-assert 
+  (= (nth string-list 1) "second")
+  "nth should work with string elements")
+
+; Test 14: nth with symbol elements
+(define symbol-list (list (q alpha) (q beta) (q gamma)))
+(test-assert 
+  (= (nth symbol-list 2) (q gamma))
+  "nth should work with symbol elements")
+
+; Test 15: nth with computed indices
+(test-assert 
+  (= (nth (list 100 200 300) (+ 1 1)) 300)
+  "nth should work with computed indices")
+
+; Test 16: nth consistency with other list operations
+(define consistency-list (list (q x) (q y) (q z)))
+(test-assert 
+  (= (nth consistency-list 0) (first consistency-list))
+  "nth 0 should be equivalent to first")
+
+(test-assert 
+  (= (nth consistency-list 1) (first (rest consistency-list)))
+  "nth 1 should be equivalent to first of rest")
+
+; Test 17: nth with Church Boolean operatives
+(define bool-list (list true false (= 1 1) (= 1 2)))
+(test-assert 
+  (= ((nth bool-list 0) "true" "false") "true")
+  "nth should work with Church Boolean operatives - true")
+
+(test-assert 
+  (= ((nth bool-list 1) "true" "false") "false")
+  "nth should work with Church Boolean operatives - false")
+
+; Test 18: Error conditions - index out of bounds
+(test-error (nth (list 1 2 3) 3) "nth should raise error for index out of bounds")
+(test-error (nth (list 1 2) 5) "nth should raise error for index way out of bounds")
+(test-error (nth () 0) "nth should raise error for empty list")
+
+; Test 19: Error conditions - invalid arguments
+(test-error (nth) "nth should require exactly 2 arguments")
+(test-error (nth (list 1 2)) "nth should require exactly 2 arguments")
+(test-error (nth (list 1 2) 1 extra) "nth should require exactly 2 arguments")
+(test-error (nth "not-list" 0) "nth should reject non-list first argument")
+(test-error (nth (list 1 2) "not-number") "nth should reject non-numeric index")
+(test-error (nth (list 1 2) -1) "nth should reject negative indices")
+(test-error (nth (list 1 2) 1.5) "nth should reject non-integer indices")
+
+; Test 20: nth with larger lists (performance check)
+(define large-list (iota 20))
+(test-assert 
+  (= (nth large-list 0) 0)
+  "nth should work with larger lists - first")
+
+(test-assert 
+  (= (nth large-list 10) 10)
+  "nth should work with larger lists - middle")
+
+(test-assert 
+  (= (nth large-list 19) 19)
+  "nth should work with larger lists - last")
+
+; Test 21: nth with manually constructed lists
+(define manual-list (cons 1 (cons 2 (cons 3 ()))))
+(test-assert 
+  (= (nth manual-list 0) 1)
+  "nth should work with manually constructed lists - first")
+
+(test-assert 
+  (= (nth manual-list 2) 3)
+  "nth should work with manually constructed lists - last")
+
+; Test 22: nth used in conditional expressions
+(define conditional-nth 
+  (lambda (lst idx default)
+    (try (nth lst idx)
+         (lambda (error) default))))
+(test-assert 
+  (= (conditional-nth (list 10 20 30) 1 999) 20)
+  "nth should work in conditional expressions - success case")
+
+(test-assert 
+  (= (conditional-nth (list 10 20 30) 5 999) 999)
+  "nth should work in conditional expressions - error case")
+
+; Test 23: nth with nested list access patterns
+(define nested-lists (list (list 1 2 3) (list 4 5 6) (list 7 8 9)))
+(test-assert 
+  (= (nth (nth nested-lists 1) 2) 6)
+  "nth should work for nested list access")
+
+(test-assert 
+  (= (nth (nth nested-lists 2) 0) 7)
+  "nth should work for nested list access - different indices")
+
+; Test 24: nth with fold operations
+(define sum-nth-elements 
+  (foldl (lambda (acc lst) (+ acc (nth lst 0))) 0 (list (list 1 2) (list 3 4) (list 5 6))))
+(test-assert 
+  (= sum-nth-elements 9)  ; 1 + 3 + 5 = 9
+  "nth should work within fold operations")
+
+; Test 25: nth boundary conditions
+(define boundary-list (list (q only)))
+(test-assert 
+  (= (nth boundary-list 0) (q only))
+  "nth should work with single-element list at boundary")
+
+(test-error (nth boundary-list 1) "nth should fail just past boundary of single-element list")
+
+;------------------------------------------------------------------------------
+; drop tests
+(lndisplayln "drop/take tests")
+
+; Test 1: Basic drop functionality
+(define test-drop-list (list 1 2 3 4 5))
+(define dropped-two (drop 2 test-drop-list))
+(test-assert 
+  (= (first dropped-two) 3)
+  "drop should remove first n elements - first remaining")
+
+(test-assert 
+  (= (first (rest dropped-two)) 4)
+  "drop should remove first n elements - second remaining")
+
+(test-assert 
+  (= (length dropped-two) 3)
+  "drop should return list with correct length")
+
+; Test 2: Drop 0 elements should return original list
+(define dropped-zero (drop 0 (list 10 20 30)))
+(test-assert 
+  (= (first dropped-zero) 10)
+  "drop 0 should return original list")
+
+(test-assert 
+  (= (length dropped-zero) 3)
+  "drop 0 should preserve list length")
+
+; Test 3: Drop all elements
+(define original-list (list 1 2 3))
+(define dropped-all (drop 3 original-list))
+(test-assert 
+  (nil? dropped-all)
+  "drop all elements should return empty list")
+
+; Test 4: Drop more than list length
+(define dropped-excess (drop 10 (list 1 2 3)))
+(test-assert 
+  (nil? dropped-excess)
+  "drop more than length should return empty list")
+
+; Test 5: Drop from empty list
+(test-assert 
+  (nil? (drop 5 ()))
+  "drop from empty list should return empty list")
+
+; Test 6: Drop single element
+(define single-elem-list (list 42))
+(test-assert 
+  (= (first (drop 0 single-elem-list)) 42)
+  "drop 0 from single element should preserve element")
+
+(test-assert 
+  (nil? (drop 1 single-elem-list))
+  "drop 1 from single element should return empty")
+
+; Test 7: Drop with different data types
+(define mixed-list (list "hello" 42 true (list 1 2)))
+(define mixed-dropped (drop 1 mixed-list))
+(test-assert 
+  (= (first mixed-dropped) 42)
+  "drop should work with mixed data types")
+
+; Test 8: Drop with library-generated lists
+(define iota-list (iota 6))  ; (0 1 2 3 4 5)
+(define iota-dropped (drop 2 iota-list))
+(test-assert 
+  (= (first iota-dropped) 2)
+  "drop should work with iota-generated lists")
+
+(test-assert 
+  (= (length iota-dropped) 4)
+  "drop should preserve remaining length correctly")
+
+; Test 9: Drop with filtered lists
+(define even-list (filter even? (iota 10)))
+(define even-dropped (drop 1 even-list))
+(test-assert 
+  (= (first even-dropped) 2)  ; Second even number (after 0)
+  "drop should work with filtered lists")
+
+; Test 10: Drop with mapped lists
+(define doubled-list (map (lambda (x) (* x 2)) (list 1 2 3 4)))
+(define doubled-dropped (drop 1 doubled-list))
+(test-assert 
+  (= (first doubled-dropped) 4)  ; 2*2
+  "drop should work with mapped lists")
+
+; Test 11: Drop used with other functions
+(define drop-and-reverse (reverse (drop 2 (list 1 2 3 4 5))))
+(test-assert 
+  (= (first drop-and-reverse) 5)
+  "drop should compose with other functions")
+
+; Test 12: Drop with nested lists
+(define nested-list (list (list 1 2) (list 3 4) (list 5 6)))
+(define nested-dropped (drop 1 nested-list))
+(test-assert 
+  (= (first (first nested-dropped)) 3)
+  "drop should work with nested lists")
+
+; Test 13: Drop with apply
+(test-assert 
+  (= (first (apply drop (list 1 (list 10 20 30)))) 20)
+  "drop should work with apply")
+
+; Test 14: Drop in fold operations
+(define drop-fold-result 
+  (foldl (lambda (acc n) (+ acc (length (drop n (list 1 2 3 4 5))))) 
+         0 
+         (list 0 1 2 3)))
+(test-assert 
+  (= drop-fold-result 14)  ; 5+4+3+2 = 14
+  "drop should work in fold operations")
+
+; Test 15: Drop with Church Boolean elements
+(define bool-list (list true false (= 1 1) (= 1 2)))
+(define bool-dropped (drop 1 bool-list))
+(test-assert 
+  (= ((first bool-dropped) "true" "false") "false")
+  "drop should work with Church Boolean elements")
+
+; Test 16: Error conditions for drop
+(test-error (drop) "drop should require exactly 2 arguments")
+(test-error (drop 2) "drop should require exactly 2 arguments")
+(test-error (drop 1 2 3) "drop should require exactly 2 arguments")
+(test-error (drop "not-number" (list 1 2)) "drop should reject non-numeric first argument")
+(test-error (drop 2 "not-list") "drop should reject non-list second argument")
+(test-error (drop -1 (list 1 2)) "drop should reject negative numbers")
+
+; Test 17: Drop with rational numbers
+(test-assert 
+  (= (first (drop 2.0 (list 1 2 3 4))) 3)
+  "drop should work with rational numbers that are integers")
+
+; Test 18: Drop with prepend results
+(define prepended-list (prepend 1 2 (list 3 4 5)))
+(define prepend-dropped (drop 2 prepended-list))
+(test-assert 
+  (= (first prepend-dropped) 3)
+  "drop should work with prepend results")
+
+; Test 19: Drop with append results
+(define appended-list (append (list 1 2) (list 3 4) (list 5 6)))
+(define append-dropped (drop 3 appended-list))
+(test-assert 
+  (= (first append-dropped) 4)
+  "drop should work with append results")
+
+; Test 20: Drop performance with larger lists
+(define large-list (iota 20))
+(define large-dropped (drop 10 large-list))
+(test-assert 
+  (= (first large-dropped) 10)
+  "drop should work efficiently with larger lists")
+
+(test-assert 
+  (= (length large-dropped) 10)
+  "drop should maintain correct length with larger lists")
+
+;------------------------------------------------------------------------------
+; take tests
+
+; Test 1: Basic take functionality
+(define test-take-list (list 1 2 3 4 5))
+(define taken-two (take 2 test-take-list))
+(test-assert 
+  (= (first taken-two) 1)
+  "take should return first n elements - first")
+
+(test-assert 
+  (= (first (rest taken-two)) 2)
+  "take should return first n elements - second")
+
+(test-assert 
+  (= (length taken-two) 2)
+  "take should return list with correct length")
+
+; Test 2: Take 0 elements should return empty list
+(test-assert 
+  (nil? (take 0 (list 10 20 30)))
+  "take 0 should return empty list")
+
+; Test 3: Take all elements
+(define take-all-list (list 1 2 3))
+(define taken-all (take 3 take-all-list))
+(test-assert 
+  (= (first taken-all) 1)
+  "take all should preserve first element")
+
+(test-assert 
+  (= (length taken-all) 3)
+  "take all should preserve list length")
+
+; Test 4: Take more than list length
+(define taken-excess (take 10 (list 1 2 3)))
+(test-assert 
+  (= (length taken-excess) 3)
+  "take more than length should return full list")
+
+(test-assert 
+  (= (first taken-excess) 1)
+  "take excess should preserve elements")
+
+; Test 5: Take from empty list
+(test-assert 
+  (nil? (take 5 ()))
+  "take from empty list should return empty list")
+
+; Test 6: Take single element
+(define single-take-list (list 42))
+(test-assert 
+  (= (first (take 1 single-take-list)) 42)
+  "take 1 from single element should return that element")
+
+(test-assert 
+  (nil? (take 0 single-take-list))
+  "take 0 from single element should return empty")
+
+; Test 7: Take with different data types
+(define mixed-take-list (list "hello" 42 true (list 1 2)))
+(define mixed-taken (take 2 mixed-take-list))
+(test-assert 
+  (= (first mixed-taken) "hello")
+  "take should work with mixed data types - first")
+
+(test-assert 
+  (= (first (rest mixed-taken)) 42)
+  "take should work with mixed data types - second")
+
+; Test 8: Take with library-generated lists
+(define iota-take-list (iota 6))  ; (0 1 2 3 4 5)
+(define iota-taken (take 3 iota-take-list))
+(test-assert 
+  (= (first iota-taken) 0)
+  "take should work with iota-generated lists - first")
+
+(test-assert 
+  (= (first (rest (rest iota-taken))) 2)
+  "take should work with iota-generated lists - third")
+
+(test-assert 
+  (= (length iota-taken) 3)
+  "take should return correct length")
+
+; Test 9: Take with filtered lists
+(define even-take-list (filter even? (iota 10)))
+(define even-taken (take 2 even-take-list))
+(test-assert 
+  (= (first even-taken) 0)
+  "take should work with filtered lists - first")
+
+(test-assert 
+  (= (first (rest even-taken)) 2)
+  "take should work with filtered lists - second")
+
+; Test 10: Take with mapped lists
+(define doubled-take-list (map (lambda (x) (* x 2)) (list 1 2 3 4)))
+(define doubled-taken (take 2 doubled-take-list))
+(test-assert 
+  (= (first doubled-taken) 2)  ; 1*2
+  "take should work with mapped lists - first")
+
+(test-assert 
+  (= (first (rest doubled-taken)) 4)  ; 2*2
+  "take should work with mapped lists - second")
+
+; Test 11: Take used with other functions
+(define take-and-reverse (reverse (take 3 (list 1 2 3 4 5))))
+(test-assert 
+  (= (first take-and-reverse) 3)
+  "take should compose with other functions")
+
+(test-assert 
+  (= (length take-and-reverse) 3)
+  "take composition should preserve length")
+
+; Test 12: Take with nested lists
+(define nested-take-list (list (list 1 2) (list 3 4) (list 5 6)))
+(define nested-taken (take 2 nested-take-list))
+(test-assert 
+  (= (first (first nested-taken)) 1)
+  "take should work with nested lists - first list")
+
+(test-assert 
+  (= (first (first (rest nested-taken))) 3)
+  "take should work with nested lists - second list")
+
+; Test 13: Take with apply
+(test-assert 
+  (= (first (apply take (list 2 (list 10 20 30)))) 10)
+  "take should work with apply")
+
+; Test 14: Take in fold operations
+(define take-fold-result 
+  (foldl (lambda (acc n) (+ acc (length (take n (list 1 2 3 4 5))))) 
+         0 
+         (list 0 1 2 3)))
+(test-assert 
+  (= take-fold-result 6)  ; 0+1+2+3 = 6
+  "take should work in fold operations")
+
+; Test 15: Take with Church Boolean elements
+(define bool-take-list (list true false (= 1 1) (= 1 2)))
+(define bool-taken (take 2 bool-take-list))
+(test-assert 
+  (= ((first bool-taken) "true" "false") "true")
+  "take should work with Church Boolean elements - first")
+
+(test-assert 
+  (= ((first (rest bool-taken)) "true" "false") "false")
+  "take should work with Church Boolean elements - second")
+
+; Test 16: Error conditions for take
+(test-error (take) "take should require exactly 2 arguments")
+(test-error (take 2) "take should require exactly 2 arguments")
+(test-error (take 1 2 3) "take should require exactly 2 arguments")
+(test-error (take "not-number" (list 1 2)) "take should reject non-numeric first argument")
+(test-error (take 2 "not-list") "take should reject non-list second argument")
+(test-error (take -1 (list 1 2)) "take should reject negative numbers")
+
+; Test 17: Take with rational numbers
+(test-assert 
+  (= (length (take 2.0 (list 1 2 3 4))) 2)
+  "take should work with rational numbers that are integers")
+
+; Test 18: Take with prepend results
+(define prepended-take-list (prepend 1 2 (list 3 4 5)))
+(define prepend-taken (take 3 prepended-take-list))
+(test-assert 
+  (= (first prepend-taken) 1)
+  "take should work with prepend results - first")
+
+(test-assert 
+  (= (first (rest (rest prepend-taken))) 3)
+  "take should work with prepend results - third")
+
+; Test 19: Take with append results
+(define appended-take-list (append (list 1 2) (list 3 4) (list 5 6)))
+(define append-taken (take 4 appended-take-list))
+(test-assert 
+  (= (first append-taken) 1)
+  "take should work with append results - first")
+
+(test-assert 
+  (= (first (rest (rest (rest append-taken)))) 4)
+  "take should work with append results - fourth")
+
+; Test 20: Take performance with larger lists
+(define large-take-list (iota 20))
+(define large-taken (take 5 large-take-list))
+(test-assert 
+  (= (first large-taken) 0)
+  "take should work efficiently with larger lists - first")
+
+(test-assert 
+  (= (first (rest (rest (rest (rest large-taken))))) 4)
+  "take should work efficiently with larger lists - last")
+
+(test-assert 
+  (= (length large-taken) 5)
+  "take should maintain correct length with larger lists")
+
+;------------------------------------------------------------------------------
+; drop/take complementary behavior tests
+
+; Test 1: drop and take should be complementary
+(define complement-list (list 1 2 3 4 5 6))
+(define dropped-part (drop 2 complement-list))
+(define taken-part (take 2 complement-list))
+(define recombined (append taken-part dropped-part))
+
+(test-assert 
+  (= (first recombined) 1)
+  "drop/take recombination should preserve original order - first")
+
+(test-assert 
+  (= (first (rest (rest recombined))) 3)
+  "drop/take recombination should preserve original order - third")
+
+(test-assert 
+  (= (length recombined) (length complement-list))
+  "drop/take recombination should preserve original length")
+
+; Test 2: drop n + take n should cover whole list when n = length/2
+(define even-length-list (list 10 20 30 40))
+(define first-half (take 2 even-length-list))
+(define second-half (drop 2 even-length-list))
+(define rejoined (append first-half second-half))
+
+(test-assert 
+  (= (first rejoined) 10)
+  "split/rejoin should work - first element")
+
+(test-assert 
+  (= (first (rest (rest (rest rejoined)))) 40)
+  "split/rejoin should work - last element")
+
+; Test 3: Edge case - drop 0 and take 0
+(define edge-list (list 7 8 9))
+(test-assert 
+  (= (first (drop 0 edge-list)) 7)
+  "drop 0 should be identity")
+
+(test-assert 
+  (nil? (take 0 edge-list))
+  "take 0 should be empty")
+
+; Test 4: Edge case - drop all and take all
+(define all-test-list (list 1 2 3))
+(test-assert 
+  (nil? (drop 3 all-test-list))
+  "drop all should be empty")
+
+(test-assert 
+  (= (length (take 3 all-test-list)) 3)
+  "take all should preserve length")
+
+; Test 5: Boundary behavior consistency
+(define boundary-list (list 5 10 15))
+(test-assert 
+  (= (length (take 1 boundary-list)) 1)
+  "take 1 should have length 1")
+
+(test-assert 
+  (= (length (drop 1 boundary-list)) 2)
+  "drop 1 should leave length-1 elements")
+
+; Test 6: Using drop/take for list slicing
+(define slice-list (list 100 200 300 400 500))
+(define middle-slice (take 2 (drop 1 slice-list)))  ; Elements 2-3 (200, 300)
+(test-assert 
+  (= (first middle-slice) 200)
+  "list slicing with drop/take should work - first")
+
+(test-assert 
+  (= (first (rest middle-slice)) 300)
+  "list slicing with drop/take should work - second")
+
+(test-assert 
+  (= (length middle-slice) 2)
+  "list slicing should have correct length")
+
+; Test 7: drop/take with iota for range operations
+(define range-start-3-count-4 (take 4 (drop 3 (iota 10))))  ; Should be (3 4 5 6)
+(test-assert 
+  (= (first range-start-3-count-4) 3)
+  "range simulation should work - first")
+
+(test-assert 
+  (= (first (rest (rest (rest range-start-3-count-4)))) 6)
+  "range simulation should work - last")
+
+; Test 8: Nested drop/take operations
+(define nested-ops-list (list 1 2 3 4 5 6 7 8 9 10))
+(define nested-result (take 2 (drop 1 (take 5 (drop 2 nested-ops-list)))))
+(test-assert 
+  (= (first nested-result) 4)  ; drop 2 -> (3 4 5 6 7 8 9 10), take 5 -> (3 4 5 6 7), drop 1 -> (4 5 6 7), take 2 -> (4 5)
+  "nested drop/take operations should work")
+
+; Test 9: drop/take with filter results
+(define filtered-for-drop-take (filter odd? (iota 10)))  ; (1 3 5 7 9)
+(define filtered-partial (take 3 (drop 1 filtered-for-drop-take)))  ; Should be (3 5 7)
+(test-assert 
+  (= (first filtered-partial) 3)
+  "drop/take should work with filtered lists")
+
+; Test 10: Performance comparison - large lists
+(define perf-list (iota 100))
+(define perf-dropped (drop 50 perf-list))
+(define perf-taken (take 50 perf-list))
+
+(test-assert 
+  (= (first perf-dropped) 50)
+  "drop should work efficiently on large lists")
+
+(test-assert 
+  (= (length perf-taken) 50)
+  "take should work efficiently on large lists")
 
 ;------------------------------------------------------------------------------
 ; iota tests
@@ -5772,12 +6501,9 @@
 (test-assert (= (string-append "hello" " " "world") "hello world")
   "string-append should work using list operations")
 
-#skip
-; TODO: string-ref doesn't work because list-ref doesn't exist yet!
 ; Test 7: Character access
-(test-assert (= (string-ref "hello" 1) "e")
+(test-assert (= (string-nth "hello" 1) "e")
   "string-ref should return correct character")
-#end
 
 ; Test 8: String filtering (remove spaces)
 (define remove-spaces
@@ -5801,6 +6527,317 @@
 
 (test-assert (= (string-upcase "hello") "HELLO")
   "string case conversion should work with codepoint mapping")
+
+;------------------------------------------------------------------------------
+; substring tests
+(lndisplayln "substring tests")
+
+; Test 1: Basic substring with start index only
+(test-assert 
+  (= (substring "hello" 0) "hello")
+  "substring with start 0 should return whole string")
+
+(test-assert 
+  (= (substring "hello" 1) "ello")
+  "substring with start 1 should drop first character")
+
+(test-assert 
+  (= (substring "hello" 3) "lo")
+  "substring with start 3 should return suffix")
+
+; Test 2: Basic substring with start and end indices
+(test-assert 
+  (= (substring "hello" 0 3) "hel")
+  "substring with start 0 end 3 should return first 3 characters")
+
+(test-assert 
+  (= (substring "hello" 1 4) "ell")
+  "substring with start 1 end 4 should return middle section")
+
+(test-assert 
+  (= (substring "hello" 2 5) "llo")
+  "substring with start 2 end 5 should return suffix")
+
+; Test 3: Empty string cases
+(test-assert 
+  (= (substring "" 0) "")
+  "substring of empty string should return empty string")
+
+(test-assert 
+  (= (substring "" 0 0) "")
+  "substring of empty string with start and end should return empty string")
+
+; Test 4: Single character string
+(test-assert 
+  (= (substring "a" 0) "a")
+  "substring of single char with start 0 should return the character")
+
+(test-assert 
+  (= (substring "a" 0 1) "a")
+  "substring of single char with start 0 end 1 should return the character")
+
+(test-assert 
+  (= (substring "a" 1) "")
+  "substring of single char with start 1 should return empty string")
+
+(test-assert 
+  (= (substring "a" 0 0) "")
+  "substring with start equals end should return empty string")
+
+; Test 5: Start index at end of string
+(test-assert 
+  (= (substring "hello" 5) "")
+  "substring with start at string length should return empty string")
+
+(test-assert 
+  (= (substring "test" 4) "")
+  "substring with start at string length should return empty string")
+
+; Test 6: Start index beyond string length (should clamp)
+(test-assert 
+  (= (substring "hello" 10) "")
+  "substring with start beyond string length should return empty string")
+
+(test-assert 
+  (= (substring "test" 100) "")
+  "substring with large start index should return empty string")
+
+; Test 7: End index beyond string length (should clamp)
+(test-assert 
+  (= (substring "hello" 2 100) "llo")
+  "substring with end beyond string length should clamp to string length")
+
+(test-assert 
+  (= (substring "test" 0 50) "test")
+  "substring with large end should return from start to end of string")
+
+; Test 8: Start equals end cases
+(test-assert 
+  (= (substring "hello" 2 2) "")
+  "substring with start equals end should return empty string")
+
+(test-assert 
+  (= (substring "hello" 0 0) "")
+  "substring with start 0 end 0 should return empty string")
+
+(test-assert 
+  (= (substring "hello" 5 5) "")
+  "substring with start and end at string length should return empty string")
+
+; Test 9: Start greater than end (should return empty)
+(test-assert 
+  (= (substring "hello" 3 1) "")
+  "substring with start > end should return empty string")
+
+(test-assert 
+  (= (substring "hello" 4 2) "")
+  "substring with start > end should return empty string")
+
+; Test 10: Extract single characters
+(test-assert 
+  (= (substring "hello" 0 1) "h")
+  "substring extracting first character")
+
+(test-assert 
+  (= (substring "hello" 1 2) "e")
+  "substring extracting second character")
+
+(test-assert 
+  (= (substring "hello" 4 5) "o")
+  "substring extracting last character")
+
+; Test 11: Unicode support
+(test-assert 
+  (= (substring "Hello, 世界!" 7 9) "世界")
+  "substring should work with Unicode characters")
+
+(test-assert 
+  (= (substring "🌍🌎🌏" 1 2) "🌎")
+  "substring should work with emoji characters")
+
+(test-assert 
+  (= (substring "café" 2 4) "fé")
+  "substring should work with accented characters")
+
+; Test 12: Longer strings
+(define long-string "The quick brown fox jumps over the lazy dog")
+(test-assert 
+  (= (substring long-string 0 9) "The quick")
+  "substring should work with longer strings - beginning")
+
+(test-assert 
+  (= (substring long-string 10 15) "brown")
+  "substring should work with longer strings - middle")
+
+(test-assert 
+  (= (substring long-string 35) "lazy dog")
+  "substring should work with longer strings - end")
+
+; Test 13: Whitespace and special characters
+(test-assert 
+  (= (substring "  hello  " 2 7) "hello")
+  "substring should handle whitespace correctly")
+
+(test-assert 
+  (= (substring "a\nb\tc" 0 5) "a\nb\tc")
+  "substring should handle newlines and tabs")
+
+(test-assert 
+  (= (substring "hello\nworld" 6) "world")
+  "substring should handle strings with newlines")
+
+; Test 14: Boundary conditions
+(test-assert 
+  (= (substring "abc" 0 3) "abc")
+  "substring covering entire string should return original")
+
+(test-assert 
+  (= (substring "abc" 1 3) "bc")
+  "substring from middle to end")
+
+(test-assert 
+  (= (substring "abc" 0 2) "ab")
+  "substring from start excluding last character")
+
+; Test 15: Error conditions - wrong number of arguments
+(test-error (substring) "substring should require at least 2 arguments")
+(test-error (substring "hello") "substring should require at least 2 arguments")
+
+; Test 16: Error conditions - wrong argument types
+(test-error (substring 123 0) "substring should reject non-string first argument")
+(test-error (substring "hello" "start") "substring should reject non-numeric start index")
+(test-error (substring "hello" 0 "end") "substring should reject non-numeric end index")
+
+; Test 17: Error conditions - negative indices
+(test-error (substring "hello" -1) "substring should reject negative start index")
+(test-error (substring "hello" 0 -1) "substring should reject negative end index")
+
+; Test 18: Error conditions - non-integer indices
+(test-error (substring "hello" 1.5) "substring should reject non-integer start index")
+(test-error (substring "hello" 0 2.5) "substring should reject non-integer end index")
+
+; Test 19: Composition with other string functions
+(test-assert 
+  (= (string-length (substring "hello world" 6)) 5)
+  "substring should compose with string-length")
+
+(test-assert 
+  (= (substring (string-append "hello" " " "world") 0 5) "hello")
+  "substring should work with string-append results")
+
+; Test 20: substring used in higher-order functions
+(define extract-prefix (lambda (str) (substring str 0 3)))
+(test-assert 
+  (= (extract-prefix "testing") "tes")
+  "substring should work in higher-order functions")
+
+(define string-list (list "apple" "banana" "cherry"))
+(define prefixes (map (lambda (s) (substring s 0 2)) string-list))
+(test-assert 
+  (= (first prefixes) "ap")
+  "substring should work with map - first result")
+
+(test-assert 
+  (= (first (rest prefixes)) "ba")
+  "substring should work with map - second result")
+
+; Test 21: substring with conditional logic
+(define safe-substring
+  (lambda (str start end)
+    (let ((len (string-length str)))
+      ((and (>= start 0) (< start len))
+       (substring str start ((nil? end) len end))
+       ""))))
+
+(test-assert 
+  (= (safe-substring "hello" 2 4) "ll")
+  "conditional substring should work normally")
+
+(test-assert 
+  (= (safe-substring "hello" 10 15) "")
+  "conditional substring should handle out-of-bounds safely")
+
+; Test 22: substring for string parsing patterns
+(define get-file-extension
+  (lambda (filename)
+    (let ((dot-pos (string-length filename)))  ; Simplified - assume extension exists
+      (substring filename (- dot-pos 3)))))   ; Get last 3 chars
+
+(test-assert 
+  (= (get-file-extension "test.txt") "txt")
+  "substring should work for file extension extraction")
+
+; Test 23: Empty substring in middle of string
+(test-assert 
+  (= (substring "hello" 2 2) "")
+  "substring with equal start and end should return empty string")
+
+(test-assert 
+  (= (substring "world" 3 3) "")
+  "substring with equal indices should return empty string")
+
+; Test 24: substring with string->list round trip
+(define manual-substring
+  (lambda (str start end)
+    (let ((chars (string->list str)))
+      (list->string (take (- end start) (drop start chars))))))
+
+(test-assert 
+  (= (manual-substring "hello" 1 4) (substring "hello" 1 4))
+  "substring should match manual implementation using string->list")
+
+; Test 25: Performance with longer strings
+(define very-long-string 
+  (apply string-append (map (lambda (n) "hello ") (iota 10))))
+
+(test-assert 
+  (= (substring very-long-string 0 5) "hello")
+  "substring should work efficiently with longer strings")
+
+(test-assert 
+  (= (string-length (substring very-long-string 10)) (- (string-length very-long-string) 10))
+  "substring should preserve correct length with longer strings")
+
+; Test 26: Multiple substring operations
+(define test-string "abcdefghijk")
+(define first-half (substring test-string 0 5))
+(define second-half (substring test-string 5))
+(test-assert 
+  (= (string-append first-half second-half) test-string)
+  "splitting and rejoining with substring should preserve original")
+
+; Test 27: substring with apply
+(test-assert 
+  (= (apply substring (list "hello" 1 3)) "el")
+  "substring should work with apply")
+
+; Test 28: Edge case - very small strings
+(test-assert 
+  (= (substring "x" 0) "x")
+  "substring should work with very small strings")
+
+(test-assert 
+  (= (substring "ab" 1 2) "b")
+  "substring should extract single character from two-character string")
+
+; Test 29: Clamping behavior verification
+(test-assert 
+  (= (substring "test" 2 100) (substring "test" 2))
+  "substring with large end should equal substring with no end")
+
+(test-assert 
+  (= (substring "test" 100 200) "")
+  "substring with both indices beyond string should return empty")
+
+; Test 30: Unicode edge cases
+(define mixed-unicode "ASCII🌍中文")
+(test-assert 
+  (= (substring mixed-unicode 5 6) "🌍")
+  "substring should correctly handle mixed ASCII and Unicode")
+
+(test-assert 
+  (= (substring mixed-unicode 6) "中文")
+  "substring should handle Unicode at end of mixed string")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Show test results
