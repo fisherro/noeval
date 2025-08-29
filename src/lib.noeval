@@ -233,11 +233,13 @@
      (raise "foldl's first argument must be callable"))
     (unless (list? lyst)
      (raise "foldl's second argument must be a list"))
-    ((nil? lyst)
-     init
-     (foldl func
-            (func init (first lyst))
-            (rest lyst)))))
+    (define loop
+      (lambda (init lyst)
+        ((nil? lyst)
+         init
+         (loop (func init (first lyst))
+               (rest lyst)))))
+    (loop init lyst)))
 
 ; foldr applies a binary function to the elements of a list from right to left
 ; foldr : (a -> b -> b) -> b -> [a] -> b
@@ -249,10 +251,13 @@
      (raise "foldr's first argument must be callable"))
     (unless (list? lyst)
      (raise "foldr's second argument must be a list"))
-    ((nil? lyst)
-      init
-      (func (first lyst) 
-            (foldr func (rest lyst) init)))))
+    (define loop
+      (lambda (lyst)
+        ((nil? lyst)
+         init
+         (func (first lyst) 
+               (loop (rest lyst))))))
+    (loop lyst)))
 
 (define last (lambda* (lyst)
                (define loop (lambda (head tail)
