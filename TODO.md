@@ -124,6 +124,6 @@ Add validation of the bindings structures to let
 
 Add GC collection points to more places.
 
-Function overloading or multimethods
+Function overloading or multimethods? Some way to allow the list functions to work on any sequence.
 
 User-defined types?

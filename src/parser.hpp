@@ -94,6 +94,11 @@ private:
     std::string read_symbol();
     std::string read_string();
     std::string read_number();
+    std::string read_based_number();
+    std::string read_hex_digits();
+    std::string read_octal_digits();
+    std::string read_binary_digits();
+    std::string read_arbitrary_base_digits(int base);
 };
 
 class parser {

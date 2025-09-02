@@ -33,6 +33,19 @@ In regex form:
     -?[0-9]+(\.[0-9]+)?(\([0-9]+\))?
     -?[0-9]+(/[1-9][0-9]*)?
 
+### Other bases
+
+Here are regex describing the format of numeric literals in other bases:
+
+* Hex: `#[xX][0-9A-Fa-f]+`
+* Octal: `#[oO][0-7]+`
+* Binary: `#[bB][01]+`
+* Arbitrary (from 2 to 36): `#[1-9][0-9]*r[0-9a-zA-Z]+`
+
+Non-decimal literals do not need to suggest negative or fractional values.
+
+For arbitrary bases, the base is always given in decimal.
+
 ## Rationale (pun intended)
 
 It's arbitrary...more or less.

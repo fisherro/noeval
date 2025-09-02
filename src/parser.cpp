@@ -178,7 +178,12 @@ std::string lexer::read_number()
 {
     std::string result;
     
-    // Handle optional negative sign
+    // Check for base prefix
+    if (current_char() == '#') {
+        return read_based_number();
+    }
+    
+    // Handle optional negative sign for decimal numbers
     if (current_char() == '-') {
         result += current_char();
         advance();
@@ -243,6 +248,163 @@ std::string lexer::read_number()
     return result;
 }
 
+std::string lexer::read_based_number()
+{
+    std::string result;
+    result += current_char(); // '#'
+    advance();
+    
+    if (at_end()) {
+        throw std::runtime_error("Invalid number: lone '#' character");
+    }
+    
+    char base_char = current_char();
+    
+    // Handle predefined bases (case-insensitive)
+    if (base_char == 'x' or base_char == 'X') {
+        result += current_char();
+        advance();
+        return result + read_hex_digits();
+    }
+    
+    if (base_char == 'o' or base_char == 'O') {
+        result += current_char();
+        advance();
+        return result + read_octal_digits();
+    }
+    
+    if (base_char == 'b' or base_char == 'B') {
+        result += current_char();
+        advance();
+        return result + read_binary_digits();
+    }
+    
+    // Handle arbitrary base (#NNr...)
+    if (std::isdigit(base_char) and base_char != '0') {
+        std::string base_str;
+        while (not at_end() and std::isdigit(current_char())) {
+            base_str += current_char();
+            result += current_char();
+            advance();
+        }
+        
+        if (at_end() or (current_char() != 'r' and current_char() != 'R')) {
+            throw std::runtime_error("Invalid arbitrary base number: expected 'r' after base");
+        }
+        
+        result += current_char(); // 'r' or 'R'
+        advance();
+        
+        int base = std::stoi(base_str);
+        if (base < 2 or base > 36) {
+            throw std::runtime_error("Base must be between 2 and 36");
+        }
+        
+        return result + read_arbitrary_base_digits(base);
+    }
+    
+    throw std::runtime_error("Invalid base specifier after '#'");
+}
+
+std::string lexer::read_hex_digits()
+{
+    std::string result;
+    bool has_digits = false;
+    
+    while (not at_end() and std::isxdigit(current_char())) {
+        result += current_char();
+        advance();
+        has_digits = true;
+    }
+    
+    if (not has_digits) {
+        throw std::runtime_error("Invalid hex number: no digits after #x");
+    }
+    
+    return result;
+}
+
+std::string lexer::read_octal_digits()
+{
+    std::string result;
+    bool has_digits = false;
+    
+    while (not at_end() and current_char() >= '0' and current_char() <= '7') {
+        result += current_char();
+        advance();
+        has_digits = true;
+    }
+    
+    if (not has_digits) {
+        throw std::runtime_error("Invalid octal number: no digits after #o");
+    }
+    
+    // Check for invalid octal digits
+    if (not at_end() and std::isdigit(current_char())) {
+        throw std::runtime_error(std::format("Invalid octal digit '{}' in octal number", current_char()));
+    }
+    
+    return result;
+}
+
+std::string lexer::read_binary_digits()
+{
+    std::string result;
+    bool has_digits = false;
+    
+    while (not at_end() and (current_char() == '0' or current_char() == '1')) {
+        result += current_char();
+        advance();
+        has_digits = true;
+    }
+    
+    if (not has_digits) {
+        throw std::runtime_error("Invalid binary number: no digits after #b");
+    }
+    
+    // Check for invalid binary digits
+    if (not at_end() and std::isdigit(current_char())) {
+        throw std::runtime_error(std::format("Invalid binary digit '{}' in binary number", current_char()));
+    }
+    
+    return result;
+}
+
+std::string lexer::read_arbitrary_base_digits(int base)
+{
+    std::string result;
+    bool has_digits = false;
+    
+    while (not at_end()) {
+        char ch = current_char();
+        int digit_value = -1;
+        
+        if (ch >= '0' and ch <= '9') {
+            digit_value = ch - '0';
+        } else if (ch >= 'a' and ch <= 'z') {
+            digit_value = ch - 'a' + 10;
+        } else if (ch >= 'A' and ch <= 'Z') {
+            digit_value = ch - 'A' + 10;
+        } else {
+            break; // Not a valid digit character
+        }
+        
+        if (digit_value >= base) {
+            throw std::runtime_error(std::format("Invalid digit '{}' for base {}", ch, base));
+        }
+        
+        result += ch;
+        advance();
+        has_digits = true;
+    }
+    
+    if (not has_digits) {
+        throw std::runtime_error(std::format("Invalid base {} number: no digits after #{}r", base, base));
+    }
+    
+    return result;
+}
+
 lexer::lexer(std::string text) : input_(std::move(text)), current_pos_(1, 1, 0) {}
 
 token lexer::next_token()
@@ -268,6 +430,17 @@ token lexer::next_token()
     
     if (ch == '"') {
         return token(token_type::string_literal, read_string(), token_start);
+    }
+
+    // Check for based numbers before checking for decimal numbers
+    if (ch == '#' and not at_end()) {
+        char next_ch = peek();
+        if (next_ch == 'x' or next_ch == 'X' or 
+            next_ch == 'o' or next_ch == 'O' or 
+            next_ch == 'b' or next_ch == 'B' or 
+            (std::isdigit(next_ch) and next_ch != '0')) {
+            return token(token_type::number, read_based_number(), token_start);
+        }
     }
 
     if (std::isdigit(ch) or (ch == '-' and not at_end() and std::isdigit(peek()))) {
@@ -350,6 +523,76 @@ parser::parser(std::string input) : lex(std::move(input))
 bignum parse_number_string(const std::string& num_str)
 {
     using cpp_int = boost::multiprecision::cpp_int;
+    
+    // Check for based numbers
+    if (num_str.length() >= 2 and num_str[0] == '#') {
+        char base_char = num_str[1];
+        
+        // Handle predefined bases
+        if (base_char == 'x' or base_char == 'X') {
+            std::string hex_digits = num_str.substr(2);
+            cpp_int result = 0;
+            for (char digit : hex_digits) {
+                result = result * 16;
+                if (digit >= '0' and digit <= '9') {
+                    result += digit - '0';
+                } else if (digit >= 'a' and digit <= 'f') {
+                    result += digit - 'a' + 10;
+                } else if (digit >= 'A' and digit <= 'F') {
+                    result += digit - 'A' + 10;
+                }
+            }
+            return bignum(result);
+        }
+        
+        if (base_char == 'o' or base_char == 'O') {
+            std::string octal_digits = num_str.substr(2);
+            cpp_int result = 0;
+            for (char digit : octal_digits) {
+                result = result * 8 + (digit - '0');
+            }
+            return bignum(result);
+        }
+        
+        if (base_char == 'b' or base_char == 'B') {
+            std::string binary_digits = num_str.substr(2);
+            cpp_int result = 0;
+            for (char digit : binary_digits) {
+                result = result * 2 + (digit - '0');
+            }
+            return bignum(result);
+        }
+        
+        // Handle arbitrary base
+        if (std::isdigit(base_char) and base_char != '0') {
+            size_t r_pos = num_str.find('r');
+            if (r_pos == std::string::npos) {
+                r_pos = num_str.find('R');
+            }
+            
+            if (r_pos != std::string::npos) {
+                std::string base_str = num_str.substr(1, r_pos - 1);
+                std::string digits_str = num_str.substr(r_pos + 1);
+                
+                int base = std::stoi(base_str);
+                cpp_int result = 0;
+                
+                for (char digit : digits_str) {
+                    result = result * base;
+                    if (digit >= '0' and digit <= '9') {
+                        result += digit - '0';
+                    } else if (digit >= 'a' and digit <= 'z') {
+                        result += digit - 'a' + 10;
+                    } else if (digit >= 'A' and digit <= 'Z') {
+                        result += digit - 'A' + 10;
+                    }
+                }
+                return bignum(result);
+            }
+        }
+        
+        throw std::runtime_error("Invalid based number format");
+    }
     
     // Check if it's a fractional format (contains '/')
     size_t slash_pos = num_str.find('/');
