@@ -7097,6 +7097,302 @@
   (= (reverse-string "hello") "olleh")
   "string->codepoint-strings should enable string manipulation")
 
+;------------------------------------------------------------------------------
+; codepoints->utf8 tests
+(lndisplayln "codepoints->utf8 tests")
+
+; Test 1: Basic ASCII characters (1-byte UTF-8)
+(define ascii-codepoints (list 65 66 67))  ; A, B, C
+(define ascii-utf8 (codepoints->utf8 ascii-codepoints))
+(test-assert (= (length ascii-utf8) 3)
+  "ASCII characters should produce 1 byte each")
+(test-assert (= (first ascii-utf8) 65)
+  "ASCII 'A' should be byte 65")
+(test-assert (= (second ascii-utf8) 66)
+  "ASCII 'B' should be byte 66")
+(test-assert (= (third ascii-utf8) 67)
+  "ASCII 'C' should be byte 67")
+
+; Test 2: Empty list should return empty list
+(test-assert (= (codepoints->utf8 ()) ())
+  "Empty codepoint list should return empty byte list")
+
+; Test 3: Single ASCII character
+(define single-ascii (codepoints->utf8 (list 72)))  ; H
+(test-assert (= (length single-ascii) 1)
+  "Single ASCII character should produce 1 byte")
+(test-assert (= (first single-ascii) 72)
+  "ASCII 'H' should be byte 72")
+
+; Test 4: 2-byte UTF-8 sequences (Latin-1 Supplement)
+(define latin1-codepoints (list 233))  ; é
+(define latin1-utf8 (codepoints->utf8 latin1-codepoints))
+(test-assert (= (length latin1-utf8) 2)
+  "Latin-1 character should produce 2 bytes")
+(test-assert (= (first latin1-utf8) 195)
+  "First byte of é should be 195")
+(test-assert (= (second latin1-utf8) 169)
+  "Second byte of é should be 169")
+
+; Test 5: 3-byte UTF-8 sequences (CJK characters)
+(define cjk-codepoints (list 19990))  ; 世
+(define cjk-utf8 (codepoints->utf8 cjk-codepoints))
+(test-assert (= (length cjk-utf8) 3)
+  "CJK character should produce 3 bytes")
+(test-assert (= (first cjk-utf8) 228)
+  "First byte of 世 should be 228")
+(test-assert (= (second cjk-utf8) 184)
+  "Second byte of 世 should be 184")
+(test-assert (= (third cjk-utf8) 150)
+  "Third byte of 世 should be 150")
+
+; Test 6: 4-byte UTF-8 sequences (Emoji)
+(define emoji-codepoints (list 127757))  ; 🌍
+(define emoji-utf8 (codepoints->utf8 emoji-codepoints))
+(test-assert (= (length emoji-utf8) 4)
+  "Emoji character should produce 4 bytes")
+(test-assert (= (first emoji-utf8) 240)
+  "First byte of 🌍 should be 240")
+(test-assert (= (second emoji-utf8) 159)
+  "Second byte of 🌍 should be 159")
+(test-assert (= (third emoji-utf8) 140)
+  "Third byte of 🌍 should be 140")
+(test-assert (= (fourth emoji-utf8) 141)
+  "Fourth byte of 🌍 should be 141")
+
+; Test 7: Mixed character types
+(define mixed-codepoints (list 65 233 19990))  ; A, é, 世
+(define mixed-utf8 (codepoints->utf8 mixed-codepoints))
+(test-assert (= (length mixed-utf8) 6)
+  "Mixed characters should produce 1+2+3=6 bytes")
+(test-assert (= (first mixed-utf8) 65)
+  "First byte should be ASCII A")
+(test-assert (= (second mixed-utf8) 195)
+  "Second byte should be first byte of é")
+
+; Test 8: Boundary values
+(define boundary-low (codepoints->utf8 (list 0)))
+(test-assert (= (length boundary-low) 1)
+  "Null character should produce 1 byte")
+(test-assert (= (first boundary-low) 0)
+  "Null character should be byte 0")
+
+(define boundary-127 (codepoints->utf8 (list 127)))
+(test-assert (= (length boundary-127) 1)
+  "Codepoint 127 should produce 1 byte")
+
+(define boundary-128 (codepoints->utf8 (list 128)))
+(test-assert (= (length boundary-128) 2)
+  "Codepoint 128 should produce 2 bytes")
+
+; Test 9: Error conditions - invalid codepoints
+(test-error (codepoints->utf8 (list -1))
+  "Negative codepoints should raise error")
+(test-error (codepoints->utf8 (list 1114112))
+  "Codepoints beyond Unicode range should raise error")
+(test-error (codepoints->utf8 (list 55296))
+  "Surrogate codepoints should raise error")
+(test-error (codepoints->utf8 (list 57343))
+  "Surrogate codepoints should raise error")
+
+; Test 10: Error conditions - invalid arguments
+(test-error (codepoints->utf8 "not-a-list")
+  "Non-list argument should raise error")
+(test-error (codepoints->utf8 (list "not-a-number"))
+  "Non-numeric codepoints should raise error")
+(test-error (codepoints->utf8 (list 1.5))
+  "Non-integer codepoints should raise error")
+
+; Test 11: Large valid codepoint
+(define large-valid (codepoints->utf8 (list 1114111)))  ; Maximum valid codepoint
+(test-assert (= (length large-valid) 4)
+  "Maximum valid codepoint should produce 4 bytes")
+
+; Test 12: Codepoints->utf8 with apply
+(test-assert (= (apply codepoints->utf8 (list (list 65 66))) (list 65 66))
+  "codepoints->utf8 should work with apply")
+
+;------------------------------------------------------------------------------
+; utf8->codepoints tests
+(lndisplayln "utf8->codepoints tests")
+
+; Test 1: Basic ASCII bytes (1-byte UTF-8)
+(define ascii-bytes (list 65 66 67))  ; A, B, C
+(define ascii-result (utf8->codepoints ascii-bytes))
+(test-assert (= (length ascii-result) 3)
+  "ASCII bytes should produce 3 codepoints")
+(test-assert (= (first ascii-result) 65)
+  "Byte 65 should decode to codepoint 65")
+(test-assert (= (second ascii-result) 66)
+  "Byte 66 should decode to codepoint 66")
+(test-assert (= (third ascii-result) 67)
+  "Byte 67 should decode to codepoint 67")
+
+; Test 2: Empty list should return empty list
+(test-assert (= (utf8->codepoints ()) ())
+  "Empty byte list should return empty codepoint list")
+
+; Test 3: Single ASCII byte
+(define single-ascii-byte (utf8->codepoints (list 72)))  ; H
+(test-assert (= (length single-ascii-byte) 1)
+  "Single ASCII byte should produce 1 codepoint")
+(test-assert (= (first single-ascii-byte) 72)
+  "Byte 72 should decode to codepoint 72")
+
+; Test 4: 2-byte UTF-8 sequence (Latin-1 Supplement)
+(define latin1-bytes (list 195 169))  ; é
+(define latin1-result (utf8->codepoints latin1-bytes))
+(test-assert (= (length latin1-result) 1)
+  "2-byte sequence should produce 1 codepoint")
+(test-assert (= (first latin1-result) 233)
+  "Bytes 195,169 should decode to codepoint 233 (é)")
+
+; Test 5: 3-byte UTF-8 sequence (CJK characters)
+(define cjk-bytes (list 228 184 150))  ; 世
+(define cjk-result (utf8->codepoints cjk-bytes))
+(test-assert (= (length cjk-result) 1)
+  "3-byte sequence should produce 1 codepoint")
+(test-assert (= (first cjk-result) 19990)
+  "Bytes 228,184,150 should decode to codepoint 19990 (世)")
+
+; Test 6: 4-byte UTF-8 sequence (Emoji)
+(define emoji-bytes (list 240 159 140 141))  ; 🌍
+(define emoji-result (utf8->codepoints emoji-bytes))
+(test-assert (= (length emoji-result) 1)
+  "4-byte sequence should produce 1 codepoint")
+(test-assert (= (first emoji-result) 127757)
+  "Bytes 240,159,140,141 should decode to codepoint 127757 (🌍)")
+
+; Test 7: Mixed byte sequences
+(define mixed-bytes (list 65 195 169 228 184 150))  ; A, é, 世
+(define mixed-result (utf8->codepoints mixed-bytes))
+(test-assert (= (length mixed-result) 3)
+  "Mixed bytes should produce 3 codepoints")
+(test-assert (= (first mixed-result) 65)
+  "First codepoint should be 65 (A)")
+(test-assert (= (second mixed-result) 233)
+  "Second codepoint should be 233 (é)")
+(test-assert (= (third mixed-result) 19990)
+  "Third codepoint should be 19990 (世)")
+
+; Test 8: Boundary values
+(define null-byte (utf8->codepoints (list 0)))
+(test-assert (= (length null-byte) 1)
+  "Null byte should produce 1 codepoint")
+(test-assert (= (first null-byte) 0)
+  "Null byte should decode to codepoint 0")
+
+(define boundary-127-decode (utf8->codepoints (list 127)))
+(test-assert (= (first boundary-127-decode) 127)
+  "Byte 127 should decode to codepoint 127")
+
+; Test 9: Error conditions - invalid byte values
+(test-error (utf8->codepoints (list -1))
+  "Negative bytes should raise error")
+(test-error (utf8->codepoints (list 256))
+  "Bytes > 255 should raise error")
+(test-error (utf8->codepoints (list 1.5))
+  "Non-integer bytes should raise error")
+
+; Test 10: Error conditions - invalid UTF-8 sequences
+(test-error (utf8->codepoints (list 128))
+  "Invalid leading byte should raise error")
+(test-error (utf8->codepoints (list 195))
+  "Incomplete 2-byte sequence should raise error")
+(test-error (utf8->codepoints (list 228 184))
+  "Incomplete 3-byte sequence should raise error")
+(test-error (utf8->codepoints (list 240 159 140))
+  "Incomplete 4-byte sequence should raise error")
+
+; Test 11: Error conditions - invalid continuation bytes
+(test-error (utf8->codepoints (list 195 65))
+  "Invalid continuation byte should raise error")
+(test-error (utf8->codepoints (list 228 65 150))
+  "Invalid continuation byte in 3-byte sequence should raise error")
+(test-error (utf8->codepoints (list 240 65 140 141))
+  "Invalid continuation byte in 4-byte sequence should raise error")
+
+; Test 12: Error conditions - overlong encodings
+(test-error (utf8->codepoints (list 192 128))
+  "Overlong 2-byte encoding should raise error")
+(test-error (utf8->codepoints (list 224 128 128))
+  "Overlong 3-byte encoding should raise error")
+
+; Test 13: Error conditions - surrogate encodings
+(test-error (utf8->codepoints (list 237 160 128))
+  "UTF-8 encoding of surrogate should raise error")
+
+; Test 14: Error conditions - invalid arguments
+(test-error (utf8->codepoints "not-a-list")
+  "Non-list argument should raise error")
+(test-error (utf8->codepoints (list "not-a-number"))
+  "Non-numeric bytes should raise error")
+
+; Test 15: utf8->codepoints with apply
+(test-assert (= (apply utf8->codepoints (list (list 65 66))) (list 65 66))
+  "utf8->codepoints should work with apply")
+
+;------------------------------------------------------------------------------
+; Round-trip conversion tests
+
+; Test 1: ASCII round-trip
+(define ascii-round-trip (list 65 66 67 68 69))
+(test-assert (= (utf8->codepoints (codepoints->utf8 ascii-round-trip)) ascii-round-trip)
+  "ASCII codepoints should round-trip correctly")
+
+; Test 2: Latin-1 round-trip
+(define latin1-round-trip (list 192 193 233 241))  ; À, Á, é, ñ
+(test-assert (= (utf8->codepoints (codepoints->utf8 latin1-round-trip)) latin1-round-trip)
+  "Latin-1 codepoints should round-trip correctly")
+
+; Test 3: CJK round-trip
+(define cjk-round-trip (list 19990 30028))  ; 世界
+(test-assert (= (utf8->codepoints (codepoints->utf8 cjk-round-trip)) cjk-round-trip)
+  "CJK codepoints should round-trip correctly")
+
+; Test 4: Emoji round-trip
+(define emoji-round-trip (list 127757 127758))  ; 🌍🌎
+(test-assert (= (utf8->codepoints (codepoints->utf8 emoji-round-trip)) emoji-round-trip)
+  "Emoji codepoints should round-trip correctly")
+
+; Test 5: Mixed content round-trip
+(define mixed-round-trip (list 72 101 108 108 111 44 32 19990 30028 33 32 127757))  ; Hello, 世界! 🌍
+(test-assert (= (utf8->codepoints (codepoints->utf8 mixed-round-trip)) mixed-round-trip)
+  "Mixed content should round-trip correctly")
+
+; Test 6: Boundary values round-trip
+(define boundary-round-trip (list 0 127 128 2047 2048 65535 65536 1114111))
+(test-assert (= (utf8->codepoints (codepoints->utf8 boundary-round-trip)) boundary-round-trip)
+  "Boundary values should round-trip correctly")
+
+; Test 7: String integration round-trip
+(define test-string "Hello, 世界! 🌍")
+(define string-codepoints (string->list test-string))
+(define utf8-bytes (codepoints->utf8 string-codepoints))
+(define recovered-codepoints (utf8->codepoints utf8-bytes))
+(define recovered-string (list->string recovered-codepoints))
+(test-assert (= recovered-string test-string)
+  "String should round-trip through UTF-8 conversion")
+
+; Test 8: Performance test with longer content
+(define long-codepoints (append (iota 128) (list 233 19990 127757)))
+(test-assert (= (utf8->codepoints (codepoints->utf8 long-codepoints)) long-codepoints)
+  "Longer content should round-trip correctly")
+
+; Test 9: Empty round-trip
+(test-assert (= (utf8->codepoints (codepoints->utf8 ())) ())
+  "Empty list should round-trip correctly")
+
+; Test 10: Single character round-trips for each UTF-8 length
+(test-assert (= (utf8->codepoints (codepoints->utf8 (list 65))) (list 65))
+  "1-byte character should round-trip")
+(test-assert (= (utf8->codepoints (codepoints->utf8 (list 233))) (list 233))
+  "2-byte character should round-trip")
+(test-assert (= (utf8->codepoints (codepoints->utf8 (list 19990))) (list 19990))
+  "3-byte character should round-trip")
+(test-assert (= (utf8->codepoints (codepoints->utf8 (list 127757))) (list 127757))
+  "4-byte character should round-trip")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Show test results
 (if (= test-failures 0)

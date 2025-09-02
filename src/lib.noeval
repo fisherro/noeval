@@ -224,6 +224,7 @@
 
 (define second (lambda (lyst) (first (rest lyst))))
 (define third (lambda (lyst) (first (rest (rest lyst)))))
+(define fourth (lambda (lyst) (first (rest (rest (rest lyst))))))
 
 ; foldl applies a binary function to the elements of a list from left to right
 ; (foldl + 1 (list 2 3 4)) -> (+ (+ (+ 1 2) 3) 4)
@@ -681,6 +682,125 @@
            (raise "string->codepoint-strings' argument must be a string"))
           (else
            (map list->string (map list (string->list s)))))))
+
+; Integer division:
+(define quotient 
+  (lambda (x y)
+    (/ (- x (remainder x y)) y)))
+
+; Convert Unicode codepoints to UTF-8 byte values
+; Takes a list of numbers representing Unicode codepoints
+; Returns a list of numbers representing UTF-8 bytes
+(define codepoints->utf8
+  (lambda* (codepoints)
+    (unless (list? codepoints)
+      (raise "codepoints->utf8's argument must be a list"))
+    (define encode-codepoint
+      (lambda* (cp)
+        (unless (and (integer? cp)
+                     (>= cp 0)
+                     (<= cp #x10FFFF)
+                     (not (and (>= cp #xD800) (<= cp #xDFFF))))
+          (raise "Invalid Unicode codepoint"))
+        (cond ((<= cp #x7F)
+               ; 1-byte sequence: 0xxxxxxx
+               (list cp))
+              ((<= cp #x7FF)
+               ; 2-byte sequence: 110xxxxx 10xxxxxx
+               (list (+ #xC0 (quotient cp 64))
+                     (+ #x80 (remainder cp 64))))
+              ((<= cp #xFFFF)
+               ; 3-byte sequence: 1110xxxx 10xxxxxx 10xxxxxx
+               (list (+ #xE0 (quotient cp 4096))
+                     (+ #x80 (remainder (quotient cp 64) 64))
+                     (+ #x80 (remainder cp 64))))
+              (else
+               ; 4-byte sequence: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+               (list (+ #xF0 (quotient cp 262144))
+                     (+ #x80 (remainder (quotient cp 4096) 64))
+                     (+ #x80 (remainder (quotient cp 64) 64))
+                     (+ #x80 (remainder cp 64)))))))
+    (apply append (map encode-codepoint codepoints))))
+
+; Convert UTF-8 byte values to Unicode codepoints
+; Takes a list of numbers representing UTF-8 bytes
+; Returns a list of numbers representing Unicode codepoints
+(define utf8->codepoints
+  (lambda* (bytes)
+    (unless (list? bytes)
+      (raise "utf8->codepoints's argument must be a list"))
+    (define decode-bytes
+      (lambda (bytes)
+        (cond ((nil? bytes)
+               ())
+              (else
+               (let ((b1 (first bytes)))
+                 (unless (and (integer? b1)
+                              (>= b1 0)
+                              (<= b1 255))
+                   (raise "Invalid byte value"))
+                 (cond ((<= b1 #x7F)
+                        ; 1-byte sequence
+                        (cons b1 (decode-bytes (rest bytes))))
+                       ((<= b1 #xBF)
+                        ; Invalid leading byte
+                        (raise "Invalid UTF-8 sequence"))
+                       ((<= b1 #xDF)
+                        ; 2-byte sequence
+                        (let ((remaining (rest bytes)))
+                          (unless (>= (length remaining) 1)
+                            (raise "Incomplete UTF-8 sequence"))
+                          (let ((b2 (first remaining)))
+                            (unless (and (>= b2 #x80) (<= b2 #xBF))
+                              (raise "Invalid UTF-8 continuation byte"))
+                            (let ((cp (+ (* (- b1 #xC0) 64)
+                                         (- b2 #x80))))
+                              (unless (>= cp #x80)
+                                (raise "Overlong UTF-8 encoding"))
+                              (cons cp (decode-bytes (rest remaining)))))))
+                       ((<= b1 #xEF)
+                        ; 3-byte sequence
+                        (let ((remaining (rest bytes)))
+                          (unless (>= (length remaining) 2)
+                            (raise "Incomplete UTF-8 sequence"))
+                          (let ((b2 (first remaining))
+                                (b3 (second remaining)))
+                            (unless (and (>= b2 #x80) (<= b2 #xBF)
+                                         (>= b3 #x80) (<= b3 #xBF))
+                              (raise "Invalid UTF-8 continuation byte"))
+                            (let ((cp (+ (* (- b1 #xE0) 4096)
+                                         (* (- b2 #x80) 64)
+                                         (- b3 #x80))))
+                              (unless (>= cp #x800)
+                                (raise "Overlong UTF-8 encoding"))
+                              (when (and (>= cp #xD800) (<= cp #xDFFF))
+                                (raise "UTF-8 encoding of surrogate codepoint"))
+                              (cons cp (decode-bytes (drop 2 remaining)))))))
+                       ((<= b1 #xF7)
+                        ; 4-byte sequence
+                        (let ((remaining (rest bytes)))
+                          (unless (>= (length remaining) 3)
+                            (raise "Incomplete UTF-8 sequence"))
+                          (let ((b2 (first remaining))
+                                (b3 (second remaining))
+                                (b4 (third remaining)))
+                            (unless (and (>= b2 #x80) (<= b2 #xBF)
+                                         (>= b3 #x80) (<= b3 #xBF)
+                                         (>= b4 #x80) (<= b4 #xBF))
+                              (raise "Invalid UTF-8 continuation byte"))
+                            (let ((cp (+ (* (- b1 #xF0) 262144)
+                                         (* (- b2 #x80) 4096)
+                                         (* (- b3 #x80) 64)
+                                         (- b4 #x80))))
+                              (unless (>= cp #x10000)
+                                (raise "Overlong UTF-8 encoding"))
+                              (unless (<= cp #x10FFFF)
+                                (raise "Codepoint beyond Unicode range"))
+                              (cons cp (decode-bytes (drop 3 remaining)))))))
+                       (else
+                        ; Invalid leading byte
+                        (raise "Invalid UTF-8 leading byte"))))))))
+    (decode-bytes bytes)))
 
 (define countdown
   (lambda (n)

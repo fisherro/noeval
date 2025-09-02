@@ -16,13 +16,13 @@ test suite size down.
 
 ## Regular
 
+Add debug output for timing top-level evaluations.
+
 Member functions to extract values from the value type.
 
 Breakup library tests into multiple files
 
 update noeval-reference
-
-UTF-8 library functions: codepoints->utf8, utf8->codepoints
 
 A special form for "requires contracts" to standardize argument checking?
 
