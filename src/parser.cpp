@@ -321,6 +321,11 @@ std::string lexer::read_hex_digits()
         throw std::runtime_error("Invalid hex number: no digits after #x");
     }
     
+    // Check for invalid hex digits - anything that's alphanumeric but not hex
+    if (not at_end() and (std::isalnum(current_char()) or current_char() == '_')) {
+        throw std::runtime_error(std::format("Invalid hex digit '{}'", current_char()));
+    }
+    
     return result;
 }
 
@@ -339,9 +344,9 @@ std::string lexer::read_octal_digits()
         throw std::runtime_error("Invalid octal number: no digits after #o");
     }
     
-    // Check for invalid octal digits
-    if (not at_end() and std::isdigit(current_char())) {
-        throw std::runtime_error(std::format("Invalid octal digit '{}' in octal number", current_char()));
+    // Check for invalid octal digits - any digit 8-9 or other alphanumeric
+    if (not at_end() and (std::isalnum(current_char()) or current_char() == '_')) {
+        throw std::runtime_error(std::format("Invalid octal digit '{}'", current_char()));
     }
     
     return result;
@@ -362,9 +367,9 @@ std::string lexer::read_binary_digits()
         throw std::runtime_error("Invalid binary number: no digits after #b");
     }
     
-    // Check for invalid binary digits
-    if (not at_end() and std::isdigit(current_char())) {
-        throw std::runtime_error(std::format("Invalid binary digit '{}' in binary number", current_char()));
+    // Check for invalid binary digits - any digit 2-9 or other alphanumeric
+    if (not at_end() and (std::isalnum(current_char()) or current_char() == '_')) {
+        throw std::runtime_error(std::format("Invalid binary digit '{}'", current_char()));
     }
     
     return result;
@@ -400,6 +405,11 @@ std::string lexer::read_arbitrary_base_digits(int base)
     
     if (not has_digits) {
         throw std::runtime_error(std::format("Invalid base {} number: no digits after #{}r", base, base));
+    }
+    
+    // Check for invalid characters that would make this not a proper token boundary
+    if (not at_end() and (std::isalnum(current_char()) or current_char() == '_')) {
+        throw std::runtime_error(std::format("Invalid digit '{}' for base {}", current_char(), base));
     }
     
     return result;
@@ -438,7 +448,7 @@ token lexer::next_token()
         if (next_ch == 'x' or next_ch == 'X' or 
             next_ch == 'o' or next_ch == 'O' or 
             next_ch == 'b' or next_ch == 'B' or 
-            (std::isdigit(next_ch) and next_ch != '0')) {
+            std::isdigit(next_ch)) {  // Include ALL digits, including '0'
             return token(token_type::number, read_based_number(), token_start);
         }
     }

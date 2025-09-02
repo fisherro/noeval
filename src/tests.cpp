@@ -760,6 +760,271 @@ int test_number_operations()
     return runner.failures;
 }
 
+int test_based_number_parsing()
+{
+    std::println("\n--- Based number parsing ---");
+    auto env = create_global_environment();
+    test_runner runner(env);
+    
+    // Test hexadecimal literals (case-insensitive base specifiers)
+    runner.test_eval("#xFF", "255");
+    runner.test_eval("#XFF", "255");
+    runner.test_eval("#x0", "0");
+    runner.test_eval("#x10", "16");
+    runner.test_eval("#xDEADBEEF", "3735928559");
+    runner.test_eval("#xdeadbeef", "3735928559");
+    runner.test_eval("#xaBcDeF", "11259375");
+    runner.test_eval("#x123ABC", "1194684");
+    
+    // Test octal literals
+    runner.test_eval("#o777", "511");
+    runner.test_eval("#O777", "511");
+    runner.test_eval("#o0", "0");
+    runner.test_eval("#o123", "83");
+    runner.test_eval("#o7654321", "2054353");
+    
+    // Test binary literals
+    runner.test_eval("#b1010", "10");
+    runner.test_eval("#B1010", "10");
+    runner.test_eval("#b0", "0");
+    runner.test_eval("#b1", "1");
+    runner.test_eval("#b11111111", "255");
+    runner.test_eval("#b10101010", "170");
+    
+    // Test arbitrary base literals (case-insensitive r)
+    runner.test_eval("#2r1010", "10");      // Binary via arbitrary base
+    runner.test_eval("#2R1010", "10");      // Case-insensitive R
+    runner.test_eval("#8r777", "511");      // Octal via arbitrary base
+    runner.test_eval("#16rFF", "255");      // Hex via arbitrary base
+    runner.test_eval("#16rff", "255");      // Case-insensitive digits
+    runner.test_eval("#10r123", "123");     // Decimal via arbitrary base
+    runner.test_eval("#36rZ", "35");        // Base 36 with Z
+    runner.test_eval("#36rz", "35");        // Case-insensitive digits
+    runner.test_eval("#36rZZ", "1295");     // Base 36 with ZZ (35*36 + 35)
+    runner.test_eval("#12rAB", "131");      // Base 12: 10*12 + 11
+    runner.test_eval("#16rABCD", "43981");  // Larger hex number
+    
+    // Test edge cases for arbitrary bases
+    runner.test_eval("#2r0", "0");          // Minimum base, minimum value
+    runner.test_eval("#36rZ", "35");        // Maximum base, maximum digit
+    runner.test_eval("#3r22", "8");         // Base 3: 2*3 + 2
+    runner.test_eval("#5r1234", "194");     // Base 5: 1*125 + 2*25 + 3*5 + 4
+    
+    // Test that based numbers work in arithmetic
+    runner.test_eval("(+ #xFF #x1)", "256");
+    runner.test_eval("(* #b1010 #o10)", "80");    // 10 * 8
+    runner.test_eval("(- #16rFF #10r100)", "155"); // 255 - 100
+    runner.test_eval("(/ #x100 #b100)", "64");     // 256 / 4
+    
+    return runner.failures;
+}
+
+int test_based_number_errors()
+{
+    std::println("\n--- Based number error conditions ---");
+    auto env = create_global_environment();
+    test_runner runner(env);
+    
+    // Invalid hex digits
+    runner.test_error("#xG", "Invalid hex number");
+    runner.test_error("#x123G", "Invalid hex digit 'G'");
+    runner.test_error("#xFF123G", "Invalid hex digit 'G'");
+    
+    // Invalid octal digits
+    runner.test_error("#o8", "Invalid octal number: no digits after #o");
+    runner.test_error("#o1238", "Invalid octal digit '8'");
+    runner.test_error("#o9", "Invalid octal number: no digits after #o");
+    
+    // Invalid binary digits
+    runner.test_error("#b2", "Invalid binary number: no digits after #b");
+    runner.test_error("#b102", "Invalid binary digit '2'");
+    runner.test_error("#b9", "Invalid binary number: no digits after #b");
+    
+    // Empty digit sequences
+    runner.test_error("#x", "no digits after #x");
+    runner.test_error("#o", "no digits after #o");
+    runner.test_error("#b", "no digits after #b");
+    
+    // Invalid arbitrary base specifications
+    runner.test_error("#0r123", "Invalid base specifier");  // Base can't start with 0
+    runner.test_error("#1r1", "Base must be between 2 and 36");
+    runner.test_error("#37r1", "Base must be between 2 and 36");
+    runner.test_error("#100r1", "Base must be between 2 and 36");
+    
+    // Missing 'r' in arbitrary base
+    runner.test_error("#10123", "expected 'r' after base");
+    runner.test_error("#16FF", "expected 'r' after base");
+    
+    // Invalid digits for specified base
+    runner.test_error("#2r2", "Invalid digit '2' for base 2");
+    runner.test_error("#8r8", "Invalid digit '8' for base 8");
+    runner.test_error("#10rA", "Invalid digit 'A' for base 10");
+    runner.test_error("#16rG", "Invalid digit 'G' for base 16");
+    
+    // Empty digit sequences for arbitrary base
+    runner.test_error("#10r", "no digits after #10r");
+    runner.test_error("#16r", "no digits after #16r");
+
+    // These should be unbound variables, not lexer errors
+    runner.test_error("#", "Unbound variable");
+    runner.test_error("#z123", "Unbound variable"); 
+    runner.test_error("#@123", "Unbound variable");
+    
+    return runner.failures;
+}
+
+int test_based_number_lexer()
+{
+    std::println("\n--- Based number lexer behavior ---");
+    int failures = 0;
+    
+    auto test_token = [&](const std::string& input, token_type expected_type, 
+                         const std::string& expected_value) -> bool {
+        try {
+            lexer lex(input);
+            auto tok = lex.next_token();
+            if (tok.type == expected_type and tok.value == expected_value) {
+                std::println("✓ Lexer: '{}' => {} '{}'", 
+                           input, token_type_to_string(tok.type), tok.value);
+                return true;
+            } else {
+                println_red("✗ Lexer: '{}' expected {} '{}', got {} '{}'", 
+                          input, token_type_to_string(expected_type), expected_value,
+                          token_type_to_string(tok.type), tok.value);
+                failures++;
+                return false;
+            }
+        } catch (const std::exception& e) {
+            println_red("✗ Lexer: '{}' threw exception: {}", input, e.what());
+            failures++;
+            return false;
+        }
+    };
+    
+    auto test_error = [&](const std::string& input, const std::string& expected_error) -> bool {
+        try {
+            lexer lex(input);
+            auto tok = lex.next_token();
+            println_red("✗ Lexer error: '{}' expected error containing '{}', got {} '{}'", 
+                       input, expected_error, token_type_to_string(tok.type), tok.value);
+            failures++;
+            return false;
+        } catch (const std::exception& e) {
+            std::string error_msg = e.what();
+            if (error_msg.find(expected_error) != std::string::npos) {
+                std::println("✓ Lexer error: '{}' correctly threw error containing '{}'", 
+                           input, expected_error);
+                return true;
+            } else {
+                println_red("✗ Lexer error: '{}' expected '{}', got '{}'", 
+                          input, expected_error, error_msg);
+                failures++;
+                return false;
+            }
+        }
+    };
+    
+    // Valid based numbers should tokenize as numbers
+    test_token("#xFF", token_type::number, "#xFF");
+    test_token("#o777", token_type::number, "#o777");
+    test_token("#b1010", token_type::number, "#b1010");
+    test_token("#16rFF", token_type::number, "#16rFF");
+    test_token("#2r1010", token_type::number, "#2r1010");
+    
+    // Case variations
+    test_token("#XFF", token_type::number, "#XFF");
+    test_token("#O777", token_type::number, "#O777");
+    test_token("#B1010", token_type::number, "#B1010");
+    test_token("#16RFF", token_type::number, "#16RFF");
+    
+    // # followed by non-base characters should be symbols
+    test_token("#end", token_type::symbol, "#end");
+    test_token("#unknown", token_type::symbol, "#unknown");
+    test_token("#", token_type::symbol, "#");
+    
+    // Test in expressions
+    lexer expr_lex("(+ #xFF #x10)");
+    auto tok1 = expr_lex.next_token();
+    assert(tok1.type == token_type::left_paren);
+    auto tok2 = expr_lex.next_token(); 
+    assert(tok2.type == token_type::symbol and tok2.value == "+");
+    auto tok3 = expr_lex.next_token();
+    assert(tok3.type == token_type::number and tok3.value == "#xFF");
+    auto tok4 = expr_lex.next_token();
+    assert(tok4.type == token_type::number and tok4.value == "#x10");
+    auto tok5 = expr_lex.next_token();
+    assert(tok5.type == token_type::right_paren);
+    std::println("✓ Based numbers work correctly in expressions");
+    
+    // Test error cases
+    test_error("#xG", "Invalid hex number");
+    test_error("#o8", "Invalid octal number: no digits after #o");
+    test_error("#b2", "Invalid binary number: no digits after #b");
+    test_error("#37r1", "Base must be between 2 and 36");
+    
+    std::println("Based number lexer tests completed: {} failures", failures);
+    return failures;
+}
+
+int test_based_number_edge_cases()
+{
+    std::println("\n--- Based number edge cases ---");
+    auto env = create_global_environment();
+    test_runner runner(env);
+    
+    // Test with whitespace and comments
+    runner.test_eval("#xFF ; hex comment", "255");
+    runner.test_eval("#o777\n", "511");
+    runner.test_eval("  #b1010  ", "10");
+    
+    // Test in complex expressions
+    runner.test_eval("((= #xFF 255) #b1010 #o777)", "10");
+    runner.test_eval("((nil? ()) #x10 #o10)", "16");  // Church Boolean selection
+    
+    // Test with variable assignment
+    runner.test_eval("(define hex-val #xFF)", "255");
+    runner.test_eval("hex-val", "255");
+    runner.test_eval("(define bin-val #b11110000)", "240");
+    runner.test_eval("(+ hex-val bin-val)", "495");
+    
+    // Test in lists
+    runner.test_eval("(cons #xFF (cons #o10 ()))", "(255 8)");
+    runner.test_eval("(first (cons #b1111 ()))", "15");
+    
+    // Test with function calls
+    runner.test_eval("(numerator (/ #x10 #o10))", "2");     // 16/8 = 2/1
+    runner.test_eval("(denominator (/ #x10 #o10))", "1");
+    runner.test_eval("(<=> #xFF #x100)", "-1");              // 255 < 256
+    
+    // Test zero in different bases
+    runner.test_eval("#x0", "0");
+    runner.test_eval("#o0", "0");
+    runner.test_eval("#b0", "0");
+    runner.test_eval("#10r0", "0");
+    runner.test_eval("(= #x0 #o0)", "true");
+    runner.test_eval("(= #b0 #10r0)", "true");
+    
+    // Test single digits
+    runner.test_eval("#xF", "15");
+    runner.test_eval("#o7", "7");
+    runner.test_eval("#b1", "1");
+    runner.test_eval("#36rZ", "35");
+    
+    // Test boundary values
+    runner.test_eval("#2r1", "1");           // Minimum base, maximum digit
+    runner.test_eval("#36r0", "0");          // Maximum base, minimum digit
+    
+    // Test that negative signs don't work (as per design)
+    runner.test_error("-#xFF", "Unbound variable");  // Should be parsed as symbol
+    runner.test_error("(+ 1 -#xFF)", "Unbound variable");
+    
+    // Test fraction operations with based numbers
+    runner.test_eval("(/ #xFF #x100)", "0.99609375");
+    runner.test_eval("(* 1/2 #x8)", "4");
+    
+    return runner.failures;
+}
+
 int test_unicode_functions()
 {
     std::println("\n--- Unicode conversion functions ---");
@@ -1031,6 +1296,10 @@ bool run_tests()
     std::println("{}", std::string(60, '='));
     failures += test_number_parsing();
     failures += test_number_operations();
+    failures += test_based_number_parsing();
+    failures += test_based_number_errors();
+    failures += test_based_number_lexer();
+    failures += test_based_number_edge_cases();
     failures += test_unicode_functions();
     failures += test_string_primitives();
     std::println("{}", std::string(60, '='));
