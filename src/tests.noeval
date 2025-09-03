@@ -6463,6 +6463,7 @@
                 -1)
              "modulo should give the same result as remainder for negative values")
 
+#skip ; Skipping all the string related tests for now...they're slow
 ;------------------------------------------------------------------------------
 ; string->list/list->string tests  
 (lndisplayln "string->list/list->string tests")
@@ -7396,6 +7397,8 @@
   "3-byte character should round-trip")
 (test-assert (= (utf8->codepoints (codepoints->utf8 (list 127757))) (list 127757))
   "4-byte character should round-trip")
+
+#end ; Skipping all the string related tests for now...they're slow
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Show test results

@@ -16,7 +16,9 @@ test suite size down.
 
 ## Regular
 
-Make more library functions (e.g. map & foldl) tail recursive.
+Create a Noeval VS Code extension that will handle indention correctly.
+
+Capture the accumulator and the accumulate-reverse patterns in library forms.
 
 Prioritize macros and RRB trees in order to improve performance.
 

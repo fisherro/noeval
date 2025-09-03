@@ -253,12 +253,13 @@
     (unless (list? lyst)
      (raise "foldr's second argument must be a list"))
     (define loop
-      (lambda (lyst)
+      (lambda (lyst cont)
         ((nil? lyst)
-         init
-         (func (first lyst) 
-               (loop (rest lyst))))))
-    (loop lyst)))
+         (cont init)
+         (loop (rest lyst)
+               (lambda (acc)
+                 (cont (func (first lyst) acc)))))))
+    (loop lyst (lambda (x) x))))
 
 (define last (lambda* (lyst)
                (define loop (lambda (head tail)
@@ -421,12 +422,13 @@
     (unless (list? lyst)
      (raise "map's second argument must be a list"))
     (define loop
-      (lambda (lyst)
-        ((nil? lyst)
-         ()
-         (cons (proc (first lyst))
-               (loop (rest lyst))))))
-    (loop lyst)))
+      (lambda (accumulator remaining)
+        ((nil? remaining)
+         (reverse accumulator)
+         (loop (cons (proc (first remaining))
+                     accumulator)
+               (rest remaining)))))
+    (loop () lyst)))
 
 #skip
 ; Example let transformation:
@@ -529,13 +531,10 @@
 (define append (lambda* lists
                  (unless (all? list? lists)
                    (raise "the arguments to append must all be lists"))
-                 (define append2 (lambda (list1 list2)
-                                   ((nil? list1)
-                                   list2
-                                   (cons (first list1)
-                                         (append2 (rest list1)
-                                                   list2)))))
-                 (foldl append2 () lists)))
+                 (foldl (lambda (list1 list2)
+                          (foldr cons list1 list2))
+                        ()
+                        lists)))
 
 (define filter (lambda* (predicate lyst)
                  (unless (operative? predicate)
@@ -549,16 +548,17 @@
                         ()
                         (reverse lyst))))
 
-(define iota (lambda* (count)
-               (unless (number? count)
-                 (raise "iota's argument must be a number"))
-               ; "iota" backwards is "atoi"
-               (define atoi (lambda (count)
-                              ((<= count 0)
-                               ()
-                               (let ((next (- count 1)))
-                                 (cons next (atoi next))))))
-               (reverse (atoi count))))
+(define iota
+  (lambda* (count)
+    (unless (number? count)
+      (raise "iota's argument must be a number"))
+    (define loop
+      (lambda (n acc)
+        ((<= n 0)
+         acc
+         (loop (- n 1)
+               (cons (- n 1) acc)))))
+    (loop count ())))
 
 ; Q&D test of even?: (map even? (map (lambda (x) (- x 9)) (iota 19)))
 ; TODO: Fix this after we upgrade numbers from int to boost::cpp_rational.
@@ -609,14 +609,15 @@
     (unless (list? lyst)
       (raise "take's second argument must be a list"))
     (define loop
-      (lambda (n lyst)
+      (lambda (n lyst acc)
         ((or (nil? lyst)
              (<= n 0))
-         ()
-         (cons (first lyst)
-               (loop (- n 1)
-                     (rest lyst))))))
-    (loop n lyst)))
+         (reverse acc)
+         (loop (- n 1)
+               (rest lyst)
+               (cons (first lyst)
+                     acc)))))
+    (loop n lyst ())))
 
 (define string-length (lambda (s) (length (string->list s))))
 
