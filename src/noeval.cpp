@@ -4,6 +4,7 @@
 // NOTE THAT nil IS SPELT ()
 
 #include <algorithm>
+#include <chrono>
 #include <format>
 #include <functional>
 #include <memory>
@@ -311,9 +312,6 @@ std::string environment::dump_chain() const
     }
     return chain;
 }
-
-// Forward declaration for eval
-value_ptr eval(value_ptr expr, env_ptr env);
 
 // Check if a value is nil
 bool is_nil(const value_ptr& val)
@@ -1701,6 +1699,28 @@ void environment::collect()
 
 ///////////////////////////////////////////////////////////////////////////////
 
+struct timer
+{
+    // Could use high_resolution_clock if necessary
+    using clock = std::chrono::steady_clock;
+
+    timer(std::string_view name): name{name}, before{clock::now()} {}
+
+    ~timer()
+    {
+        using units = std::chrono::milliseconds;
+        auto after{clock::now()};
+        auto duration {
+            std::chrono::duration_cast<units>(after - before).count()
+        };
+        NOEVAL_DEBUG(timer, "{}: {} ms", name, duration);
+    }
+
+private:
+    std::string name;
+    clock::time_point before;
+};
+
 value_ptr eval(value_ptr expr, env_ptr env)
 {
     call_stack::guard g(expr);
@@ -1733,6 +1753,7 @@ value_ptr eval(value_ptr expr, env_ptr env)
             if (auto tc{std::get_if<tail_call>(&k)}) {
                 expr = tc->expr;
                 env = tc->env;
+                NOEVAL_DEBUG(tco, "Tail call!");
                 continue;
             }
             auto result{std::get<value_ptr>(k)};
@@ -1752,6 +1773,20 @@ value_ptr eval(value_ptr expr, env_ptr env)
     return nullptr; // Unreachable
 }
 
+value_ptr top_level_eval(value_ptr expr, env_ptr env)
+{
+    auto eval_and_collect = [&]() {
+        auto result{eval(expr, env)};
+        environment::collect();
+        return result;
+    };
+    if (NOEVAL_DEBUG_ENABLED(timer)) {
+        timer eval_timer{"eval"};
+        return eval_and_collect();
+    }
+    return eval_and_collect();
+}
+
 bool load_library_file(const std::string& filename, env_ptr env)
 {
     bool ok{true};
@@ -1769,9 +1804,8 @@ bool load_library_file(const std::string& filename, env_ptr env)
         
         for (const auto& expr: expressions) {
             try {
-                auto result = eval(expr, env);
+                auto result = top_level_eval(expr, env);
                 NOEVAL_DEBUG(library, "Loaded: {} => {}", value_to_string(expr), value_to_string(result));
-                environment::collect();
             } catch (const std::exception& e) {
                 ok = false;
                 std::println("  Error loading expression '{}': {}", value_to_string(expr), e.what());
@@ -1812,8 +1846,7 @@ int run_library_tests(env_ptr outer_env)
         size_t exception_count{0};
         for (const auto& expr: expressions) {
             try {
-                result = eval(expr, env);
-                environment::collect();
+                result = top_level_eval(expr, env);
             } catch (const std::exception& e) {
                 std::println("\nError in test: {}", value_to_string(expr));
                 std::println("Error: {}", e.what());
@@ -1914,7 +1947,9 @@ int main()
     }
 
     // Create global environment and load library
-    bool ok = reload_global_environment(true);
+    // The library tests take long enough that we're not going to do them on
+    // startup. A :reload can be used to run them.
+    bool ok = reload_global_environment(false);
     if (not ok) return EXIT_FAILURE;
 
     std::println("Starting REPL...");

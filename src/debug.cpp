@@ -21,6 +21,8 @@ std::unordered_map<std::string, std::string> debug_categories{
     {"error", "\033[91m"},       // Light red
     {"stack-depth", "\033[0m"},  // Reset
     {"gc", "\033[0m"},           // Reset
+    {"tco", "\033[0m"},          // Reset
+    {"timer", "\033[0m"},        // Reset
     {"all", "\033[0m"},          // Reset
     {"none", "\033[0m"},         // Reset
 };

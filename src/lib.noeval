@@ -727,80 +727,136 @@
 ; Returns a list of numbers representing Unicode codepoints
 (define utf8->codepoints
   (lambda* (bytes)
-    (unless (list? bytes)
-      (raise "utf8->codepoints's argument must be a list"))
-    (define decode-bytes
-      (lambda (bytes)
-        (cond ((nil? bytes)
-               ())
+
+    ; Helper function to validate a UTF-8 continuation byte
+    (define valid-continuation-byte?
+      (lambda* (byte)
+        (and (>= byte #x80) (<= byte #xBF))))
+    
+    ; Helper function to decode a 1-byte UTF-8 sequence
+    (define decode-1-byte
+      (lambda* (b1 remaining)
+        (cons b1 remaining)))
+    
+    ; Helper function to decode a 2-byte UTF-8 sequence
+    (define decode-2-byte
+      (lambda* (b1 remaining)
+        (cond ((nil? remaining)
+               (raise "Incomplete UTF-8 sequence"))
               (else
-               (let ((b1 (first bytes)))
-                 (unless (and (integer? b1)
-                              (>= b1 0)
-                              (<= b1 255))
+               (do
+                 (define b2 (first remaining))
+                 (define rest-remaining (rest remaining))
+                 (unless (valid-continuation-byte? b2)
+                   (raise "Invalid UTF-8 continuation byte"))
+                 (define cp (+ (* (- b1 #xC0) 64)
+                               (- b2 #x80)))
+                 (unless (>= cp #x80)
+                   (raise "Overlong UTF-8 encoding"))
+                 (cons cp rest-remaining))))))
+    
+    ; Helper function to decode a 3-byte UTF-8 sequence
+    (define decode-3-byte
+      (lambda* (b1 remaining)
+        (cond ((nil? remaining)
+               (raise "Incomplete UTF-8 sequence"))
+              (else
+               (do
+                 (define b2 (first remaining))
+                 (define remaining2 (rest remaining))
+                 (cond ((nil? remaining2)
+                        (raise "Incomplete UTF-8 sequence"))
+                       (else
+                        (do
+                          (define b3 (first remaining2))
+                          (define rest-remaining (rest remaining2))
+                          (unless (and (valid-continuation-byte? b2)
+                                       (valid-continuation-byte? b3))
+                            (raise "Invalid UTF-8 continuation byte"))
+                          (define cp (+ (* (- b1 #xE0) 4096)
+                                        (* (- b2 #x80) 64)
+                                        (- b3 #x80)))
+                          (unless (>= cp #x800)
+                            (raise "Overlong UTF-8 encoding"))
+                          (when (and (>= cp #xD800) (<= cp #xDFFF))
+                            (raise "UTF-8 encoding of surrogate codepoint"))
+                          (cons cp rest-remaining)))))))))
+  
+    ; Helper function to decode a 4-byte UTF-8 sequence
+    (define decode-4-byte
+      (lambda* (b1 remaining)
+        (cond ((nil? remaining)
+               (raise "Incomplete UTF-8 sequence"))
+              (else
+               (do
+                 (define b2 (first remaining))
+                 (define remaining2 (rest remaining))
+                 (cond ((nil? remaining2)
+                        (raise "Incomplete UTF-8 sequence"))
+                       (else
+                        (do
+                          (define b3 (first remaining2))
+                          (define remaining3 (rest remaining2))
+                          (cond ((nil? remaining3)
+                                 (raise "Incomplete UTF-8 sequence"))
+                                (else
+                                 (do
+                                   (define b4 (first remaining3))
+                                   (define rest-remaining (rest remaining3))
+                                   (unless (and (valid-continuation-byte? b2)
+                                                (valid-continuation-byte? b3)
+                                                (valid-continuation-byte? b4))
+                                     (raise "Invalid UTF-8 continuation byte"))
+                                   (define cp (+ (* (- b1 #xF0) 262144)
+                                                 (* (- b2 #x80) 4096)
+                                                 (* (- b3 #x80) 64)
+                                                 (- b4 #x80)))
+                                   (unless (>= cp #x10000)
+                                     (raise "Overlong UTF-8 encoding"))
+                                   (unless (<= cp #x10FFFF)
+                                     (raise "Codepoint beyond Unicode range"))
+                                   (cons cp rest-remaining))))))))))))
+    
+    ; Helper function to process one UTF-8 sequence and return (codepoint . remaining-bytes)
+    (define decode-one-utf8-sequence
+      (lambda* (bytes)
+        (cond ((nil? bytes)
+               (cons () ()))
+              (else
+               (do
+                 (define b1 (first bytes))
+                 (define remaining (rest bytes))
+                 (unless (and (integer? b1) (>= b1 0) (<= b1 255))
                    (raise "Invalid byte value"))
                  (cond ((<= b1 #x7F)
-                        ; 1-byte sequence
-                        (cons b1 (decode-bytes (rest bytes))))
+                        (decode-1-byte b1 remaining))
                        ((<= b1 #xBF)
-                        ; Invalid leading byte
                         (raise "Invalid UTF-8 sequence"))
                        ((<= b1 #xDF)
-                        ; 2-byte sequence
-                        (let ((remaining (rest bytes)))
-                          (unless (>= (length remaining) 1)
-                            (raise "Incomplete UTF-8 sequence"))
-                          (let ((b2 (first remaining)))
-                            (unless (and (>= b2 #x80) (<= b2 #xBF))
-                              (raise "Invalid UTF-8 continuation byte"))
-                            (let ((cp (+ (* (- b1 #xC0) 64)
-                                         (- b2 #x80))))
-                              (unless (>= cp #x80)
-                                (raise "Overlong UTF-8 encoding"))
-                              (cons cp (decode-bytes (rest remaining)))))))
+                        (decode-2-byte b1 remaining))
                        ((<= b1 #xEF)
-                        ; 3-byte sequence
-                        (let ((remaining (rest bytes)))
-                          (unless (>= (length remaining) 2)
-                            (raise "Incomplete UTF-8 sequence"))
-                          (let ((b2 (first remaining))
-                                (b3 (second remaining)))
-                            (unless (and (>= b2 #x80) (<= b2 #xBF)
-                                         (>= b3 #x80) (<= b3 #xBF))
-                              (raise "Invalid UTF-8 continuation byte"))
-                            (let ((cp (+ (* (- b1 #xE0) 4096)
-                                         (* (- b2 #x80) 64)
-                                         (- b3 #x80))))
-                              (unless (>= cp #x800)
-                                (raise "Overlong UTF-8 encoding"))
-                              (when (and (>= cp #xD800) (<= cp #xDFFF))
-                                (raise "UTF-8 encoding of surrogate codepoint"))
-                              (cons cp (decode-bytes (drop 2 remaining)))))))
+                        (decode-3-byte b1 remaining))
                        ((<= b1 #xF7)
-                        ; 4-byte sequence
-                        (let ((remaining (rest bytes)))
-                          (unless (>= (length remaining) 3)
-                            (raise "Incomplete UTF-8 sequence"))
-                          (let ((b2 (first remaining))
-                                (b3 (second remaining))
-                                (b4 (third remaining)))
-                            (unless (and (>= b2 #x80) (<= b2 #xBF)
-                                         (>= b3 #x80) (<= b3 #xBF)
-                                         (>= b4 #x80) (<= b4 #xBF))
-                              (raise "Invalid UTF-8 continuation byte"))
-                            (let ((cp (+ (* (- b1 #xF0) 262144)
-                                         (* (- b2 #x80) 4096)
-                                         (* (- b3 #x80) 64)
-                                         (- b4 #x80))))
-                              (unless (>= cp #x10000)
-                                (raise "Overlong UTF-8 encoding"))
-                              (unless (<= cp #x10FFFF)
-                                (raise "Codepoint beyond Unicode range"))
-                              (cons cp (decode-bytes (drop 3 remaining)))))))
+                        (decode-4-byte b1 remaining))
                        (else
-                        ; Invalid leading byte
                         (raise "Invalid UTF-8 leading byte"))))))))
-    (decode-bytes bytes)))
+    
+    ; Tail-recursive UTF-8 decoder with accumulator
+    (define utf8->codepoints-tail
+      (lambda* (bytes accumulator)
+        (cond ((nil? bytes)
+               (reverse accumulator))
+              (else
+               (do
+                 (define result (decode-one-utf8-sequence bytes))
+                 (define codepoint (first result))
+                 (define remaining-bytes (rest result))
+                 (utf8->codepoints-tail remaining-bytes 
+                                        (cons codepoint accumulator)))))))
+
+    (unless (list? bytes)
+      (raise "utf8->codepoints's argument must be a list"))
+    (utf8->codepoints-tail bytes ())))
 
 (define countdown
   (lambda (n)

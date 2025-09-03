@@ -222,7 +222,9 @@ bool handle_debug_command(const std::string& input)
         std::println("  :debug gc               - Show garbage collection info");
         std::println("  :debug env-counts       - Show environment construction and registration counts");
         std::println("");
-        std::println("Categories: {}", debug_categories | std::views::keys);
+        auto categories{debug_categories | std::views::keys | std::ranges::to<std::vector>()};
+        std::ranges::sort(categories);
+        std::println("Categories: {}", categories);
         return true;
     }
 
@@ -349,7 +351,7 @@ value_ptr eval_expression(const std::string& expr_str, env_ptr env)
 {
     parser p(expr_str);
     auto expr = p.parse();
-    return eval(expr, env);
+    return top_level_eval(expr, env);
 }
 
 // Print the result of evaluation
@@ -400,7 +402,6 @@ void repl()
             auto result = eval_expression(input, environment::global_env);
             NOEVAL_DEBUG(stack-depth, "max stack depth: {}", call_stack_get_max_depth());
             print_result(result);
-            environment::collect();
         } catch (const std::exception& e) {
             print_error(e);
         }

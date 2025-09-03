@@ -16,11 +16,13 @@ test suite size down.
 
 ## Regular
 
-Add debug output for timing top-level evaluations.
+Make more library functions (e.g. map & foldl) tail recursive.
+
+Prioritize macros and RRB trees in order to improve performance.
 
 Member functions to extract values from the value type.
 
-Breakup library tests into multiple files
+Breakup library tests into multiple files. Maybe an "include file" that would allow breaking the tests up into multiple files? Or would it be better to implement modules?
 
 update noeval-reference
 
@@ -45,8 +47,6 @@ Other HOF
 
 Support for loading and executing a file listed on the command line
 
-Maybe an "include file" that would allow breaking the tests up into multiple files? Or would it be better to implement modules?
-
 During `define`, attach the name to the value directly for debugging?
 Values can have a flat_set of names?
 Include a (weak) reference to the environment?
@@ -64,7 +64,7 @@ There's a lot of common code that could be refactored in the builtin operatives
 
 Pattern matching?
 
-Floats (boost::multiprecision::cpp_dec_float)? Symbolic irrationals?
+Floats (boost::multiprecision::cpp_dec_float)? Symbolic irrationals? Wait until modules? Rationals are never implicitly converted to floats? Use IEEE floats first as anyone doing floating point work already knows the caveats and will expect them to apply?
 
 Use demangle in value_to_string?
 
@@ -75,6 +75,7 @@ Look for places we could simplify code with ranges
 Revisit escaping in string literals (what scheme do we want to use?)
 
 Replace lists with arrays? Or maybe Clojure/Scala style vectors? Or RRB trees?
+And maybe going further, support for homogenous RRB trees of specific types (like bytes) would make sense?
 
 > I'll avoid set-car!/set-cdr! for now...a set-array-element! might happen
 > And that might be needed for a good promise implementation
@@ -83,7 +84,7 @@ Consider adding an equivalent to Kernel's #ignore
 
 Module system?
 
-Hash sets and maps
+Hash sets and maps (Should this be done my making environments first class?)
 
 Interning symbols
 
@@ -94,8 +95,6 @@ FFI and POSIX support
 Look for places we can use string_view
 
 Consider whether to adopt Kernel's $ naming convention
-
-Would it make sense to implement `if` in terms of `cond`?
 
 Implement void or #inert?
 
