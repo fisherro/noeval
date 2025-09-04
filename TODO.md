@@ -16,7 +16,7 @@ test suite size down.
 
 ## Regular
 
-Create a Noeval VS Code extension that will handle indention correctly.
+Remove uses of `if` in the library.
 
 Capture the accumulator and the accumulate-reverse patterns in library forms.
 

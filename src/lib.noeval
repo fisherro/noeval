@@ -18,10 +18,10 @@
   (vau (remaining last-result env) _
     ((nil? remaining)
      last-result
-     (invoke do-helper 
-            (cons (rest remaining) 
-                  (cons (eval (first remaining) env) 
-                        (cons env ())))))))
+     (invoke do-helper
+       (cons (rest remaining)
+             (cons (eval (first remaining) env)
+                   (cons env ())))))))
 
 ; Currently using the primitive do instead of this one.
 ; Using invoke is likely incorrect here because the recursive call should get
@@ -30,10 +30,10 @@
   (vau expressions env
     ((nil? expressions)
      ()
-     (invoke do-helper 
-            (cons (rest expressions) 
-                  (cons (eval (first expressions) env) 
-                        (cons env ())))))))
+     (invoke do-helper
+       (cons (rest expressions)
+             (cons (eval (first expressions) env)
+                   (cons env ())))))))
 #end
 
 ; A convenience function.
@@ -119,7 +119,7 @@
   ; that our body won't be a list.
   (vau (formals body) env
     (wrap (eval
-            ; Kernel uses list* here and its last parameter is a list.
+              ; Kernel uses list* here and its last parameter is a list.
             ; So, in Kernel, this part...
             ;    (list* $vau formals #ignore body)
             ; ...is equivalent to...
@@ -155,14 +155,14 @@
 ; uses an inner fexpr for the recursion.
 (define prepend
   (do (define recurse
-              (vau operands _
-                (if (nil? operands)
-                    ()
-                    (do (define head (first operands))
-                        (define tail (rest operands))
-                        (if (nil? tail)
-                            head
-                            (cons head (invoke recurse tail)))))))
+        (vau operands _
+          (if (nil? operands)
+            ()
+            (do (define head (first operands))
+                (define tail (rest operands))
+                (if (nil? tail)
+                  head
+                  (cons head (invoke recurse tail)))))))
       (lambda args (invoke recurse args))))
 
 (define newline (lambda () (display "\n")))
@@ -231,9 +231,9 @@
 (define foldl
   (lambda* (func init lyst)
     (unless (operative? func)
-     (raise "foldl's first argument must be callable"))
+      (raise "foldl's first argument must be callable"))
     (unless (list? lyst)
-     (raise "foldl's second argument must be a list"))
+      (raise "foldl's second argument must be a list"))
     (define loop
       (lambda (init lyst)
         ((nil? lyst)
@@ -249,9 +249,9 @@
 (define foldr
   (lambda* (func lyst init)
     (unless (operative? func)
-     (raise "foldr's first argument must be callable"))
+      (raise "foldr's first argument must be callable"))
     (unless (list? lyst)
-     (raise "foldr's second argument must be a list"))
+      (raise "foldr's second argument must be a list"))
     (define loop
       (lambda (lyst cont)
         ((nil? lyst)
@@ -263,12 +263,14 @@
 
 (define last (lambda* (lyst)
                (define loop (lambda (head tail)
-                              ((nil? tail) head
-                                           (loop (first tail)
-                                                 (rest tail)))))
-               ((nil? lyst) ()
-                            (loop (first lyst)
-                                  (rest lyst)))))
+                              ((nil? tail)
+                                head
+                               (loop (first tail)
+                                     (rest tail)))))
+               ((nil? lyst)
+                ()
+                (loop (first lyst)
+                      (rest lyst)))))
 
 ; Returns 0 if not found.
 ; Otherwise, returns the 1-based index.
@@ -299,9 +301,9 @@
 (cond ((= 2 0) 0) ((= 2 1) 1) ((= 2 2) 2) (else 3))
 ; becomes
 ((= 2 0) 0
-         ((= 2 1) 1
-                  ((= 2 2) 2
-                           3)))
+ ((= 2 1) 1
+  ((= 2 2) 2
+   3)))
 ; or
 ((= 2 0) 0 ((= 2 1) 1 ((= 2 2) 2 3)))
 #end
@@ -318,24 +320,24 @@
 (define cond-transformer
   (lambda* (clauses)
     (foldr
-      (lambda* (clause acc)
-        (unless (list? clause)
-          (raise "cond clause must be a list"))
-        (unless (> (length clause) 0)
-          (raise "cond clauses must have a test"))
-        (define clause-head (first clause))
-        (define body (rest clause))
-        (define body-expr ((> (length body) 1)
-                           (cons (q do) body)
-                           ((nil? body)
-                            ()
-                            (first body))))
-        ((and (symbol? clause-head)
-              (= (q else) clause-head))
-         ((nil? acc)
-          body-expr
-          (raise "else clause must be the last clause"))
-         (list clause-head body-expr acc)))
+        (lambda* (clause acc)
+          (unless (list? clause)
+            (raise "cond clause must be a list"))
+          (unless (> (length clause) 0)
+            (raise "cond clauses must have a test"))
+          (define clause-head (first clause))
+          (define body (rest clause))
+          (define body-expr ((> (length body) 1)
+                             (cons (q do) body)
+                             ((nil? body)
+                              ()
+                              (first body))))
+          ((and (symbol? clause-head)
+                (= (q else) clause-head))
+           ((nil? acc)
+            body-expr
+            (raise "else clause must be the last clause"))
+           (list clause-head body-expr acc)))
       clauses
       ())))
 
@@ -418,9 +420,9 @@
 (define map
   (lambda* (proc lyst)
     (unless (operative? proc)
-     (raise "map's first argument must be callable"))
+      (raise "map's first argument must be callable"))
     (unless (list? lyst)
-     (raise "map's second argument must be a list"))
+      (raise "map's second argument must be a list"))
     (define loop
       (lambda (accumulator remaining)
         ((nil? remaining)
@@ -450,20 +452,20 @@
                          (map first bindings)
                          (rest operands))
                 (map second bindings))
-          dyn-env)))
+      dyn-env)))
 
 ; apply: The applicative version of invoke
 ; Takes an applicative and a list of arguments,
 ; applies the applicative to the arguments
 (define apply
   (lambda (applicative arg-list)
-     (cond ((not (operative? applicative))
-            (raise "apply's first argument must be an applicative"))
-           ((not (list? arg-list))
-            (raise "apply's second argument must be a list"))
-           (else
+    (cond ((not (operative? applicative))
+           (raise "apply's first argument must be an applicative"))
+          ((not (list? arg-list))
+           (raise "apply's second argument must be a list"))
+          (else
             (eval (cons applicative (map (lambda (arg) (list q arg)) arg-list))
-            (get-current-environment))))))
+              (get-current-environment))))))
 
 (define length
   (lambda* (lyst)
@@ -471,16 +473,16 @@
       (raise "length's argument must be a list"))
     (foldl (lambda (n element)
              (+ n 1))
-           0
-           lyst)))
+        0
+      lyst)))
 
 (define nth
   (lambda* (lyst n)
     (unless (list? lyst)
-            (raise "nth's first argument must be a list"))
+      (raise "nth's first argument must be a list"))
     (unless (and (integer? n)
                  (>= n 0))
-            (raise "nth's second argument must be a non-negative integer"))
+      (raise "nth's second argument must be a non-negative integer"))
     (define loop
       (lambda (lyst n)
         ((nil? lyst)
@@ -508,9 +510,9 @@
       (lambda (lyst)
         ((nil? lyst)
          false
-        ((predicate (first lyst))
-         true
-         (loop (rest lyst))))))
+         ((predicate (first lyst))
+          true
+          (loop (rest lyst))))))
     (loop lyst)))
 
 (define all?
@@ -533,8 +535,8 @@
                    (raise "the arguments to append must all be lists"))
                  (foldl (lambda (list1 list2)
                           (foldr cons list1 list2))
-                        ()
-                        lists)))
+                     ()
+                   lists)))
 
 (define filter (lambda* (predicate lyst)
                  (unless (operative? predicate)
@@ -545,8 +547,8 @@
                           ((predicate element)
                            (cons element accumulator)
                            accumulator))
-                        ()
-                        (reverse lyst))))
+                     ()
+                   (reverse lyst))))
 
 (define iota
   (lambda* (count)
@@ -621,7 +623,7 @@
 
 (define string-length (lambda (s) (length (string->list s))))
 
-(define string-append 
+(define string-append
   (lambda strings
     (list->string (apply append (map string->list strings)))))
 
@@ -637,9 +639,9 @@
 ; Maybe a helper for lambda argument validation?
 (define check
   (lambda (val pred msg)
-          ((pred val)
-           val
-           (raise msg))))
+    ((pred val)
+     val
+     (raise msg))))
 
 (define clamp
   (lambda (input lower higher)
@@ -654,7 +656,7 @@
     (define nargs (length args))
     (unless (or (= nargs 2)
                 (= nargs 3))
-            (raise "must have 2 or 3 args"))
+      (raise "must have 2 or 3 args"))
     (define lyst (string->list (check (first args)
                                       string?
                                       "1st arg must be a string")))
@@ -675,17 +677,17 @@
     (list->string ((= end len)
                    dropped
                    (take (- end start)
-                          dropped)))))
+                         dropped)))))
 
 (define string->codepoint-strings
   (lambda (s)
     (cond ((not (string? s))
            (raise "string->codepoint-strings' argument must be a string"))
           (else
-           (map list->string (map list (string->list s)))))))
+            (map list->string (map list (string->list s)))))))
 
 ; Integer division:
-(define quotient 
+(define quotient
   (lambda (x y)
     (/ (- x (remainder x y)) y)))
 
@@ -716,11 +718,11 @@
                      (+ #x80 (remainder (quotient cp 64) 64))
                      (+ #x80 (remainder cp 64))))
               (else
-               ; 4-byte sequence: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-               (list (+ #xF0 (quotient cp 262144))
-                     (+ #x80 (remainder (quotient cp 4096) 64))
-                     (+ #x80 (remainder (quotient cp 64) 64))
-                     (+ #x80 (remainder cp 64)))))))
+                ; 4-byte sequence: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+                (list (+ #xF0 (quotient cp 262144))
+                      (+ #x80 (remainder (quotient cp 4096) 64))
+                      (+ #x80 (remainder (quotient cp 64) 64))
+                      (+ #x80 (remainder cp 64)))))))
     (apply append (map encode-codepoint codepoints))))
 
 ; Convert UTF-8 byte values to Unicode codepoints
@@ -733,127 +735,127 @@
     (define valid-continuation-byte?
       (lambda* (byte)
         (and (>= byte #x80) (<= byte #xBF))))
-    
+
     ; Helper function to decode a 1-byte UTF-8 sequence
     (define decode-1-byte
       (lambda* (b1 remaining)
         (cons b1 remaining)))
-    
+
     ; Helper function to decode a 2-byte UTF-8 sequence
     (define decode-2-byte
       (lambda* (b1 remaining)
         (cond ((nil? remaining)
                (raise "Incomplete UTF-8 sequence"))
               (else
-               (do
-                 (define b2 (first remaining))
-                 (define rest-remaining (rest remaining))
-                 (unless (valid-continuation-byte? b2)
-                   (raise "Invalid UTF-8 continuation byte"))
-                 (define cp (+ (* (- b1 #xC0) 64)
-                               (- b2 #x80)))
-                 (unless (>= cp #x80)
-                   (raise "Overlong UTF-8 encoding"))
-                 (cons cp rest-remaining))))))
-    
+                (do
+                  (define b2 (first remaining))
+                  (define rest-remaining (rest remaining))
+                  (unless (valid-continuation-byte? b2)
+                    (raise "Invalid UTF-8 continuation byte"))
+                  (define cp (+ (* (- b1 #xC0) 64)
+                                (- b2 #x80)))
+                  (unless (>= cp #x80)
+                    (raise "Overlong UTF-8 encoding"))
+                  (cons cp rest-remaining))))))
+
     ; Helper function to decode a 3-byte UTF-8 sequence
     (define decode-3-byte
       (lambda* (b1 remaining)
         (cond ((nil? remaining)
                (raise "Incomplete UTF-8 sequence"))
               (else
-               (do
-                 (define b2 (first remaining))
-                 (define remaining2 (rest remaining))
-                 (cond ((nil? remaining2)
-                        (raise "Incomplete UTF-8 sequence"))
-                       (else
-                        (do
-                          (define b3 (first remaining2))
-                          (define rest-remaining (rest remaining2))
-                          (unless (and (valid-continuation-byte? b2)
-                                       (valid-continuation-byte? b3))
-                            (raise "Invalid UTF-8 continuation byte"))
-                          (define cp (+ (* (- b1 #xE0) 4096)
-                                        (* (- b2 #x80) 64)
-                                        (- b3 #x80)))
-                          (unless (>= cp #x800)
-                            (raise "Overlong UTF-8 encoding"))
-                          (when (and (>= cp #xD800) (<= cp #xDFFF))
-                            (raise "UTF-8 encoding of surrogate codepoint"))
-                          (cons cp rest-remaining)))))))))
-  
+                (do
+                  (define b2 (first remaining))
+                  (define remaining2 (rest remaining))
+                  (cond ((nil? remaining2)
+                         (raise "Incomplete UTF-8 sequence"))
+                        (else
+                          (do
+                            (define b3 (first remaining2))
+                            (define rest-remaining (rest remaining2))
+                            (unless (and (valid-continuation-byte? b2)
+                                         (valid-continuation-byte? b3))
+                              (raise "Invalid UTF-8 continuation byte"))
+                            (define cp (+ (* (- b1 #xE0) 4096)
+                                          (* (- b2 #x80) 64)
+                                          (- b3 #x80)))
+                            (unless (>= cp #x800)
+                              (raise "Overlong UTF-8 encoding"))
+                            (when (and (>= cp #xD800) (<= cp #xDFFF))
+                              (raise "UTF-8 encoding of surrogate codepoint"))
+                            (cons cp rest-remaining)))))))))
+
     ; Helper function to decode a 4-byte UTF-8 sequence
     (define decode-4-byte
       (lambda* (b1 remaining)
         (cond ((nil? remaining)
                (raise "Incomplete UTF-8 sequence"))
               (else
-               (do
-                 (define b2 (first remaining))
-                 (define remaining2 (rest remaining))
-                 (cond ((nil? remaining2)
-                        (raise "Incomplete UTF-8 sequence"))
-                       (else
-                        (do
-                          (define b3 (first remaining2))
-                          (define remaining3 (rest remaining2))
-                          (cond ((nil? remaining3)
-                                 (raise "Incomplete UTF-8 sequence"))
-                                (else
-                                 (do
-                                   (define b4 (first remaining3))
-                                   (define rest-remaining (rest remaining3))
-                                   (unless (and (valid-continuation-byte? b2)
-                                                (valid-continuation-byte? b3)
-                                                (valid-continuation-byte? b4))
-                                     (raise "Invalid UTF-8 continuation byte"))
-                                   (define cp (+ (* (- b1 #xF0) 262144)
-                                                 (* (- b2 #x80) 4096)
-                                                 (* (- b3 #x80) 64)
-                                                 (- b4 #x80)))
-                                   (unless (>= cp #x10000)
-                                     (raise "Overlong UTF-8 encoding"))
-                                   (unless (<= cp #x10FFFF)
-                                     (raise "Codepoint beyond Unicode range"))
-                                   (cons cp rest-remaining))))))))))))
-    
+                (do
+                  (define b2 (first remaining))
+                  (define remaining2 (rest remaining))
+                  (cond ((nil? remaining2)
+                         (raise "Incomplete UTF-8 sequence"))
+                        (else
+                          (do
+                            (define b3 (first remaining2))
+                            (define remaining3 (rest remaining2))
+                            (cond ((nil? remaining3)
+                                   (raise "Incomplete UTF-8 sequence"))
+                                  (else
+                                    (do
+                                      (define b4 (first remaining3))
+                                      (define rest-remaining (rest remaining3))
+                                      (unless (and (valid-continuation-byte? b2)
+                                                   (valid-continuation-byte? b3)
+                                                   (valid-continuation-byte? b4))
+                                        (raise "Invalid UTF-8 continuation byte"))
+                                      (define cp (+ (* (- b1 #xF0) 262144)
+                                                    (* (- b2 #x80) 4096)
+                                                    (* (- b3 #x80) 64)
+                                                    (- b4 #x80)))
+                                      (unless (>= cp #x10000)
+                                        (raise "Overlong UTF-8 encoding"))
+                                      (unless (<= cp #x10FFFF)
+                                        (raise "Codepoint beyond Unicode range"))
+                                      (cons cp rest-remaining))))))))))))
+
     ; Helper function to process one UTF-8 sequence and return (codepoint . remaining-bytes)
     (define decode-one-utf8-sequence
       (lambda* (bytes)
         (cond ((nil? bytes)
                (cons () ()))
               (else
-               (do
-                 (define b1 (first bytes))
-                 (define remaining (rest bytes))
-                 (unless (and (integer? b1) (>= b1 0) (<= b1 255))
-                   (raise "Invalid byte value"))
-                 (cond ((<= b1 #x7F)
-                        (decode-1-byte b1 remaining))
-                       ((<= b1 #xBF)
-                        (raise "Invalid UTF-8 sequence"))
-                       ((<= b1 #xDF)
-                        (decode-2-byte b1 remaining))
-                       ((<= b1 #xEF)
-                        (decode-3-byte b1 remaining))
-                       ((<= b1 #xF7)
-                        (decode-4-byte b1 remaining))
-                       (else
-                        (raise "Invalid UTF-8 leading byte"))))))))
-    
+                (do
+                  (define b1 (first bytes))
+                  (define remaining (rest bytes))
+                  (unless (and (integer? b1) (>= b1 0) (<= b1 255))
+                    (raise "Invalid byte value"))
+                  (cond ((<= b1 #x7F)
+                         (decode-1-byte b1 remaining))
+                        ((<= b1 #xBF)
+                         (raise "Invalid UTF-8 sequence"))
+                        ((<= b1 #xDF)
+                         (decode-2-byte b1 remaining))
+                        ((<= b1 #xEF)
+                         (decode-3-byte b1 remaining))
+                        ((<= b1 #xF7)
+                         (decode-4-byte b1 remaining))
+                        (else
+                          (raise "Invalid UTF-8 leading byte"))))))))
+
     ; Tail-recursive UTF-8 decoder with accumulator
     (define utf8->codepoints-tail
       (lambda* (bytes accumulator)
         (cond ((nil? bytes)
                (reverse accumulator))
               (else
-               (do
-                 (define result (decode-one-utf8-sequence bytes))
-                 (define codepoint (first result))
-                 (define remaining-bytes (rest result))
-                 (utf8->codepoints-tail remaining-bytes 
-                                        (cons codepoint accumulator)))))))
+                (do
+                  (define result (decode-one-utf8-sequence bytes))
+                  (define codepoint (first result))
+                  (define remaining-bytes (rest result))
+                  (utf8->codepoints-tail remaining-bytes
+                                         (cons codepoint accumulator)))))))
 
     (unless (list? bytes)
       (raise "utf8->codepoints's argument must be a list"))
@@ -881,3 +883,16 @@
          (iter (- n 1)
                (* n acc)))))
     (iter n 1)))
+
+(define fibonacci
+  (lambda* (n)
+    (unless (number? n)
+      (raise "fibonacci can only be calculated for numbers"))
+    (unless (>= n 0)
+      (raise "fibonacci is only defined for non-negative integers"))
+    (define iter
+      (lambda (n a b)
+        ((<= n 0)
+         a
+         (iter (- n 1) b (+ a b)))))
+    (iter n 0 1)))
