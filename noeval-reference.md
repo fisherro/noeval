@@ -28,16 +28,50 @@ Summary to use as Github Copilot context so that it doesn't have to reference la
 - **Environment transparency**: `do` and `try` do not create new environments - definitions made within them persist in the current environment
 - **Numbers**: Arbitrary precision rationals (fractions) - all arithmetic preserves exact precision
 - **Rational decomposition**: `numerator` and `denominator` extract parts of fractions
+- **Error handling**: `try` catches exceptions and passes them to handler as error lists with structure `(error message context stack-trace)`
+- **Testing**: `test-assert` and `test-error` for writing tests; test results tracked globally
 
 ## Standard Library (lib.noeval)
 
 **Core**: `lambda`, `lambda*`, `vau*`, `wrap`, `apply`, `if`, `let`, `cond`
-**Lists**: `append`, `reverse`, `length`, `filter`, `map`, `foldl`, `foldr`, `list`, `snoc`, `iota`, `prepend`, `second`
+**Lists**: `append`, `reverse`, `length`, `filter`, `map`, `foldl`, `foldr`, `list`, `snoc`, `iota`, `prepend`, `second`, `list-ref`, `list-index`
 **Control**: `when`, `unless`, `and`, `or`, `not`
 **Predicates**: `odd?`, `even?`, `number?`, `integer?`, `string?`, `symbol?`, `list?`, `operative?`, `environment?`
 **I/O**: `newline`, `displayln`, `lndisplayln`, `for-each`
 **Meta**: `q`, `get-current-environment`, `unevaluated-list`, `eval-list`
 **Examples**: `countdown`, `factorial`
-**Comparisons**: `!=`
-**Numeric comparisons**: `<`, `>`, `<=`, `>=`
+**Comparisons**: `!=`, `<>` (alias for `!=`)
+**Numeric comparisons**: `<`, `>`, `<=`, `>=` (with Unicode aliases `≤`, `≥`)
 **Numeric operations**: `abs`, `modulo`
+**String operations**: `string-length`, `string-nth`, `substring`, `string-append`, `strings->string`, `string->codepoint-strings`
+**Testing**: `test-assert`, `test-error` (for library test suite)
+**Unicode support**: `λ` (alias for `lambda`), `∧` (alias for `and`), `∨` (alias for `or`), `¬` (alias for `not`), `×` (alias for `*`), `÷` (alias for `/`)
+
+## Error Handling
+
+- **Exception structure**: `(error message context stack-trace)`
+- **try syntax**: `(try expr handler)` or `(try expr handler finally)`
+- **raise syntax**: `(raise message)` - creates evaluation_error with message
+- **Error propagation**: Evaluation errors are re-thrown unchanged; other exceptions are wrapped
+
+## Testing Framework
+
+- **test-assert**: `(test-assert condition message)` - evaluates condition, reports pass/fail
+- **test-error**: `(test-error expr message)` - expects expr to throw an error
+- **Global tracking**: `test-failures` and `test-count` track test results
+- **Output formatting**: Colored output with ✓/✗ indicators
+
+## Parser Features
+
+- **Comments**: `;` to end of line
+- **Conditional compilation**: `#skip` and `#end` blocks to disable code sections
+- **String literals**: Support standard escape sequences
+- **Numeric literals**: Supports rationals (e.g., `1/3`), decimals (e.g., `0.5`), and various bases (`#x10`, `#b1010`, `#o17`, `#16rAF`)
+
+## Implementation Notes
+
+- **Tail call optimization**: Enabled with `USE_TAIL_CALL`
+- **Garbage collection**: Manual environment collection after top-level evaluation
+- **Debug categories**: `eval`, `builtin`, `env_binding`, `tco`, `timer`, `library`
+- **Call stack tracking**: Maintains call stack for error reporting
+- **Environment chaining**: Environments form chains for lexical scoping
