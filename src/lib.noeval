@@ -70,13 +70,13 @@
       ; Then, make a helper to do the actual evaluation of lyst's elements
       (define eval-list-helper
         (vau (remaining) _
-          (if (nil? remaining)
-            ()
-            (cons (eval (first remaining) target-env)
-                  ; Because `invoke` unpacks the argument list, we need to use
-                  ; `cons` to wrap our single argument so it becomes one
-                  ; argument when unpacked.
-                  (invoke eval-list-helper (cons (rest remaining) ()))))))
+          ((nil? remaining)
+           ()
+           (cons (eval (first remaining) target-env)
+                 ; Because `invoke` unpacks the argument list, we need to use
+                 ; `cons` to wrap our single argument so it becomes one
+                 ; argument when unpacked.
+                 (invoke eval-list-helper (cons (rest remaining) ()))))))
       ; Again, use `cons` to wrap the argument
       (invoke eval-list-helper (cons actual-list ())))))
 
@@ -156,13 +156,13 @@
 (define prepend
   (do (define recurse
         (vau operands _
-          (if (nil? operands)
-            ()
-            (do (define head (first operands))
-                (define tail (rest operands))
-                (if (nil? tail)
-                  head
-                  (cons head (invoke recurse tail)))))))
+          ((nil? operands)
+           ()
+           (do (define head (first operands))
+               (define tail (rest operands))
+               ((nil? tail)
+                head
+                (cons head (invoke recurse tail)))))))
       (lambda args (invoke recurse args))))
 
 (define newline (lambda () (display "\n")))
