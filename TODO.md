@@ -16,8 +16,6 @@ test suite size down.
 
 ## Regular
 
-Remove uses of `if` in the library.
-
 Capture the accumulator and the accumulate-reverse patterns in library forms.
 
 Prioritize macros and RRB trees in order to improve performance.
