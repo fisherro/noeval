@@ -1,0 +1,179 @@
+;------------------------------------------------------------------------------
+; eval-list tests
+(lndisplayln "wrap/eval-list/lambda/lambda*/vau* tests")
+
+#skip
+; TODO: The definition of `result-list` assumes `env` exists
+; Test eval-list function with unevaluated expressions
+(define unevaluated-exprs (make-expr (+ 1 2) (* 3 4)))
+(define result-list (eval-list unevaluated-exprs env))
+(test-assert
+    (= (first result-list) 3)
+  "eval-list should evaluate first element")
+
+(test-assert
+    (= (first (rest result-list)) 12)
+  "eval-list should evaluate second element")
+#end
+
+(test-assert
+    (= (first (list 42)) 42)
+  "single element list should work")
+
+; Test 1: Basic eval-list with simple expressions
+(define simple-exprs (list (q (+ 1 2)) (q (* 3 4))))
+(define simple-results (eval-list simple-exprs (get-current-environment)))
+(test-assert
+    (= (first simple-results) 3)
+  "eval-list should evaluate first expression correctly")
+
+(test-assert
+    (= (first (rest simple-results)) 12)
+  "eval-list should evaluate second expression correctly")
+
+; Test 2: eval-list with single expression
+(define single-expr (list (q (+ 10 20))))
+(define single-result (eval-list single-expr (get-current-environment)))
+(test-assert
+    (= (first single-result) 30)
+  "eval-list should work with single expression")
+
+; Test 3: eval-list with empty list
+(define empty-results (eval-list () (get-current-environment)))
+(test-assert
+    (nil? empty-results)
+  "eval-list with empty list should return nil")
+
+; Test 4: eval-list with variable references
+(define test-var-for-eval 42)
+(define var-exprs (list (q test-var-for-eval) (q (+ test-var-for-eval 8))))
+(define var-results (eval-list var-exprs (get-current-environment)))
+(test-assert
+    (= (first var-results) 42)
+  "eval-list should evaluate variable references")
+
+(test-assert
+    (= (first (rest var-results)) 50)
+  "eval-list should evaluate expressions with variables")
+
+; Test 5: eval-list with nested expressions
+(define nested-exprs (list (q (+ 1 (+ 2 3))) (q (* (- 10 5) 2))))
+(define nested-results (eval-list nested-exprs (get-current-environment)))
+(test-assert
+    (= (first nested-results) 6)
+  "eval-list should handle nested expressions - first")
+
+(test-assert
+    (= (first (rest nested-results)) 10)
+  "eval-list should handle nested expressions - second")
+
+; Test 6: eval-list with side effects - expressions should be evaluated once each
+(define-mutable eval-list-counter 0)
+(define increment-expr (q (do (set! eval-list-counter (+ eval-list-counter 1)) eval-list-counter)))
+(define side-effect-exprs (list increment-expr (q (+ eval-list-counter 100))))
+
+; This test may reveal the invoke issue if eval-list-helper evaluates expressions multiple times
+(define side-effect-results (eval-list side-effect-exprs (get-current-environment)))
+(test-assert
+    (= (first side-effect-results) 1)
+  "eval-list should evaluate side-effect expressions exactly once - first result")
+
+(test-assert
+    (= (first (rest side-effect-results)) 101)
+  "eval-list should evaluate expressions in order with proper side effects")
+
+; Test 7: eval-list with quoted expressions
+(define quote-exprs (list (q (q hello)) (q (q world))))
+(define quote-results (eval-list quote-exprs (get-current-environment)))
+(test-assert
+    (= (first quote-results) (q hello))
+  "eval-list should handle quoted expressions")
+
+(test-assert
+    (= (first (rest quote-results)) (q world))
+  "eval-list should handle multiple quoted expressions")
+
+; Test 8: eval-list with mixed expression types
+(define mixed-exprs (list (q 42) (q (+ 2 3)) (q test-var-for-eval)))
+(define mixed-results (eval-list mixed-exprs (get-current-environment)))
+(test-assert
+    (= (first mixed-results) 42)
+  "eval-list should handle mixed types - literal")
+
+(test-assert
+    (= (first (rest mixed-results)) 5)
+  "eval-list should handle mixed types - expression")
+
+(test-assert
+    (= (first (rest (rest mixed-results))) 42)
+  "eval-list should handle mixed types - variable")
+
+; Test 9: eval-list should work with library functions
+(define lib-exprs (list (q (first (list 1 2 3))) (q (rest (list 4 5 6)))))
+(define lib-results (eval-list lib-exprs (get-current-environment)))
+(test-assert
+    (= (first lib-results) 1)
+  "eval-list should work with library functions - first")
+
+(test-assert
+    (= (first (first (rest lib-results))) 5)
+  "eval-list should work with library functions - rest result")
+
+#skip
+; Skipping this test because it uses displayln.
+; Test 10: Error case that demonstrates the invoke issue
+; This might fail due to the incorrect invoke usage in eval-list-helper
+(define error-prone-exprs (list (q (+ 1 2)) (q (display "TEST")) (q (* 3 4))))
+
+; This test might reveal issues if the invoke problem causes expressions to be
+; evaluated incorrectly or multiple times
+(define complex-results (eval-list error-prone-exprs (get-current-environment)))
+(test-assert
+    (= (first complex-results) 3)
+  "eval-list should handle complex expression list - first")
+
+(test-assert
+    (= (first (rest (rest complex-results))) 12)
+  "eval-list should handle complex expression list - third")
+#end
+
+
+;------------------------------------------------------------------------------
+; Wrap tests
+
+; Test wrap functionality
+(define simple-op (vau (x y) env (cons x (cons y ()))))
+(define wrapped-simple (wrap simple-op))
+
+; Test that wrap evaluates arguments
+(define a 1)
+(define b 2)
+(test-assert
+    (nil? (rest (rest (wrapped-simple a b))))
+  "wrap should create proper list structure")
+
+; Test wrap with built-in operatives
+(define wrapped-plus (wrap +))
+(define x 5)
+(define y 10)
+(test-assert
+    (= (wrapped-plus x y) 15)
+  "wrapped + should evaluate arguments and add them")
+
+(test-assert
+    (= (wrapped-plus (+ 1 2) 4) 7)
+  "wrapped + should evaluate complex arguments")
+
+; Test wrap with environment-dependent operatives
+(define env-dependent-op
+  (vau (x) env
+    (eval x env)))  ; This needs the environment parameter to work
+
+(define wrapped-env-op (wrap env-dependent-op))
+(define test-var 42)
+
+(test-assert
+    (= (wrapped-env-op (q test-var)) 42)
+  "wrap should preserve environment context for user-defined operatives")
+
+

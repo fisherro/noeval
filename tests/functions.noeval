@@ -1,0 +1,572 @@
+;------------------------------------------------------------------------------
+; Lambda tests
+
+; Test 1: Basic lambda creation and invocation
+(define add-two (lambda (x) (+ x 2)))
+(test-assert
+    (= (add-two 5) 7)
+  "basic lambda should work with single parameter")
+
+(test-assert
+    (= (add-two 10) 12)
+  "lambda should work with different arguments")
+
+; Test 2: Lambda with multiple parameters
+(define multiply (lambda (x y) (* x y)))
+(test-assert
+    (= (multiply 3 4) 12)
+  "lambda should work with multiple parameters")
+
+(test-assert
+    (= (multiply 7 8) 56)
+  "lambda with multiple parameters should work consistently")
+
+; Test 3: Lambda with no parameters
+(define get-constant (lambda () 42))
+(test-assert
+    (= (get-constant) 42)
+  "lambda with no parameters should work")
+
+; Test 4: Lambda that uses closure variables
+(define closure-var 100)
+(define add-closure-var (lambda (y) (+ closure-var y)))
+(test-assert
+    (= (add-closure-var 23) 123)
+  "lambda should capture closure variables")
+
+; ! This test fails!
+; Test 5: Nested lambda expressions
+(define make-adder (lambda (n) (lambda (x) (+ x n))))
+(define add-five (make-adder 5))
+(test-assert
+    (= (add-five 10) 15)
+  "nested lambdas should work")
+
+(test-assert
+    (= (add-five 7) 12)
+  "nested lambdas should work consistently")
+
+; Test 6: Lambda arguments are evaluated (unlike vau)
+(define eval-and-double (lambda (x) (* x 2)))
+(test-assert
+    (= (eval-and-double (+ 3 4)) 14)
+  "lambda should evaluate its arguments")
+
+; Test 7: Compare with vau - lambda evaluates args, vau doesn't
+(define vau-version (vau (x) env x))
+(define lambda-version (lambda (x) x))
+
+; Create test expressions
+(define test-expr (make-expr (+ 1 2)))
+(define vau-result (vau-version (+ 1 2)))
+(define lambda-result (lambda-version (+ 1 2)))
+
+(test-assert
+    (= lambda-result 3)
+  "lambda should evaluate arguments before passing to body")
+
+; Test 8: Lambda with complex body expressions
+(define complex-calc (lambda (a b) (+ (* a a) (* b b))))
+(test-assert
+    (= (complex-calc 3 4) 25)
+  "lambda should handle complex expressions in body")
+
+; Test 9: Lambda used with higher-order functions
+(define apply-twice (lambda (f x) (f (f x))))
+(define increment (lambda (n) (+ n 1)))
+(test-assert
+    (= (apply-twice increment 5) 7)
+  "lambda should work as higher-order function")
+
+; Test 10: Lambda with conditional logic
+(define abs-positive (lambda (x) (if (= x 0) 0 x)))
+(test-assert
+    (= (abs-positive 5) 5)
+  "lambda should work with conditionals")
+
+(test-assert
+    (= (abs-positive 0) 0)
+  "lambda conditional should handle zero case")
+
+; Test 11: Lambda that returns another lambda
+(define curry-add (lambda (x) (lambda (y) (+ x y))))
+(define add-ten (curry-add 10))
+(test-assert
+    (= (add-ten 5) 15)
+  "lambda should support currying")
+
+; Test 12: Test lambda via square function
+(define square (lambda (x) (* x x)))
+
+(test-assert
+    (= (square 4) 16)
+  "library square function should work")
+
+(test-assert
+    (= (square 7) 49)
+  "library square function should work consistently")
+
+; Test 13: Immediate lambda invocation
+(test-assert
+    (= ((lambda (x y) (+ x y)) 8 9) 17)
+  "immediate lambda invocation should work")
+
+(test-assert
+    (= ((lambda () (* 6 7))) 42)
+  "immediate parameterless lambda invocation should work")
+
+; Test 14: Lambda parameter shadowing
+(define outer-var 999)
+(define shadow-test (lambda (outer-var) (* outer-var 2)))
+(test-assert
+    (= (shadow-test 5) 10)
+  "lambda parameters should shadow outer variables")
+
+(test-assert
+    (= outer-var 999)
+  "lambda parameter shadowing should not affect outer scope")
+
+; Test 15: Lambda composition
+(define double (lambda (x) (* x 2)))
+(define add-one (lambda (x) (+ x 1)))
+(define double-then-add-one (lambda (x) (add-one (double x))))
+(test-assert
+    (= (double-then-add-one 5) 11)
+  "lambda composition should work")
+
+;------------------------------------------------------------------------------
+; lambda* tests (multi-expression lambda)
+
+; Test 1: Basic lambda* with single expression (should work like regular lambda)
+(define simple-lambda* (lambda* (x) (+ x 5)))
+(test-assert
+    (= (simple-lambda* 10) 15)
+  "lambda* should work with single expression")
+
+; Test 2: lambda* with multiple expressions
+(define-mutable side-effect-counter 0)
+(define multi-expr-lambda*
+  (lambda* (x)
+    (set! side-effect-counter (+ side-effect-counter 1))
+    (set! side-effect-counter (+ side-effect-counter x))
+    (* x 2)))
+(test-assert
+    (= (multi-expr-lambda* 3) 6)
+  "lambda* should return value of last expression")
+
+(test-assert
+    (= side-effect-counter 4)  ; 1 + 3 = 4
+  "lambda* should execute all expressions for side effects")
+
+; Test 3: lambda* with no parameters and multiple expressions
+(define-mutable global-var 100)
+(define no-params-lambda*
+  (lambda* ()
+    (set! global-var 200)
+    (set! global-var (+ global-var 50))
+    global-var))
+(test-assert
+    (= (no-params-lambda* ) 250)
+  "lambda* with no parameters should work with multiple expressions")
+
+; Test 4: lambda* with multiple parameters and expressions
+(define complex-lambda*
+  (lambda* (a b c)
+    (define-mutable temp (+ a b))
+    (set! temp (+ temp c))
+    (* temp 2)))
+(test-assert
+    (= (complex-lambda* 1 2 3) 12)  ; ((1+2)+3)*2 = 12
+  "lambda* should work with multiple parameters and expressions")
+
+; Test 5: Nested lambda* expressions
+(define make-counter
+  (lambda* (start)
+    (define-mutable count start)
+    (lambda* ()
+      (set! count (+ count 1))
+      count)))
+(define counter (make-counter 10))
+(test-assert
+    (= (counter) 11)
+  "nested lambda* should work - first call")
+
+(test-assert
+    (= (counter) 12)
+  "nested lambda* should work - second call")
+
+; Test 6: lambda* with conditionals and multiple expressions
+(define conditional-lambda*
+  (lambda* (x)
+    (define-mutable result 0)
+    (if (= x 0)
+      (set! result 100)
+      (set! result (* x 10)))
+    (set! result (+ result 5))
+    result))
+(test-assert
+    (= (conditional-lambda* 0) 105)  ; 100 + 5
+  "lambda* with conditionals should work - zero case")
+
+(test-assert
+    (= (conditional-lambda* 3) 35)   ; (3*10) + 5
+  "lambda* with conditionals should work - non-zero case")
+
+; Test 7: lambda* used as higher-order function
+(define apply-with-logging
+  (lambda* (func x)
+    (define-mutable log-var 0)
+    (set! log-var x)
+    (define result (func x))
+    (set! log-var (+ log-var result))
+    result))
+(define double (lambda (n) (* n 2)))
+(test-assert
+    (= (apply-with-logging double 7) 14)
+  "lambda* should work as higher-order function")
+
+; Test 8: lambda* with recursive helper
+(define factorial-lambda*
+  (lambda* (n)
+    (define factorial-helper
+      (lambda (x acc)
+        (if (= x 0)
+          acc
+          (factorial-helper (- x 1) (* acc x)))))
+    (factorial-helper n 1)))
+(test-assert
+    (= (factorial-lambda* 5) 120)
+  "lambda* should work with recursive helpers")
+
+; Test 9: Immediate lambda* invocation
+(test-assert
+    (= ((lambda* (x y)
+          (define temp (+ x y))
+          (* temp 3)) 4 6) 30)  ; (4+6)*3 = 30
+  "immediate lambda* invocation should work")
+
+; Test 10: lambda* parameter shadowing with multiple expressions
+(define outer-shadow-var 999)
+(define shadow-lambda*
+  (lambda* (outer-shadow-var)
+    (define-mutable temp outer-shadow-var)
+    (set! temp (+ temp 1))
+    temp))
+(test-assert
+    (= (shadow-lambda* 5) 6)
+  "lambda* parameter shadowing should work")
+
+(test-assert
+    (= outer-shadow-var 999)
+  "lambda* parameter shadowing should not affect outer scope")
+
+; Test 11: lambda* with define-mutable in body
+(define closure-lambda*
+  (lambda* (initial)
+    (define-mutable state initial)
+    (lambda* (delta)
+      (set! state (+ state delta))
+      state)))
+(define stateful-func (closure-lambda* 100))
+(test-assert
+    (= (stateful-func 10) 110)
+  "lambda* with define-mutable should create stateful closures")
+
+(test-assert
+    (= (stateful-func 5) 115)
+  "lambda* stateful closure should maintain state")
+
+; Test 12: Compare lambda vs lambda* behavior
+(define regular-lambda-test (lambda (x) x))
+(define lambda*-test (lambda* (x) x))
+(test-assert
+    (= (regular-lambda-test 42) (lambda*-test 42))
+  "lambda* should behave like lambda for single expressions")
+
+; Test 13: lambda* with for-each (using library function)
+(define-mutable sum-accumulator 0)
+(define sum-list-lambda*
+  (lambda* (lyst)
+    (set! sum-accumulator 0)
+    (for-each (lambda (x) (set! sum-accumulator (+ sum-accumulator x))) lyst)
+    sum-accumulator))
+(test-assert
+    (= (sum-list-lambda* (list 1 2 3 4)) 10)
+  "lambda* should work with library functions like for-each")
+
+; Test 14: Empty body lambda* (should be equivalent to returning ())
+(define empty-body-lambda* (lambda* (x)))
+(test-assert
+    (nil? (empty-body-lambda* 42))
+  "lambda* with empty body should return nil")
+
+; Test 15: lambda* with complex expression sequencing
+(define sequence-test-lambda*
+  (lambda* (x)
+    (+ x 1)      ; This result is discarded
+    (+ x 2)      ; This result is discarded
+    (+ x 3)))    ; This result is returned
+(test-assert
+    (= (sequence-test-lambda* 5) 8)  ; 5 + 3 = 8
+  "lambda* should return only the last expression's value")
+
+
+;------------------------------------------------------------------------------
+; vau* tests
+
+; Test 1: Basic vau* with multiple expressions
+(define-mutable vau-side-effect 0)
+(define basic-vau*
+  (vau* (x) env
+    (set! vau-side-effect (+ vau-side-effect 1))
+    (set! vau-side-effect (* vau-side-effect 2))
+    x))  ; Return the unevaluated argument
+
+; Test the side effects occurred
+(basic-vau* dummy-expr)
+(test-assert
+    (= vau-side-effect 2)
+  "vau* should execute multiple expressions for side effects")
+
+; Test 2: vau* with environment parameter usage
+(define env-using-vau*
+  (vau* (expr) dyn-env
+    (define temp-var 42)
+    (define result (eval expr dyn-env))
+    (* result 2)))
+(test-assert
+    (= (env-using-vau* (+ 3 4)) 14)
+  "vau* should be able to use environment parameter")
+
+; Test 3: vau* with no expressions (empty body)
+(define empty-vau* (vau* (x) env))
+(test-assert
+    (nil? (empty-vau* hello))
+  "vau* with empty body should return nil")
+
+; Test 4: vau* with multiple parameters - test that it accepts them
+(define multi-param-vau*
+  (vau* (a b c) env
+    (define first-arg a)
+    (define second-arg b)
+    (define third-arg c)
+    first-arg))  ; Just return first arg to test it works
+(test-assert
+    (= (multi-param-vau* 42 y z) 42)
+  "vau* should handle multiple parameters correctly")
+
+; Test 5: vau* that evaluates some arguments selectively
+(define selective-eval-vau*
+  (vau* (first-expr second-expr) dyn-env
+    (define first-val (eval first-expr dyn-env))
+    first-val))  ; Just return evaluated first arg
+(test-assert
+    (= (selective-eval-vau* (+ 2 3) (+ 4 5)) 5)
+  "vau* should allow selective evaluation of arguments")
+
+; Test 6: Compare vau* vs regular vau behavior
+(define regular-vau-multi
+  (vau (x) env
+    (do (define temp x)
+        (* 2 2)
+        temp)))
+(define equivalent-vau*
+  (vau* (x) env
+    (define temp x)
+    (* 2 2)
+    temp))
+
+; Test that both return the same unevaluated expression by using them with numbers
+(test-assert
+    (= (regular-vau-multi 123) (equivalent-vau* 123))
+  "vau* should behave equivalently to vau with do block")
+
+; Test 7: vau* with conditional logic
+(define conditional-vau*
+  (vau* (test-expr then-expr else-expr) dyn-env
+    (define test-result (eval test-expr dyn-env))
+    (if test-result
+      then-expr
+      else-expr)))
+(test-assert
+    (= (conditional-vau* (= 1 1) 42 99) 42)
+  "vau* should work with conditional logic - true case")
+
+(test-assert
+    (= (conditional-vau* (= 1 2) 42 99) 99)
+  "vau* should work with conditional logic - false case")
+
+; Test 8: vau* with single expression (should work like regular vau)
+(define single-expr-vau* (vau* (x) env x))
+(test-assert
+    (= (single-expr-vau* 777) 777)
+  "vau* with single expression should work like regular vau")
+
+; Test 9: vau* with complex expression sequencing
+(define-mutable sequence-counter 0)
+(define sequence-test-vau*
+  (vau* (x) env
+    (set! sequence-counter (+ sequence-counter 1))  ; Side effect
+    (set! sequence-counter (+ sequence-counter 10)) ; Side effect
+    x))  ; Return unevaluated x
+
+(define seq-result (sequence-test-vau* final-expr))
+(test-assert
+    (and (= sequence-counter 11) (= seq-result (q final-expr)))
+  "vau* should execute all expressions and return last value")
+
+; vau used in higher-order context
+(define test-vau (vau (x) env (eval x env)))
+(define higher-order-test (lambda (op arg) (op arg)))
+
+(test-assert
+    (= (higher-order-test test-vau 123) 123)
+  "vau should work when passed to and called from other functions")
+
+; Test 10: vau* used in higher-order context
+(define test-vau* (vau* (x) env (eval x env)))
+(define higher-order-test (lambda (op arg) (op arg)))
+
+(test-assert
+    (= (higher-order-test test-vau* 123) 123)
+  "vau* should work when passed to and called from other functions")
+
+; Test 11: vau* with recursive pattern (simplified)
+(define recursive-vau*
+  (vau* (x) dyn-env
+    (define helper-result x)  ; Simplified - just pass through
+    helper-result))
+(test-assert
+    (= (recursive-vau* test-expr) (q test-expr))
+  "vau* should work with internal definitions")
+
+; Test 12: Test that vau* creates proper operative (doesn't evaluate args)
+(define-mutable arg-eval-test 0)
+(define arg-test-vau*
+  (vau* (expr) env
+    (set! arg-eval-test 999)
+    expr))
+
+; The argument (+ arg-eval-test 1) should NOT be evaluated
+(define unevald-result (arg-test-vau* (+ arg-eval-test 1)))
+(test-assert
+    (= arg-eval-test 999)  ; Should be 999 from vau* body, not from argument
+  "vau* should not evaluate its arguments")
+
+;------------------------------------------------------------------------------
+; prepend tests (list* equivalent)
+(lndisplayln "list functions tests")
+
+; Test 1: Basic prepend with single final argument
+(test-assert
+    (= (first (prepend 1 (list 2 3))) 1)
+  "prepend should add element to front of list")
+
+(test-assert
+    (= (first (rest (prepend 1 (list 2 3)))) 2)
+  "prepend should preserve existing list elements")
+
+; Test 2: Multiple elements prepended
+(define result-list (prepend 1 2 3 (list 4 5)))
+(test-assert
+    (= (first result-list) 1)
+  "prepend should handle multiple elements - first")
+
+(test-assert
+    (= (first (rest result-list)) 2)
+  "prepend should handle multiple elements - second")
+
+(test-assert
+    (= (first (rest (rest result-list))) 3)
+  "prepend should handle multiple elements - third")
+
+(test-assert
+    (= (first (rest (rest (rest result-list)))) 4)
+  "prepend should preserve final list - first element")
+
+; Test 3: Prepend to empty list
+(test-assert
+    (= (first (prepend 42 ())) 42)
+  "prepend should work with empty final list")
+
+(test-assert
+    (nil? (rest (prepend 42 ())))
+  "prepend with empty list should create single-element list")
+
+; Skipping this test because `=` doesn't support lists.
+; Test 4: Single argument (should return the argument itself)
+(test-assert
+    (= (prepend 123) 123)
+  "prepend with single argument should return that argument")
+
+(test-assert
+    (= (prepend (list 1 2 3)) (list 1 2 3))
+  "prepend with single list argument should return the list")
+
+; Test 5: No arguments (should return empty)
+(test-assert
+    (nil? (prepend))
+  "prepend with no arguments should return nil")
+
+; Test 6: Argument evaluation - expressions should be evaluated once
+(define-mutable prepend-eval-counter 0)
+(define increment-and-return
+  (lambda* (n)
+    (set! prepend-eval-counter (+ prepend-eval-counter 1))
+    n))
+
+(define prepend-result (prepend (increment-and-return 10)
+                                (increment-and-return 20)
+                                (list 30)))
+(test-assert
+    (= prepend-eval-counter 2)
+  "prepend should evaluate each argument exactly once")
+
+(test-assert
+    (= (first prepend-result) 10)
+  "prepend should use evaluated argument values - first")
+
+(test-assert
+    (= (first (rest prepend-result)) 20)
+  "prepend should use evaluated argument values - second")
+
+; Test 7: Complex expressions as arguments
+(test-assert
+    (= (first (prepend (+ 1 2) (list 4 5))) 3)
+  "prepend should evaluate complex expressions")
+
+; Test 8: Nested prepend calls
+(test-assert
+    (= (first (prepend 1 (prepend 2 (list 3)))) 1)
+  "prepend should work when nested")
+
+; Test 9: prepend with different data types
+(define mixed-result (prepend "hello" 42 (list "world" 99)))
+(test-assert
+    (= (first mixed-result) "hello")
+  "prepend should work with mixed data types - string")
+
+(test-assert
+    (= (first (rest mixed-result)) 42)
+  "prepend should work with mixed data types - number")
+
+(test-assert
+    (= (first (rest (rest mixed-result))) "world")
+  "prepend should work with mixed data types - final list string")
+
+; Test 10: prepend compared to manual cons chains
+(define manual-chain (cons 1 (cons 2 (cons 3 (list 4 5)))))
+(define prepend-chain (prepend 1 2 3 (list 4 5)))
+(test-assert
+    (= (first manual-chain) (first prepend-chain))
+  "prepend should be equivalent to manual cons chain - first")
+
+(test-assert
+    (= (first (rest manual-chain)) (first (rest prepend-chain)))
+  "prepend should be equivalent to manual cons chain - second")
+
+(test-assert
+    (= (first (rest (rest manual-chain))) (first (rest (rest prepend-chain))))
+  "prepend should be equivalent to manual cons chain - third")
+
+

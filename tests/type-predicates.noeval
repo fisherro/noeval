@@ -1,0 +1,839 @@
+;------------------------------------------------------------------------------
+; typeof tests
+(lndisplayln "typeof and derived forms tests")
+
+; Test 1: typeof with numbers
+(test-assert
+    (= (typeof 42) (q number))
+  "typeof should return 'number for integers")
+
+(test-assert
+    (= (typeof 0) (q number))
+  "typeof should return 'number for zero")
+
+(test-assert
+    (= (typeof -5) (q number))
+  "typeof should return 'number for negative integers")
+
+; Test 2: typeof with strings
+(test-assert
+    (= (typeof "hello") (q string))
+  "typeof should return 'string for string literals")
+
+(test-assert
+    (= (typeof "") (q string))
+  "typeof should return 'string for empty strings")
+
+(test-assert
+    (= (typeof "multi word string") (q string))
+  "typeof should return 'string for multi-word strings")
+
+; Test 3: typeof with symbols
+(test-assert
+    (= (typeof (q hello)) (q symbol))
+  "typeof should return 'symbol for quoted symbols")
+
+(test-assert
+    (= (typeof (q +)) (q symbol))
+  "typeof should return 'symbol for operator symbols")
+
+; Test 4: typeof with nil
+(test-assert
+    (= (typeof ()) (q nil))
+  "typeof should return 'nil for empty list")
+
+; Test 5: typeof with cons cells
+(test-assert
+    (= (typeof (list 1 2 3)) (q cons-cell))
+  "typeof should return 'cons-cell for lists")
+
+(test-assert
+    (= (typeof (cons 1 2)) (q cons-cell))
+  "typeof should return 'cons-cell for cons pairs")
+
+; Test 6: typeof with operatives
+(define test-vau (vau (x) env x))
+(test-assert
+    (= (typeof test-vau) (q operative))
+  "typeof should return 'operative for user-defined operatives")
+
+(test-assert
+    (= (typeof +) (q operative))
+  "typeof should return 'operative for built-in operatives")
+
+(define test-lambda (lambda (x) x))
+(test-assert
+    (= (typeof test-lambda) (q operative))
+  "typeof should return 'operative for lambda functions")
+
+; Test 7: typeof with Church Booleans
+(test-assert
+    (= (typeof true) (q operative))
+  "typeof should return 'operative for Church Boolean true")
+
+(test-assert
+    (= (typeof false) (q operative))
+  "typeof should return 'operative for Church Boolean false")
+
+; Test 8: typeof with environments
+(test-assert
+    (= (typeof (get-current-environment)) (q environment))
+  "typeof should return 'environment for environments")
+
+(define captured-env ((vau () env env)))
+(test-assert
+    (= (typeof captured-env) (q environment))
+  "typeof should return 'environment for captured environments")
+
+; Test 9: typeof with mutable bindings
+(define-mutable test-mutable 42)
+(test-assert
+    (= (typeof test-mutable) (q number))
+  "typeof should return underlying type for mutable bindings")
+
+; Test 10: typeof with complex expressions
+(test-assert
+    (= (typeof (+ 1 2)) (q number))
+  "typeof should work with evaluated expressions")
+
+(test-assert
+    (= (typeof (list 1 2 3)) (q cons-cell))
+  "typeof should work with function results")
+
+; Test 11: typeof error conditions
+(test-error (typeof) "typeof should require exactly 1 argument")
+(test-error (typeof 42 extra) "typeof should require exactly 1 argument")
+
+; Test 12: typeof with apply
+(test-assert
+    (= (apply typeof (list "test")) (q string))
+  "typeof should work with apply")
+
+; Test 13: typeof with nested structures
+(test-assert
+    (= (typeof (list (list 1 2) 3)) (q cons-cell))
+  "typeof should return type of outer structure for nested lists")
+
+; Test 14: typeof with library-generated values
+(test-assert
+    (= (typeof (map (lambda (x) x) (list 1 2))) (q cons-cell))
+  "typeof should work with library-generated lists")
+
+(test-assert
+    (= (typeof (filter even? (list 1 2 3 4))) (q cons-cell))
+  "typeof should work with filter results")
+
+; Test 15: typeof with wrapped operatives
+(define wrapped-plus (wrap +))
+(test-assert
+    (= (typeof wrapped-plus) (q operative))
+  "typeof should return 'operative for wrapped operatives")
+
+
+;------------------------------------------------------------------------------
+; number? tests
+
+; Test 1: Basic number recognition
+(test-assert
+    (= (number? 42) true)
+  "number? should return true for positive integers")
+
+(test-assert
+    (= (number? 0) true)
+  "number? should return true for zero")
+
+(test-assert
+    (= (number? -5) true)
+  "number? should return true for negative integers")
+
+; Test 2: Non-numbers should return false
+(test-assert
+    (= (number? "42") false)
+  "number? should return false for string representations of numbers")
+
+(test-assert
+    (= (number? (q number)) false)
+  "number? should return false for the symbol 'number")
+
+(test-assert
+    (= (number? ()) false)
+  "number? should return false for nil")
+
+(test-assert
+    (= (number? (list 1 2 3)) false)
+  "number? should return false for lists")
+
+; Test 3: number? as Church Boolean
+(test-assert
+    (= ((number? 7) "is-number" "not-number") "is-number")
+  "number? should work as Church Boolean - number case")
+
+(test-assert
+    (= ((number? "seven") "is-number" "not-number") "not-number")
+  "number? should work as Church Boolean - non-number case")
+
+; Test 4: number? with computed values
+(test-assert
+    (= (number? (+ 1 2)) true)
+  "number? should work with computed numbers")
+
+(test-assert
+    (= (number? (length (list 1 2 3))) true)
+  "number? should work with function results that are numbers")
+
+; Test 5: number? with various non-numeric types
+(test-assert
+    (= (number? true) false)
+  "number? should return false for Church Boolean true")
+
+(test-assert
+    (= (number? false) false)
+  "number? should return false for Church Boolean false")
+
+(test-assert
+    (= (number? (get-current-environment)) false)
+  "number? should return false for environments")
+
+; Test 6: number? with mutable bindings
+(define-mutable mutable-number 123)
+(test-assert
+    (= (number? mutable-number) true)
+  "number? should work with mutable number bindings")
+
+(define-mutable mutable-string "hello")
+(test-assert
+    (= (number? mutable-string) false)
+  "number? should work with mutable non-number bindings")
+
+; Test 7: number? with library functions
+(define numbers-list (filter number? (list 1 "two" 3 "four" 5)))
+(test-assert
+    (= (first numbers-list) 1)
+  "number? should work with filter - first number")
+
+(test-assert
+    (= (first (rest (rest numbers-list))) 5)
+  "number? should work with filter - last number")
+
+; Test 8: number? error conditions
+(test-error (number?) "number? should require exactly 1 argument")
+(test-error (number? 42 extra) "number? should require exactly 1 argument")
+
+; Test 9: number? with apply
+(test-assert
+    (= ((apply number? (list 99)) "yes" "no") "yes")
+  "number? should work with apply")
+
+; Test 10: number? with map
+(define number-checks (map number? (list 1 "two" 3)))
+(test-assert
+    (= ((first number-checks) "num" "not") "num")
+  "number? should work with map - first result")
+
+(test-assert
+    (= ((first (rest number-checks)) "num" "not") "not")
+  "number? should work with map - second result")
+
+
+;------------------------------------------------------------------------------
+; string? tests
+
+; Test 1: Basic string recognition
+(test-assert
+    (= (string? "hello") true)
+  "string? should return true for string literals")
+
+(test-assert
+    (= (string? "") true)
+  "string? should return true for empty strings")
+
+(test-assert
+    (= (string? "multi word string") true)
+  "string? should return true for multi-word strings")
+
+; Test 2: Non-strings should return false
+(test-assert
+    (= (string? 42) false)
+  "string? should return false for numbers")
+
+(test-assert
+    (= (string? (q hello)) false)
+  "string? should return false for symbols")
+
+(test-assert
+    (= (string? ()) false)
+  "string? should return false for nil")
+
+(test-assert
+    (= (string? (list 1 2 3)) false)
+  "string? should return false for lists")
+
+; Test 3: string? as Church Boolean
+(test-assert
+    (= ((string? "test") "is-string" "not-string") "is-string")
+  "string? should work as Church Boolean - string case")
+
+(test-assert
+    (= ((string? 42) "is-string" "not-string") "not-string")
+  "string? should work as Church Boolean - non-string case")
+
+; Test 4: string? with various types
+(test-assert
+    (= (string? true) false)
+  "string? should return false for Church Booleans")
+
+(test-assert
+    (= (string? (get-current-environment)) false)
+  "string? should return false for environments")
+
+; Test 5: string? with mutable bindings
+(define-mutable mutable-string "world")
+(test-assert
+    (= (string? mutable-string) true)
+  "string? should work with mutable string bindings")
+
+(define-mutable mutable-number 456)
+(test-assert
+    (= (string? mutable-number) false)
+  "string? should work with mutable non-string bindings")
+
+; Test 6: string? error conditions
+(test-error (string?) "string? should require exactly 1 argument")
+(test-error (string? "hello" extra) "string? should require exactly 1 argument")
+
+; Test 7: string? with apply and library functions
+(test-assert
+    (= ((apply string? (list "applied")) "yes" "no") "yes")
+  "string? should work with apply")
+
+(define string-checks (map string? (list "one" 2 "three")))
+(test-assert
+    (= ((first string-checks) "str" "not") "str")
+  "string? should work with map - first result")
+
+
+;------------------------------------------------------------------------------
+; symbol? tests
+
+; Test 1: Basic symbol recognition
+(test-assert
+    (= (symbol? (q hello)) true)
+  "symbol? should return true for quoted symbols")
+
+(test-assert
+    (= (symbol? (q +)) true)
+  "symbol? should return true for operator symbols")
+
+(test-assert
+    (= (symbol? (q symbol)) true)
+  "symbol? should return true for the word 'symbol")
+
+; Test 2: Non-symbols should return false
+(test-assert
+    (= (symbol? "hello") false)
+  "symbol? should return false for strings")
+
+(test-assert
+    (= (symbol? 42) false)
+  "symbol? should return false for numbers")
+
+(test-assert
+    (= (symbol? ()) false)
+  "symbol? should return false for nil")
+
+(test-assert
+    (= (symbol? (list 1 2)) false)
+  "symbol? should return false for lists")
+
+; Test 3: symbol? as Church Boolean
+(test-assert
+    (= ((symbol? (q test)) "is-symbol" "not-symbol") "is-symbol")
+  "symbol? should work as Church Boolean - symbol case")
+
+(test-assert
+    (= ((symbol? "test") "is-symbol" "not-symbol") "not-symbol")
+  "symbol? should work as Church Boolean - non-symbol case")
+
+; Test 4: symbol? with various types
+(test-assert
+    (= (symbol? true) false)
+  "symbol? should return false for Church Boolean operatives")
+
+(test-assert
+    (= (symbol? (lambda (x) x)) false)
+  "symbol? should return false for lambda functions")
+
+; Test 5: symbol? with computed symbols
+(test-assert
+    (= (symbol? (first (list (q computed) 2 3))) true)
+  "symbol? should work with computed symbol values")
+
+; Test 6: symbol? error conditions
+(test-error (symbol?) "symbol? should require exactly 1 argument")
+(test-error (symbol? (q test) extra) "symbol? should require exactly 1 argument")
+
+; Test 7: symbol? with library functions
+(define symbol-items (filter symbol? (list (q one) 2 (q three) "four")))
+(test-assert
+    (= (first symbol-items) (q one))
+  "symbol? should work with filter - first symbol")
+
+(test-assert
+    (= (first (rest symbol-items)) (q three))
+  "symbol? should work with filter - second symbol")
+
+
+;------------------------------------------------------------------------------
+; list? tests
+
+; Test 1: Basic list recognition
+(test-assert
+    (= (list? ()) true)
+  "list? should return true for empty list (nil)")
+
+(test-assert
+    (= (list? (list 1 2 3)) true)
+  "list? should return true for proper lists")
+
+(test-assert
+    (= (list? (cons 1 (cons 2 ()))) true)
+  "list? should return true for manually constructed lists")
+
+; Test 2: Non-lists should return false
+(test-assert
+    (= (list? 42) false)
+  "list? should return false for numbers")
+
+(test-assert
+    (= (list? "hello") false)
+  "list? should return false for strings")
+
+(test-assert
+    (= (list? (q symbol)) false)
+  "list? should return false for symbols")
+
+; Test 3: list? with cons cells vs improper lists
+(test-assert
+    (= (list? (cons 1 2)) true)
+  "list? should return true for cons pairs (implementation treats all cons-cells as lists)")
+
+; Test 4: list? as Church Boolean
+(test-assert
+    (= ((list? (list 1 2)) "is-list" "not-list") "is-list")
+  "list? should work as Church Boolean - list case")
+
+(test-assert
+    (= ((list? 42) "is-list" "not-list") "not-list")
+  "list? should work as Church Boolean - non-list case")
+
+; Test 5: list? with various list types
+(test-assert
+    (= (list? (iota 5)) true)
+  "list? should work with iota-generated lists")
+
+(test-assert
+    (= (list? (map (lambda (x) x) (list 1 2))) true)
+  "list? should work with map results")
+
+(test-assert
+    (= (list? (filter even? (list 1 2 3 4))) true)
+  "list? should work with filter results")
+
+(test-assert
+    (= (list? (reverse (list 1 2 3))) true)
+  "list? should work with reverse results")
+
+; Test 6: list? with nested structures
+(test-assert
+    (= (list? (list (list 1 2) (list 3 4))) true)
+  "list? should work with nested lists")
+
+; Test 7: list? with single element lists
+(test-assert
+    (= (list? (list 42)) true)
+  "list? should work with single-element lists")
+
+; Test 8: list? with operatives and environments
+(test-assert
+    (= (list? (lambda (x) x)) false)
+  "list? should return false for lambda functions")
+
+(test-assert
+    (= (list? (get-current-environment)) false)
+  "list? should return false for environments")
+
+; Test 9: list? with mutable bindings
+(define-mutable mutable-list (list 1 2 3))
+(test-assert
+    (= (list? mutable-list) true)
+  "list? should work with mutable list bindings")
+
+(define-mutable mutable-number 789)
+(test-assert
+    (= (list? mutable-number) false)
+  "list? should work with mutable non-list bindings")
+
+; Test 10: list? error conditions
+(test-error (list?) "list? should require exactly 1 argument")
+(test-error (list? (list 1 2) extra) "list? should require exactly 1 argument")
+
+; Test 11: list? with apply
+(test-assert
+    (= ((apply list? (list (list 1 2 3))) "yes" "no") "yes")
+  "list? should work with apply")
+
+; Test 12: list? with library-generated lists
+(test-assert
+    (= (list? (append (list 1 2) (list 3 4))) true)
+  "list? should work with append results")
+
+(test-assert
+    (= (list? (prepend 1 2 (list 3 4))) true)
+  "list? should work with prepend results")
+
+; Test 13: list? used in higher-order functions
+(define list-items (filter list? (list 42 (list 1 2) "string" (list 3 4))))
+(test-assert
+    (= (length list-items) 2)
+  "list? should work with filter to find lists")
+
+(test-assert
+    (= (first (first list-items)) 1)
+  "list? filter should find correct lists - first list")
+
+
+;------------------------------------------------------------------------------
+; operative? tests
+
+; Test 1: Basic operative recognition
+(test-assert
+    (= (operative? +) true)
+  "operative? should return true for built-in operatives")
+
+(test-assert
+    (= (operative? cons) true)
+  "operative? should return true for built-in list operatives")
+
+(define test-vau-op (vau (x) env x))
+(test-assert
+    (= (operative? test-vau-op) true)
+  "operative? should return true for user-defined vau operatives")
+
+; Test 2: Lambda functions are operatives
+(define test-lambda-op (lambda (x) x))
+(test-assert
+    (= (operative? test-lambda-op) true)
+  "operative? should return true for lambda functions")
+
+(define test-lambda*-op (lambda* (x) x))
+(test-assert
+    (= (operative? test-lambda*-op) true)
+  "operative? should return true for lambda* functions")
+
+; Test 3: Church Booleans are operatives
+(test-assert
+    (= (operative? true) true)
+  "operative? should return true for Church Boolean true")
+
+(test-assert
+    (= (operative? false) true)
+  "operative? should return true for Church Boolean false")
+
+; Test 4: Wrapped operatives are still operatives
+(define wrapped-plus (wrap +))
+(test-assert
+    (= (operative? wrapped-plus) true)
+  "operative? should return true for wrapped operatives")
+
+; Test 5: Non-operatives should return false
+(test-assert
+    (= (operative? 42) false)
+  "operative? should return false for numbers")
+
+(test-assert
+    (= (operative? "hello") false)
+  "operative? should return false for strings")
+
+(test-assert
+    (= (operative? (q symbol)) false)
+  "operative? should return false for symbols")
+
+(test-assert
+    (= (operative? (list 1 2 3)) false)
+  "operative? should return false for lists")
+
+(test-assert
+    (= (operative? ()) false)
+  "operative? should return false for nil")
+
+; Test 6: operative? as Church Boolean
+(test-assert
+    (= ((operative? +) "is-operative" "not-operative") "is-operative")
+  "operative? should work as Church Boolean - operative case")
+
+(test-assert
+    (= ((operative? 42) "is-operative" "not-operative") "not-operative")
+  "operative? should work as Church Boolean - non-operative case")
+
+; Test 7: operative? with environments
+(test-assert
+    (= (operative? (get-current-environment)) false)
+  "operative? should return false for environments")
+
+; Test 8: operative? with library-defined operatives
+(test-assert
+    (= (operative? if) true)
+  "operative? should return true for library-defined operatives like if")
+
+(test-assert
+    (= (operative? cond) true)
+  "operative? should return true for library-defined operatives like cond")
+
+; Test 9: operative? with mutable bindings
+(define-mutable mutable-op (lambda (x) x))
+(test-assert
+    (= (operative? mutable-op) true)
+  "operative? should work with mutable operative bindings")
+
+(define-mutable mutable-value 123)
+(test-assert
+    (= (operative? mutable-value) false)
+  "operative? should work with mutable non-operative bindings")
+
+; Test 10: operative? error conditions
+(test-error (operative?) "operative? should require exactly 1 argument")
+(test-error (operative? + extra) "operative? should require exactly 1 argument")
+
+; Test 11: operative? with apply
+(test-assert
+    (= ((apply operative? (list +)) "yes" "no") "yes")
+  "operative? should work with apply")
+
+; Test 12: operative? with higher-order usage
+(define operatives-list (filter operative? (list 42 + "string" (lambda (x) x))))
+(test-assert
+    (= (length operatives-list) 2)
+  "operative? should work with filter to find operatives")
+
+; Test 13: operative? with various operative types
+(define vau*-test (vau* (x) env x))
+(test-assert
+    (= (operative? vau*-test) true)
+  "operative? should return true for vau* operatives")
+
+; Test 14: operative? with Church Boolean operatives used as functions
+(test-assert
+    (= (operative? (= 1 1)) true)
+  "operative? should return true for Church Boolean results from comparisons")
+
+
+;------------------------------------------------------------------------------
+; environment? tests
+
+; Test 1: Basic environment recognition
+(test-assert
+    (= (environment? (get-current-environment)) true)
+  "environment? should return true for current environment")
+
+; Test 2: Captured environments are environments
+(define captured-env ((vau () env env)))
+(test-assert
+    (= (environment? captured-env) true)
+  "environment? should return true for captured environments")
+
+; Test 3: Non-environments should return false
+(test-assert
+    (= (environment? 42) false)
+  "environment? should return false for numbers")
+
+(test-assert
+    (= (environment? "hello") false)
+  "environment? should return false for strings")
+
+(test-assert
+    (= (environment? (q symbol)) false)
+  "environment? should return false for symbols")
+
+(test-assert
+    (= (environment? (list 1 2 3)) false)
+  "environment? should return false for lists")
+
+(test-assert
+    (= (environment? ()) false)
+  "environment? should return false for nil")
+
+; Test 4: environment? with operatives
+(test-assert
+    (= (environment? +) false)
+  "environment? should return false for operatives")
+
+(test-assert
+    (= (environment? (lambda (x) x)) false)
+  "environment? should return false for lambda functions")
+
+; Test 5: environment? as Church Boolean
+(test-assert
+    (= ((environment? (get-current-environment)) "is-env" "not-env") "is-env")
+  "environment? should work as Church Boolean - environment case")
+
+(test-assert
+    (= ((environment? 42) "is-env" "not-env") "not-env")
+  "environment? should work as Church Boolean - non-environment case")
+
+; Test 6: environment? with mutable bindings
+(define-mutable mutable-env (get-current-environment))
+(test-assert
+    (= (environment? mutable-env) true)
+  "environment? should work with mutable environment bindings")
+
+(define-mutable mutable-other "not-env")
+(test-assert
+    (= (environment? mutable-other) false)
+  "environment? should work with mutable non-environment bindings")
+
+; Test 7: environment? error conditions
+(test-error (environment?) "environment? should require exactly 1 argument")
+(test-error (environment? (get-current-environment) extra) "environment? should require exactly 1 argument")
+
+; Test 8: environment? with apply
+(test-assert
+    (= ((apply environment? (list (get-current-environment))) "yes" "no") "yes")
+  "environment? should work with apply")
+
+; Test 9: environment? with nested vau environment capture
+(define nested-env-test
+  (vau () outer-env
+    (vau () inner-env
+      (list (environment? outer-env) (environment? inner-env)))))
+(define env-test-results ((nested-env-test)))
+(test-assert
+    (= ((first env-test-results) "yes" "no") "yes")
+  "environment? should work with outer environment capture")
+
+(test-assert
+    (= ((first (rest env-test-results)) "yes" "no") "yes")
+  "environment? should work with inner environment capture")
+
+; Test 10: environment? with library usage
+(define env-items (filter environment? (list 42 (get-current-environment) "test")))
+(test-assert
+    (= (length env-items) 1)
+  "environment? should work with filter to find environments")
+
+; Test 11: Multiple environment instances
+(define env1 (get-current-environment))
+(define env2 ((vau () env env)))
+(test-assert
+    (= (environment? env1) true)
+  "environment? should work with first environment instance")
+
+(test-assert
+    (= (environment? env2) true)
+  "environment? should work with second environment instance")
+
+
+;------------------------------------------------------------------------------
+; Type predicate integration tests
+
+; Test 1: All predicates with the same value
+(define test-value 42)
+(test-assert
+    (and (number? test-value)
+         (not (string? test-value))
+         (not (symbol? test-value))
+         (not (list? test-value))
+         (not (operative? test-value))
+         (not (environment? test-value)))
+  "type predicates should be mutually exclusive for numbers")
+
+; Test 2: Type predicate composition
+(define classify-value
+  (lambda (x)
+    (cond ((number? x) "number")
+          ((string? x) "string")
+          ((symbol? x) "symbol")
+          ((list? x) "list")
+          ((operative? x) "operative")
+          ((environment? x) "environment")
+          (else "unknown"))))
+
+(test-assert
+    (= (classify-value 42) "number")
+  "type classification should work for numbers")
+
+(test-assert
+    (= (classify-value "hello") "string")
+  "type classification should work for strings")
+
+(test-assert
+    (= (classify-value (q symbol)) "symbol")
+  "type classification should work for symbols")
+
+(test-assert
+    (= (classify-value (list 1 2)) "list")
+  "type classification should work for lists")
+
+(test-assert
+    (= (classify-value +) "operative")
+  "type classification should work for operatives")
+
+(test-assert
+    (= (classify-value (get-current-environment)) "environment")
+  "type classification should work for environments")
+
+; Test 3: Type predicates with map
+(define mixed-values (list 1 "two" (q three) (list 4) + (get-current-environment)))
+(define type-map (map classify-value mixed-values))
+(test-assert
+    (= (first type-map) "number")
+  "type classification with map - number")
+
+(test-assert
+    (= (first (rest type-map)) "string")
+  "type classification with map - string")
+
+(test-assert
+    (= (first (rest (rest type-map))) "symbol")
+  "type classification with map - symbol")
+
+; Test 4: Type predicates consistency with typeof
+(define check-consistency
+  (lambda (val expected-type)
+    (= (typeof val) expected-type)))
+
+(test-assert
+    (and (number? 42) (check-consistency 42 (q number)))
+  "number? should be consistent with typeof")
+
+(test-assert
+    (and (string? "test") (check-consistency "test" (q string)))
+  "string? should be consistent with typeof")
+
+(test-assert
+    (and (symbol? (q test)) (check-consistency (q test) (q symbol)))
+  "symbol? should be consistent with typeof")
+
+(test-assert
+    (and (list? (list 1 2)) (check-consistency (list 1 2) (q cons-cell)))
+  "list? should be consistent with typeof for cons-cell")
+
+; Test 5: Type predicates with fold operations
+(define count-types
+  (lambda (values)
+    (foldl (lambda (acc val)
+             (cond ((number? val) (list (+ (first acc) 1) (second acc)))
+                   ((string? val) (list (first acc) (+ (second acc) 1)))
+                   (else acc)))
+        (list 0 0)  ; [number-count, string-count]
+      values)))
+
+(define type-counts (count-types (list 1 2 "hello" 3 "world")))
+(test-assert
+    (= (first type-counts) 3)
+  "type predicates should work in fold operations - number count")
+
+(test-assert
+    (= (second type-counts) 2)
+  "type predicates should work in fold operations - string count")
+
+

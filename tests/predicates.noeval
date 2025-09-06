@@ -1,0 +1,316 @@
+;------------------------------------------------------------------------------
+; any?/all? tests
+(lndisplayln "any?/all? tests")
+
+
+; any? tests
+; Test 1: Basic any? with predicate that finds matching elements
+(test-assert
+    (any? even? (list 1 3 4 5))
+  "any? should return true when at least one element matches")
+
+(test-assert
+    (any? odd? (list 2 4 6 7))
+  "any? should return true when at least one element matches - odd case")
+
+; Test 2: any? with no matching elements
+(test-assert
+    (= (any? even? (list 1 3 5 7)) false)
+  "any? should return false when no elements match")
+
+(test-assert
+    (= (any? odd? (list 2 4 6 8)) false)
+  "any? should return false when no elements match - even case")
+
+; Test 3: any? with empty list
+(test-assert
+    (= (any? even? ()) false)
+  "any? should return false for empty list")
+
+; Test 4: any? with all matching elements
+(test-assert
+    (any? even? (list 2 4 6 8))
+  "any? should return true when all elements match")
+
+; Test 5: any? short-circuiting behavior
+(define-mutable any-side-effect-counter 0)
+(define counting-predicate-any
+  (lambda* (x)
+    (set! any-side-effect-counter (+ any-side-effect-counter 1))
+    (even? x)))
+
+(any? counting-predicate-any (list 2 4 6 8))  ; Should stop at first element
+(test-assert
+    (= any-side-effect-counter 1)
+  "any? should short-circuit and stop at first matching element")
+
+; Test 6: any? with single element list - true case
+(test-assert
+    (any? even? (list 4))
+  "any? should work with single element list - matching case")
+
+; Test 7: any? with single element list - false case
+(test-assert
+    (= (any? even? (list 3)) false)
+  "any? should work with single element list - non-matching case")
+
+; Test 8: any? as Church Boolean
+(test-assert
+    (= ((any? even? (list 1 2 3)) "found" "not-found") "found")
+  "any? should work as Church Boolean - true case")
+
+(test-assert
+    (= ((any? odd? (list 2 4 6)) "found" "not-found") "not-found")
+  "any? should work as Church Boolean - false case")
+
+; Test 9: any? with complex predicate
+(define greater-than-five (lambda (x) (> x 5)))
+(test-assert
+    (any? greater-than-five (list 1 2 7 3))
+  "any? should work with complex predicates")
+
+(test-assert
+    (= (any? greater-than-five (list 1 2 3 4)) false)
+  "any? should work with complex predicates - false case")
+
+; Test 10: any? with wrapped operatives
+(define wrapped-equal-three (wrap (vau (x) env (= (eval x env) 3))))
+(test-assert
+    (any? wrapped-equal-three (list 1 2 3 4))
+  "any? should work with wrapped operatives")
+
+; Test 11: any? with type predicates
+(test-assert
+    (any? string? (list 1 "hello" 3))
+  "any? should work with type predicates")
+
+(test-assert
+    (= (any? number? (list "a" "b" "c")) false)
+  "any? should work with type predicates - false case")
+
+; Test 12: any? with library-generated lists
+(test-assert
+    (any? even? (iota 5))  ; (0 1 2 3 4) - contains even numbers
+  "any? should work with iota-generated lists")
+
+; Test 13: any? error conditions
+(test-error (any?) "any? should require exactly 2 arguments")
+(test-error (any? even?) "any? should require exactly 2 arguments")
+(test-error (any? even? (list 1 2) extra) "any? should require exactly 2 arguments")
+(test-error (any? "not-function" (list 1 2)) "any? should reject non-function predicates")
+(test-error (any? even? 42) "any? should reject non-list second argument")
+
+
+;------------------------------------------------------------------------------
+; all? tests
+
+; Test 1: Basic all? with all matching elements
+(test-assert
+    (all? even? (list 2 4 6 8))
+  "all? should return true when all elements match")
+
+(test-assert
+    (all? odd? (list 1 3 5 7))
+  "all? should return true when all elements match - odd case")
+
+; Test 2: all? with some non-matching elements
+(test-assert
+    (= (all? even? (list 2 4 5 8)) false)
+  "all? should return false when any element doesn't match")
+
+(test-assert
+    (= (all? odd? (list 1 3 4 7)) false)
+  "all? should return false when any element doesn't match - even case")
+
+; Test 3: all? with empty list
+(test-assert
+    (all? even? ())
+  "all? should return true for empty list")
+
+; Test 4: all? with no matching elements
+(test-assert
+    (= (all? even? (list 1 3 5 7)) false)
+  "all? should return false when no elements match")
+
+; Test 5: all? short-circuiting behavior
+(define-mutable all-side-effect-counter 0)
+(define counting-predicate-all
+  (lambda* (x)
+    (set! all-side-effect-counter (+ all-side-effect-counter 1))
+    (odd? x)))
+
+(all? counting-predicate-all (list 1 2 3 5))  ; Should stop at second element (2)
+(test-assert
+    (= all-side-effect-counter 2)
+  "all? should short-circuit and stop at first non-matching element")
+
+; Test 6: all? with single element list - true case
+(test-assert
+    (all? even? (list 4))
+  "all? should work with single element list - matching case")
+
+; Test 7: all? with single element list - false case
+(test-assert
+    (= (all? even? (list 3)) false)
+  "all? should work with single element list - non-matching case")
+
+; Test 8: all? as Church Boolean
+(test-assert
+    (= ((all? even? (list 2 4 6)) "all-match" "some-fail") "all-match")
+  "all? should work as Church Boolean - true case")
+
+(test-assert
+    (= ((all? odd? (list 1 2 3)) "all-match" "some-fail") "some-fail")
+  "all? should work as Church Boolean - false case")
+
+; Test 9: all? with complex predicate
+(define less-than-ten (lambda (x) (< x 10)))
+(test-assert
+    (all? less-than-ten (list 1 5 8 9))
+  "all? should work with complex predicates")
+
+(test-assert
+    (= (all? less-than-ten (list 1 5 15 9)) false)
+  "all? should work with complex predicates - false case")
+
+; Test 10: all? with type predicates
+(test-assert
+    (all? number? (list 1 2 3 4))
+  "all? should work with type predicates")
+
+(test-assert
+    (= (all? string? (list "a" "b" 3)) false)
+  "all? should work with type predicates - false case")
+
+; Test 11: all? with library-generated lists
+(test-assert
+    (all? number? (iota 5))
+  "all? should work with iota-generated lists")
+
+(test-assert
+    (= (all? even? (iota 5)) false)  ; (0 1 2 3 4) - not all even
+  "all? should work with iota-generated lists - false case")
+
+; Test 12: all? error conditions
+(test-error (all?) "all? should require exactly 2 arguments")
+(test-error (all? even?) "all? should require exactly 2 arguments")
+(test-error (all? even? (list 1 2) extra) "all? should require exactly 2 arguments")
+(test-error (all? "not-function" (list 1 2)) "all? should reject non-function predicates")
+(test-error (all? even? 42) "all? should reject non-list second argument")
+
+
+;------------------------------------------------------------------------------
+; any?/all? complementary behavior tests
+
+; Test 1: Logical relationship between any? and all?
+(define test-numbers (list 1 3 5 7))  ; All odd
+(test-assert
+    (and (all? odd? test-numbers) (any? odd? test-numbers))
+  "all? true should imply any? true")
+
+(define mixed-numbers (list 1 2 3 4))  ; Mixed odd/even
+(test-assert
+    (and (any? odd? mixed-numbers)
+         (any? even? mixed-numbers)
+         (not (all? odd? mixed-numbers))
+         (not (all? even? mixed-numbers)))
+  "mixed list should have any? true and all? false for both predicates")
+
+; Test 2: Empty list behavior consistency
+(test-assert
+    (and (all? even? ())
+         (not (any? even? ())))
+  "empty list: all? should be true, any? should be false")
+
+; Test 3: De Morgan's laws analog
+(define some-evens (list 2 3 4))
+(test-assert
+    (= (not (all? even? some-evens)) (any? odd? some-evens))
+  "not(all even) should equal any odd")
+
+; Test 4: Performance comparison - any? vs all? short-circuiting
+(define-mutable perf-counter-any 0)
+(define-mutable perf-counter-all 0)
+
+(define counting-pred-any
+  (lambda* (x)
+    (set! perf-counter-any (+ perf-counter-any 1))
+    (= x 3)))
+
+(define counting-pred-all
+  (lambda* (x)
+    (set! perf-counter-all (+ perf-counter-all 1))
+    (not (= x 3))))
+
+; any? should find 3 at position 3 (1-indexed)
+(any? counting-pred-any (list 1 2 3 4 5))
+; all? should fail at position 3 (1-indexed)
+(all? counting-pred-all (list 1 2 3 4 5))
+
+(test-assert
+    (= perf-counter-any 3)
+  "any? should short-circuit correctly")
+
+(test-assert
+    (= perf-counter-all 3)
+  "all? should short-circuit correctly")
+
+; Test 5: any?/all? with filter results
+(define filtered-evens (filter even? (iota 10)))
+(test-assert
+    (all? even? filtered-evens)
+  "all? should work with filter results - all even")
+
+(test-assert
+    (any? (lambda (x) (> x 5)) filtered-evens)
+  "any? should work with filter results - some greater than 5")
+
+; Test 6: any?/all? composition with other functions
+(define lists-of-numbers (list (list 2 4 6) (list 1 3 5) (list 2 4 7)))
+(define all-even-lists (filter (lambda (lst) (all? even? lst)) lists-of-numbers))
+(test-assert
+    (= (length all-even-lists) 1)
+  "all? should work in filter composition")
+
+(define any-even-lists (filter (lambda (lst) (any? even? lst)) lists-of-numbers))
+(test-assert
+    (= (length any-even-lists) 2)
+  "any? should work in filter composition")
+
+; Test 7: any?/all? with nested predicates
+(define has-small-numbers (lambda (x) (< x 5)))
+(define nested-test-list (list 1 2 10 3))
+
+(test-assert
+    (and (any? has-small-numbers nested-test-list)
+         (not (all? has-small-numbers nested-test-list)))
+  "any?/all? should work with custom predicates on mixed data")
+
+; Test 8: any?/all? with Church Boolean predicates
+(define church-bool-pred (lambda (x) (= x 42)))  ; Returns Church Boolean
+(test-assert
+    (= ((any? church-bool-pred (list 1 42 3)) "found" "missing") "found")
+  "any? should work with Church Boolean returning predicates")
+
+(test-assert
+    (= ((all? church-bool-pred (list 42 42 42)) "all-match" "some-different") "all-match")
+  "all? should work with Church Boolean returning predicates")
+
+; Test 9: any?/all? used in fold operations
+(define check-lists (list (list 2 4 6) (list 1 3 5) (list 2 4 8)))
+(define count-all-even-lists
+  (foldl (lambda (acc lst) ((all? even? lst) (+ acc 1) acc)) 0 check-lists))
+(test-assert
+    (= count-all-even-lists 2)
+  "all? should work in fold operations")
+
+; Test 10: any?/all? with apply
+(test-assert
+    (= ((apply any? (list even? (list 1 2 3))) "yes" "no") "yes")
+  "any? should work with apply")
+
+(test-assert
+    (= ((apply all? (list odd? (list 1 3 5))) "yes" "no") "yes")
+  "all? should work with apply")
+
+

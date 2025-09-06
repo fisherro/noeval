@@ -1,0 +1,185 @@
+;------------------------------------------------------------------------------
+; Environment isolation tests
+(lndisplayln "environment isolation tests")
+
+#skip
+; I'm not sure about this one.
+; We could have `try` introduce a new environment.
+; But maybe we should leave that up to the user.
+; (Especially once we've implemented let.)
+
+; Test that errors don't corrupt environment
+(define test-env-var 100)
+(try (do (define test-env-var 200)  ; This should fail...
+         (rest "invalid"))          ; ...before this error
+  (lambda* (error) "caught"))
+; The original binding should be preserved
+(test-assert
+    (= test-env-var 100)
+  "exceptions should not corrupt environment bindings")
+#end
+
+; Test exception in environment parameter usage
+(define env-error-vau (vau (expr) env (eval expr "not-an-env")))
+(test-error (env-error-vau (+ 1 2)) "invalid environment usage should throw")
+
+
+;------------------------------------------------------------------------------
+; let tests
+(lndisplayln "let tests")
+
+; Test 1: Basic let with single binding
+(test-assert
+    (= (let ((x 10)) x) 10)
+  "let should work with single binding")
+
+; Test 2: let with multiple bindings
+(test-assert
+    (= (let ((x 5) (y 3)) (+ x y)) 8)
+  "let should work with multiple bindings")
+
+; Test 3: let with no bindings (should work like immediate lambda invocation)
+(test-assert
+    (= (let () 42) 42)
+  "let with empty bindings should work")
+
+; Test 4: let bindings shadow outer variables
+(define outer-let-var 100)
+(test-assert
+    (= (let ((outer-let-var 20)) outer-let-var) 20)
+  "let bindings should shadow outer variables")
+
+(test-assert
+    (= outer-let-var 100)
+  "let should not affect outer variable bindings")
+
+; Test 5: let with complex expressions in bindings
+(test-assert
+    (= (let ((a (+ 2 3)) (b (* 4 5))) (+ a b)) 25)
+  "let should evaluate complex expressions in bindings")
+
+; Test 6: let with multiple body expressions (since let uses lambda*)
+(define-mutable let-side-effect 0)
+(define let-result
+  (let ((x 10))
+    (set! let-side-effect 1)
+    (set! let-side-effect (+ let-side-effect x))
+    (* x 2)))
+(test-assert
+    (= let-result 20)
+  "let should return value of last expression")
+
+(test-assert
+    (= let-side-effect 11)
+  "let should execute all body expressions for side effects")
+
+; Test 7: Nested let expressions
+(test-assert
+    (= (let ((x 5))
+         (let ((y 3))
+           (+ x y))) 8)
+  "nested let expressions should work")
+
+; Test 8: let with variable references in bindings (bindings are evaluated in outer scope)
+(define let-outer-var 15)
+(test-assert
+    (= (let ((x let-outer-var) (y 5)) (+ x y)) 20)
+  "let bindings should access outer scope variables")
+
+; Test 9: let bindings don't see each other (parallel binding)
+(define let-base-var 10)
+(test-assert
+    (= (let ((x let-base-var) (y let-base-var)) (+ x y)) 20)
+  "let bindings should be evaluated independently")
+
+; Test 10: let with conditional expressions
+(test-assert
+    (= (let ((test-val 5))
+         (if (= test-val 5)
+           "correct"
+           "wrong")) "correct")
+  "let should work with conditionals")
+
+; Test 11: let used in function definitions
+(define make-adder-with-let
+  (lambda (base)
+    (lambda (x)
+      (let ((adjusted-base (+ base 1)))
+        (+ x adjusted-base)))))
+(define add-with-six (make-adder-with-let 5))
+(test-assert
+    (= (add-with-six 10) 16)  ; 10 + (5+1) = 16
+  "let should work inside lambda definitions")
+
+; Test 12: let with library functions
+(test-assert
+    (= (let ((nums (list 1 2 3)))
+         (first nums)) 1)
+  "let should work with library functions")
+
+; Test 13: let with mutable variables in body
+(define-mutable let-mutable-test 0)
+(let ((increment 5))
+  (set! let-mutable-test increment)
+  (set! let-mutable-test (+ let-mutable-test increment)))
+(test-assert
+    (= let-mutable-test 10)
+  "let should work with mutable variable operations")
+
+; Test 14: let with recursive pattern (using library functions)
+(test-assert
+    (= (let ((double-list (lambda (lst) (map (lambda (x) (* x 2)) lst))))
+         (first (double-list (list 3 4 5)))) 6)
+  "let should work with higher-order function patterns")
+
+; Test 15: let with Church Boolean results
+(define let-boolean-result
+  (let ((x 1) (y 1))
+    (= x y)))  ; This returns a Church Boolean
+; We can't test Church Booleans with = directly, so test their behavior
+(test-assert
+    (= (let ((test-bool (let ((a 2) (b 2)) (= a b))))
+         (test-bool 42 99)) 42)
+  "let should work with Church Boolean expressions")
+
+; Test 16: Complex let example with multiple concepts
+(define complex-let-result
+  (let ((items (list 10 20 30))
+        (multiplier 3))
+    (define doubled (map (lambda (x) (* x 2)) items))
+    (define first-doubled (first doubled))
+    (* first-doubled multiplier)))
+(test-assert
+    (= complex-let-result 60)  ; (10*2)*3 = 60
+  "let should work in complex scenarios with multiple operations")
+
+; Test 17: let with string bindings
+(test-assert
+    (= (let ((greeting "hello") (name "world"))
+         greeting) "hello")
+  "let should work with string bindings")
+
+; Test 18: let with immediate computation and side effects
+(define-mutable let-immediate-effect 0)
+(let ((side-effect-val (do (set! let-immediate-effect 42) 10)))
+  (set! let-immediate-effect (+ let-immediate-effect side-effect-val)))
+(test-assert
+    (= let-immediate-effect 52)  ; 42 + 10
+  "let bindings should evaluate expressions with side effects immediately")
+
+; Test 19: let error conditions - malformed binding lists
+(test-error (let "not-a-list" body) "let should reject non-list binding forms")
+(test-error (let ((x)) x) "let should reject incomplete bindings")
+#skip
+; Need to enhance the let implementation to validate bindings
+(test-error (let ((x 1 2)) x) "let should reject malformed bindings")
+#end
+
+; Test 20: let with wrapped operatives
+(define let-wrapped-op (wrap +))
+(test-assert
+    (= (let ((op let-wrapped-op) (a 5) (b 7))
+         (op a b)) 12)
+  "let should work with wrapped operatives")
+
+

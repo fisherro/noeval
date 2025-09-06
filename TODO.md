@@ -18,8 +18,6 @@ Update noeval-reference.md
 
 ## Regular
 
-Breakup library tests into multiple files using `load`.
-
 Have the parser track the file path so that `load` can use its directory as the "current directory" for relative paths.
 
 Capture the accumulator and the accumulate-reverse patterns in library forms.

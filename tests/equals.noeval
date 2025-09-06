@@ -1,0 +1,96 @@
+;------------------------------------------------------------------------------
+; = tests
+; = is a builtin operative, but we want to test it here
+(lndisplayln "= tests")
+
+; Test = argument checking
+(test-error (=)       "= cannot be called without arguments")
+(test-error (= 1)     "= cannot be called with only one argument")
+(test-error (= 1 2 3) "= cannot be called with three or more arguments")
+(test-error (= 1 "1") "= should raise an error for mixed types")
+
+; Test = with numbers
+(test-assert (= 1 1) "= should return true for the same number")
+(test-assert (not (= 1 2)) "= should return false for different numbers")
+
+; Test = with strings
+(test-assert (= "hello" "hello")
+  "= should return true for the same string")
+(test-assert (not (= "hello" "world"))
+  "= should return false for the different strings")
+
+; Test = with symbols
+(test-assert (= (q hello) (q hello))
+  "= should return true for the same symbol")
+(test-assert (not (= (q hello) (q world)))
+  "= should return false for the different symbols")
+
+; Test = with mutable bindings
+(test-assert ((lambda* ()
+                (define-mutable x 1)
+                (define-mutable y 1)
+                (= x y)))
+  "= should return true for mutable bindings with the same value")
+
+(test-assert ((lambda* ()
+                (define-mutable x 1)
+                (define-mutable y 2)
+                (not (= x y))))
+  "= should return false for mutable bindings with the different values")
+
+(test-assert ((lambda* ()
+                (define-mutable x 1)
+                (= x 1)))
+  "= should return true for a mutable binding and the same value")
+
+(test-assert ((lambda* ()
+                (define-mutable x 1)
+                (not (= x 2))))
+  "= should return false for a mutable binding and a different value")
+
+; Test = with lists
+(test-assert (= () ())
+  "(= () ()) should return true")
+
+(test-assert (not (= () (list 1)))
+  "= should return false for () and a non-empty list")
+
+(test-assert (= (list 1 2 3) (list 1 2 3))
+  "= should return true for identical lists")
+
+(test-assert (not (= (list 1 2 3) (list 1 2 4)))
+  "= should return false for different lists")
+
+(test-assert (= (list (list 1 2 3)
+                      (list 4 5 6))
+                (list (list 1 2 3)
+                      (list 4 5 6)))
+  "= should return true for identical nested lists")
+
+(test-assert (not (= (list (list 1 2 3)
+                           (list 4 5 6))
+                     (list (list 1 2 3)
+                           (list 4 1 6))))
+  "= should return false for different nested lists")
+
+; Test = with environments
+(test-assert ((vau () env (= env env)))
+  "= should return true for the same environment")
+
+(test-assert ((vau () outer-env
+                ((vau () inner-env
+                   (not (= outer-env inner-env))))))
+  "= should return false for different environments")
+
+; Test Booleans
+(test-assert (= true true)
+  "(= true true) should return true")
+
+(test-assert (= false false)
+  "(= false false) should return true")
+
+(test-assert (not (= true false))
+  "(= true false) should return false")
+
+(test-assert (not (= true false))
+  "(= false true) should return false")

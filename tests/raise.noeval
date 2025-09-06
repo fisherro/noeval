@@ -1,0 +1,273 @@
+;------------------------------------------------------------------------------
+; raise tests
+(lndisplayln "raise tests")
+
+; Test 1: Basic raise with string message
+(define-mutable raise-test-result "")
+(try (raise "test error message")
+  (lambda (error)
+    (set! raise-test-result (first (rest error)))))
+(test-assert
+    (= raise-test-result "test error message")
+  "raise should create error with string message")
+
+; Test 2: raise with non-string message (should convert to string representation)
+(define-mutable raise-number-result "")
+(try (raise 42)
+  (lambda (error)
+    (set! raise-number-result (first (rest error)))))
+(test-assert
+    (= raise-number-result "42")
+  "raise should convert non-string messages to string representation")
+
+; Test 3: raise interrupts execution flow
+(define-mutable raise-flow-test 0)
+(try (do (set! raise-flow-test 1)
+         (raise "stop here")
+         (set! raise-flow-test 2))  ; This should not execute
+  (lambda (error)
+    (set! raise-flow-test (+ raise-flow-test 10))))
+(test-assert
+    (= raise-flow-test 11)  ; 1 + 10, not 12
+  "raise should interrupt execution flow")
+
+; Test 4: raise error structure - should be (error message context stack-trace)
+(define-mutable error-structure ())
+(try (raise "structure test")
+  (lambda (error)
+    (set! error-structure error)))
+(test-assert
+    (= (first error-structure) (q error))
+  "raise should create error with 'error tag")
+
+(test-assert
+    (= (first (rest error-structure)) "structure test")
+  "raise should include message as second element")
+
+(test-assert
+    (= (length error-structure) 4)
+  "raise should create 4-element error structure")
+
+; Test 5: raise with symbol message
+(define-mutable raise-symbol-result "")
+(try (raise (q test-symbol))
+  (lambda (error)
+    (set! raise-symbol-result (first (rest error)))))
+(test-assert
+    (= raise-symbol-result "test-symbol")
+  "raise should handle symbol messages")
+
+; Test 6: raise propagates through function calls
+(define error-throwing-func
+  (lambda (msg) (raise msg)))
+(define wrapper-func
+  (lambda (msg) (error-throwing-func msg)))
+
+(define-mutable propagation-result "")
+(try (wrapper-func "propagated error")
+  (lambda (error)
+    (set! propagation-result (first (rest error)))))
+(test-assert
+    (= propagation-result "propagated error")
+  "raise should propagate through function call stack")
+
+; Test 7: raise in vau operative
+(define error-vau
+  (vau (msg) env (raise (eval msg env))))
+
+(define-mutable vau-error-result "")
+(try (error-vau "vau error")
+  (lambda (error)
+    (set! vau-error-result (first (rest error)))))
+(test-assert
+    (= vau-error-result "vau error")
+  "raise should work from within vau operatives")
+
+; Test 8: raise with wrapped operative
+(define wrapped-raiser (wrap (vau (msg) env (raise msg))))
+
+(define-mutable wrapped-error-result "")
+(try (wrapped-raiser "wrapped error")
+  (lambda (error)
+    (set! wrapped-error-result (first (rest error)))))
+(test-assert
+    (= wrapped-error-result "wrapped error")
+  "raise should work from wrapped operatives")
+
+; Test 9: raise with complex message (list)
+(define-mutable complex-msg-result "")
+(try (raise (list "error" "with" "details"))
+  (lambda (error)
+    (set! complex-msg-result (first (rest error)))))
+(test-assert
+    (not (= complex-msg-result ""))
+  "raise should handle complex message types")
+
+; Test 10: Multiple raise calls - only first should be caught
+(define-mutable multi-raise-count 0)
+(try (do (raise "first error")
+         (raise "second error"))  ; Should not reach here
+  (lambda (error)
+    (set! multi-raise-count (+ multi-raise-count 1))))
+(test-assert
+    (= multi-raise-count 1)
+  "only first raise should be caught per try block")
+
+; Test 11: raise in nested try blocks - inner catch should handle
+(define-mutable nested-raise-result "")
+(try (try (raise "inner error")
+       (lambda (inner-error)
+         (set! nested-raise-result "caught inner")
+         (raise "outer error")))
+  (lambda (outer-error)
+    (set! nested-raise-result "caught outer")))
+(test-assert
+    (= nested-raise-result "caught outer")
+  "raise should work correctly in nested try blocks")
+
+; Test 12: raise with side effects before raising
+(define-mutable side-effect-before-raise 0)
+(try (do (set! side-effect-before-raise 42)
+         (raise "after side effect"))
+  (lambda (error)
+    (set! side-effect-before-raise (+ side-effect-before-raise 8))))
+(test-assert
+    (= side-effect-before-raise 50)  ; 42 + 8
+  "side effects before raise should be preserved")
+
+; Test 13: raise with higher-order functions
+(define map-with-raiser
+  (lambda (lst)
+    (map (lambda (x)
+           (if (= x 3)
+             (raise "found three")
+             (* x 2)))
+      lst)))
+
+(define-mutable hof-raise-result "")
+(try (map-with-raiser (list 1 2 3 4))
+  (lambda (error)
+    (set! hof-raise-result (first (rest error)))))
+(test-assert
+    (= hof-raise-result "found three")
+  "raise should work within higher-order functions")
+
+; Test 14: raise error conditions
+(test-error (raise) "raise should require exactly 1 argument")
+(test-error (raise "msg1" "msg2") "raise should require exactly 1 argument")
+
+; Test 15: raise with Church Boolean message
+(define church-bool-msg (= 5 5))  ; This is the true operative
+(define-mutable church-msg-result "")
+(try (raise church-bool-msg)
+  (lambda (error)
+    (set! church-msg-result (first (rest error)))))
+(test-assert
+    (not (= church-msg-result ""))
+  "raise should handle Church Boolean messages")
+
+; Test 16: raise with apply
+(define-mutable apply-raise-result "")
+(try (apply raise (list "applied error"))
+  (lambda (error)
+    (set! apply-raise-result (first (rest error)))))
+(test-assert
+    (= apply-raise-result "applied error")
+  "raise should work with apply")
+
+; Test 17: raise with mutable variable message
+(define-mutable error-msg-var "mutable error")
+(define-mutable mutable-msg-result "")
+(try (raise error-msg-var)
+  (lambda (error)
+    (set! mutable-msg-result (first (rest error)))))
+(test-assert
+    (= mutable-msg-result "mutable error")
+  "raise should work with mutable variable messages")
+
+#skip
+; The current design decision is that try does not create an environment
+; Test 18: raise doesn't affect environment bindings
+(define pre-raise-var 100)
+(try (do (define pre-raise-var 200)
+         (raise "environment test"))
+  (lambda (error) "handled"))
+(test-assert
+    (= pre-raise-var 100)
+  "raise should not corrupt environment bindings")
+#end
+
+; Test 19: raise in conditional expressions
+(define conditional-raiser
+  (lambda (condition msg)
+    (if condition
+      (raise msg)
+      "no error")))
+
+(define-mutable conditional-result "")
+(try (conditional-raiser true "conditional error")
+  (lambda (error)
+    (set! conditional-result (first (rest error)))))
+(test-assert
+    (= conditional-result "conditional error")
+  "raise should work in conditional expressions")
+
+(test-assert
+    (= (conditional-raiser false "should not raise") "no error")
+  "raise should not be called when condition is false")
+
+; Test 20: raise with empty string message
+(define-mutable empty-msg-result "not-set")
+(try (raise "")
+  (lambda (error)
+    (set! empty-msg-result (first (rest error)))))
+(test-assert
+    (= empty-msg-result "")
+  "raise should handle empty string messages")
+
+; Test 21: raise with finally block
+(define-mutable finally-with-raise 0)
+(try (raise "finally test")
+  (lambda (error) "handled")
+  (lambda* (result)
+    (set! finally-with-raise 42)
+    result))
+(test-assert
+    (= finally-with-raise 42)
+  "finally block should execute even when error is raised")
+
+; Test 22: raise interrupts lambda execution
+(define interrupt-lambda
+  (lambda (x)
+    (let ((result (* x 2)))
+      (if (> result 10)
+        (raise "result too large")
+        result))))
+
+(test-assert
+    (= (interrupt-lambda 3) 6)
+  "lambda should return normally when no error")
+
+(define-mutable interrupt-result "")
+(try (interrupt-lambda 8)
+  (lambda (error)
+    (set! interrupt-result (first (rest error)))))
+(test-assert
+    (= interrupt-result "result too large")
+  "raise should interrupt lambda execution")
+
+; Test 23: raise preserves evaluation context
+(define context-test-func
+  (lambda (a b)
+    (let ((sum (+ a b)))
+      (if (> sum 20)
+        (raise "sum too large")
+        sum))))
+
+(define-mutable context-result ())
+(try (context-test-func 15 10)
+  (lambda (error)
+    (set! context-result (first (rest error)))))
+(test-assert
+    (= context-result "sum too large")
+  "raise should preserve evaluation context - message")

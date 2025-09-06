@@ -79,7 +79,21 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Load and run tests
 
-(load "tests/all.noeval")
+(load "tests/equals.noeval")
+(load "tests/try.noeval")
+(load "tests/exceptions.noeval")
+(load "tests/raise.noeval")
+(load "tests/core.noeval")
+(load "tests/type-predicates.noeval")
+(load "tests/evaluation.noeval")
+(load "tests/functions.noeval")
+(load "tests/list-operations.noeval")
+(load "tests/predicates.noeval")
+(load "tests/control-flow.noeval")
+(load "tests/environments.noeval")
+(load "tests/numbers.noeval")
+(load "tests/strings.noeval")
+(load "tests/partial-application.noeval")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Show test results

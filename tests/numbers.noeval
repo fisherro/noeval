@@ -1,0 +1,784 @@
+;------------------------------------------------------------------------------
+; even? tests
+(lndisplayln "even?/odd? tests")
+
+; Test 1: Basic even number tests
+(test-assert
+    (= (even? 0) true)
+  "0 should be even")
+
+(test-assert
+    (= (even? 2) true)
+  "2 should be even")
+
+(test-assert
+    (= (even? 4) true)
+  "4 should be even")
+
+; Test 2: Basic odd number tests
+(test-assert
+    (= (even? 1) false)
+  "1 should not be even")
+
+(test-assert
+    (= (even? 3) false)
+  "3 should not be even")
+
+(test-assert
+    (= (even? 5) false)
+  "5 should not be even")
+
+; Test 3: Larger even numbers
+(test-assert
+    (= (even? 100) true)
+  "100 should be even")
+
+(test-assert
+    (= (even? 1000) true)
+  "1000 should be even")
+
+; Test 4: Larger odd numbers
+(test-assert
+    (= (even? 99) false)
+  "99 should not be even")
+
+(test-assert
+    (= (even? 1001) false)
+  "1001 should not be even")
+
+; Test 5: even? as Church Boolean
+(test-assert
+    (= ((even? 6) "yes" "no") "yes")
+  "even? should work as Church Boolean - even case")
+
+(test-assert
+    (= ((even? 7) "yes" "no") "no")
+  "even? should work as Church Boolean - odd case")
+
+; Test 6: even? with library functions
+(define evens-from-iota (filter even? (iota 6)))
+(test-assert
+    (= (length evens-from-iota) 3)  ; 0, 2, 4
+  "even? should work with filter")
+
+; Test 7: even? with map
+(define evenness-map (map even? (list 1 2 3 4)))
+; Test the Church Boolean results
+(test-assert
+    (= ((first evenness-map) "even" "odd") "odd")  ; 1 is odd
+  "even? should work with map - first result")
+
+(test-assert
+    (= ((first (rest evenness-map)) "even" "odd") "even")  ; 2 is even
+  "even? should work with map - second result")
+
+; Test 8: even? error conditions
+(test-error (even?) "even? should require exactly 1 argument")
+(test-error (even? 2 4) "even? should require exactly 1 argument")
+(test-error (even? "not-number") "even? should reject non-numeric arguments")
+
+; Test 9: even? with apply
+(test-assert
+    (= ((apply even? (list 8)) "yes" "no") "yes")
+  "even? should work with apply")
+
+
+;------------------------------------------------------------------------------
+; odd? tests
+
+; Test 1: Basic odd number tests
+(test-assert
+    (= (odd? 1) true)
+  "1 should be odd")
+
+(test-assert
+    (= (odd? 3) true)
+  "3 should be odd")
+
+(test-assert
+    (= (odd? 5) true)
+  "5 should be odd")
+
+; Test 2: Basic even number tests (should be false)
+(test-assert
+    (= (odd? 0) false)
+  "0 should not be odd")
+
+(test-assert
+    (= (odd? 2) false)
+  "2 should not be odd")
+
+(test-assert
+    (= (odd? 4) false)
+  "4 should not be odd")
+
+; Test 3: Larger odd numbers
+(test-assert
+    (= (odd? 99) true)
+  "99 should be odd")
+
+(test-assert
+    (= (odd? 1001) true)
+  "1001 should be odd")
+
+; Test 4: Larger even numbers (should be false)
+(test-assert
+    (= (odd? 100) false)
+  "100 should not be odd")
+
+(test-assert
+    (= (odd? 1000) false)
+  "1000 should not be odd")
+
+; Test 5: odd? as Church Boolean
+(test-assert
+    (= ((odd? 7) "yes" "no") "yes")
+  "odd? should work as Church Boolean - odd case")
+
+(test-assert
+    (= ((odd? 8) "yes" "no") "no")
+  "odd? should work as Church Boolean - even case")
+
+; Test 6: odd? with library functions
+(define odds-from-iota (filter odd? (iota 6)))
+(test-assert
+    (= (length odds-from-iota) 3)  ; 1, 3, 5
+  "odd? should work with filter")
+
+(test-assert
+    (= (first odds-from-iota) 1)
+  "odd? filter should find correct odd numbers - first")
+
+(test-assert
+    (= (first (rest (rest odds-from-iota))) 5)
+  "odd? filter should find correct odd numbers - last")
+
+; Test 7: odd? with map
+(define oddness-map (map odd? (list 1 2 3 4)))
+; Test the Church Boolean results
+(test-assert
+    (= ((first oddness-map) "odd" "even") "odd")  ; 1 is odd
+  "odd? should work with map - first result")
+
+(test-assert
+    (= ((first (rest oddness-map)) "odd" "even") "even")  ; 2 is even
+  "odd? should work with map - second result")
+
+; Test 8: Consistency with even? - they should be opposites
+(test-assert
+    (= (odd? 42) (not (even? 42)))
+  "odd? should be opposite of even? for even numbers")
+
+(test-assert
+    (= (odd? 43) (not (even? 43)))
+  "odd? should be opposite of even? for odd numbers")
+
+; Test 9: odd? error conditions
+(test-error (odd?) "odd? should require exactly 1 argument")
+(test-error (odd? 3 5) "odd? should require exactly 1 argument")
+(test-error (odd? "not-number") "odd? should reject non-numeric arguments")
+
+; Test 10: odd? with apply
+(test-assert
+    (= ((apply odd? (list 9)) "yes" "no") "yes")
+  "odd? should work with apply")
+
+; Test 11: Complementary behavior of even? and odd?
+(define test-numbers (iota 10))
+(define evens (filter even? test-numbers))
+(define odds (filter odd? test-numbers))
+(test-assert
+    (= (+ (length evens) (length odds)) 10)
+  "even? and odd? should partition all numbers")
+
+; Test 12: odd? with fold operations
+(define count-odds (foldl (lambda (acc n) ((odd? n) (+ acc 1) acc)) 0 (iota 7)))
+(test-assert
+    (= count-odds 3)  ; 1, 3, 5 are odd in (0 1 2 3 4 5 6)
+  "odd? should work in fold operations")
+
+
+;------------------------------------------------------------------------------
+; <=> (spaceship operator) tests
+(lndisplayln "<=>/!=/</>/<=/>= tests")
+
+; Test 1: Basic spaceship operator functionality
+(test-assert
+    (= (<=> 1 2) -1)
+  "<=> should return -1 when first argument is less than second")
+
+(test-assert
+    (= (<=> 5 5) 0)
+  "<=> should return 0 when arguments are equal")
+
+(test-assert
+    (= (<=> 10 3) 1)
+  "<=> should return 1 when first argument is greater than second")
+
+; Test 2: Spaceship with zero
+(test-assert
+    (= (<=> 0 1) -1)
+  "<=> should work with zero - less than")
+
+(test-assert
+    (= (<=> 0 0) 0)
+  "<=> should work with zero - equal")
+
+(test-assert
+    (= (<=> 1 0) 1)
+  "<=> should work with zero - greater than")
+
+; Test 3: Spaceship with negative numbers
+(test-assert
+    (= (<=> -5 -3) -1)
+  "<=> should work with negative numbers - less than")
+
+(test-assert
+    (= (<=> -7 -7) 0)
+  "<=> should work with negative numbers - equal")
+
+(test-assert
+    (= (<=> -2 -8) 1)
+  "<=> should work with negative numbers - greater than")
+
+; Test 4: Spaceship with mixed positive/negative
+(test-assert
+    (= (<=> -5 3) -1)
+  "<=> should work with negative vs positive - less than")
+
+(test-assert
+    (= (<=> 5 -3) 1)
+  "<=> should work with positive vs negative - greater than")
+
+; Test 5: Spaceship with larger numbers
+(test-assert
+    (= (<=> 1000 2000) -1)
+  "<=> should work with large numbers - less than")
+
+(test-assert
+    (= (<=> 9999 9999) 0)
+  "<=> should work with large numbers - equal")
+
+(test-assert
+    (= (<=> 50000 30000) 1)
+  "<=> should work with large numbers - greater than")
+
+; Test 6: Spaceship with computed values
+(test-assert
+    (= (<=> (+ 2 3) (* 2 3)) -1)
+  "<=> should work with computed values - 5 < 6")
+
+(test-assert
+    (= (<=> (* 3 4) (+ 6 6)) 0)
+  "<=> should work with computed values - 12 = 12")
+
+(test-assert
+    (= (<=> (+ 10 5) (- 20 10)) 1)
+  "<=> should work with computed values - 15 > 10")
+
+; Test 7: Spaceship error conditions
+(test-error (<=> 5) "<=> should require exactly 2 arguments")
+(test-error (<=> 1 2 3) "<=> should require exactly 2 arguments")
+(test-error (<=> "hello" 5) "<=> should reject non-numeric arguments")
+(test-error (<=> 5 "world") "<=> should reject non-numeric arguments")
+(test-error (<=> true false) "<=> should reject non-numeric arguments")
+
+; Test 8: Spaceship with mutable bindings
+(define-mutable spaceship-var1 10)
+(define-mutable spaceship-var2 20)
+(test-assert
+    (= (<=> spaceship-var1 spaceship-var2) -1)
+  "<=> should work with mutable bindings")
+
+(set! spaceship-var1 20)
+(test-assert
+    (= (<=> spaceship-var1 spaceship-var2) 0)
+  "<=> should work with updated mutable bindings")
+
+;------------------------------------------------------------------------------
+; != tests (derived from =)
+
+; Test 1: Basic != functionality
+(test-assert
+    (!= 1 2)
+  "!= should return true for different numbers")
+
+(test-assert
+    (not (!= 5 5))
+  "!= should return false for equal numbers")
+
+; Test 2: != with different data types
+(test-assert
+    (!= "hello" "world")
+  "!= should work with different strings")
+
+(test-assert
+    (not (!= "test" "test"))
+  "!= should work with equal strings")
+
+; Test 3: != with symbols
+(test-assert
+    (!= (q hello) (q world))
+  "!= should work with different symbols")
+
+(test-assert
+    (not (!= (q test) (q test)))
+  "!= should work with equal symbols")
+
+; Test 4: != as Church Boolean
+(test-assert
+    (= ((!= 1 2) "different" "same") "different")
+  "!= should work as Church Boolean - different case")
+
+(test-assert
+    (= ((!= 3 3) "different" "same") "same")
+  "!= should work as Church Boolean - same case")
+
+; Test 5: != with computed values
+(test-assert
+    (!= (+ 1 2) (* 2 2))
+  "!= should work with computed values - 3 != 4")
+
+(test-assert
+    (not (!= (* 3 3) (+ 4 5)))
+  "!= should work with computed values - 9 == 9")
+
+; Test 6: != with zero
+(test-assert
+    (!= 0 1)
+  "!= should work with zero")
+
+(test-assert
+    (not (!= 0 0))
+  "!= should work with zero equality")
+
+; Test 7: != with negative numbers
+(test-assert
+    (!= -5 -3)
+  "!= should work with negative numbers")
+
+(test-assert
+    (not (!= -7 -7))
+  "!= should work with equal negative numbers")
+
+;------------------------------------------------------------------------------
+; < tests (derived from <=>)
+
+; Test 1: Basic < functionality
+(test-assert
+    (< 1 2)
+  "< should return true when first < second")
+
+(test-assert
+    (not (< 5 5))
+  "< should return false when first == second")
+
+(test-assert
+    (not (< 10 3))
+  "< should return false when first > second")
+
+; Test 2: < with zero
+(test-assert
+    (< -5 0)
+  "< should work with negative vs zero")
+
+(test-assert
+    (< 0 5)
+  "< should work with zero vs positive")
+
+(test-assert
+    (not (< 0 0))
+  "< should return false for zero vs zero")
+
+; Test 3: < with negative numbers
+(test-assert
+    (< -10 -5)
+  "< should work with negative numbers")
+
+(test-assert
+    (< -3 2)
+  "< should work with negative vs positive")
+
+(test-assert
+    (not (< 2 -3))
+  "< should return false for positive vs negative")
+
+; Test 4: < as Church Boolean
+(test-assert
+    (= ((< 3 5) "less" "not-less") "less")
+  "< should work as Church Boolean - true case")
+
+(test-assert
+    (= ((< 7 4) "less" "not-less") "not-less")
+  "< should work as Church Boolean - false case")
+
+; Test 5: < with computed values
+(test-assert
+    (< (+ 1 2) (* 2 3))
+  "< should work with computed values - 3 < 6")
+
+(test-assert
+    (not (< (* 4 2) (+ 2 3)))
+  "< should work with computed values - 8 not < 5")
+
+; Test 6: < with larger numbers
+(test-assert
+    (< 1000 2000)
+  "< should work with large numbers")
+
+(test-assert
+    (not (< 5000 3000))
+  "< should work with large numbers - false case")
+
+;------------------------------------------------------------------------------
+; > tests (derived from <=>)
+
+; Test 1: Basic > functionality
+(test-assert
+    (> 10 3)
+  "> should return true when first > second")
+
+(test-assert
+    (not (> 5 5))
+  "> should return false when first == second")
+
+(test-assert
+    (not (> 1 2))
+  "> should return false when first < second")
+
+; Test 2: > with zero
+(test-assert
+    (> 5 0)
+  "> should work with positive vs zero")
+
+(test-assert
+    (> 0 -5)
+  "> should work with zero vs negative")
+
+(test-assert
+    (not (> 0 0))
+  "> should return false for zero vs zero")
+
+; Test 3: > with negative numbers
+(test-assert
+    (> -2 -8)
+  "> should work with negative numbers")
+
+(test-assert
+    (> 3 -2)
+  "> should work with positive vs negative")
+
+(test-assert
+    (not (> -3 2))
+  "> should return false for negative vs positive")
+
+; Test 4: > as Church Boolean
+(test-assert
+    (= ((> 7 4) "greater" "not-greater") "greater")
+  "> should work as Church Boolean - true case")
+
+(test-assert
+    (= ((> 3 5) "greater" "not-greater") "not-greater")
+  "> should work as Church Boolean - false case")
+
+; Test 5: > with computed values
+(test-assert
+    (> (* 3 4) (+ 2 3))
+  "> should work with computed values - 12 > 5")
+
+(test-assert
+    (not (> (+ 1 2) (* 2 3)))
+  "> should work with computed values - 3 not > 6")
+
+;------------------------------------------------------------------------------
+; <= tests (derived from < and =)
+
+; Test 1: Basic <= functionality
+(test-assert
+    (<= 1 2)
+  "<= should return true when first < second")
+
+(test-assert
+    (<= 5 5)
+  "<= should return true when first == second")
+
+(test-assert
+    (not (<= 10 3))
+  "<= should return false when first > second")
+
+; Test 2: <= with zero
+(test-assert
+    (<= -5 0)
+  "<= should work with negative vs zero")
+
+(test-assert
+    (<= 0 0)
+  "<= should work with zero vs zero")
+
+(test-assert
+    (<= 0 5)
+  "<= should work with zero vs positive")
+
+; Test 3: <= with negative numbers
+(test-assert
+    (<= -10 -5)
+  "<= should work with negative numbers - less")
+
+(test-assert
+    (<= -7 -7)
+  "<= should work with negative numbers - equal")
+
+(test-assert
+    (not (<= -2 -8))
+  "<= should return false when first > second (negatives)")
+
+; Test 4: <= as Church Boolean
+(test-assert
+    (= ((<= 3 5) "less-equal" "greater") "less-equal")
+  "<= should work as Church Boolean - true case")
+
+(test-assert
+    (= ((<= 7 4) "less-equal" "greater") "greater")
+  "<= should work as Church Boolean - false case")
+
+; Test 5: <= with computed values
+(test-assert
+    (<= (+ 1 2) (* 2 3))
+  "<= should work with computed values - 3 <= 6")
+
+(test-assert
+    (<= (* 2 3) (+ 3 3))
+  "<= should work with computed values - 6 <= 6")
+
+(test-assert
+    (not (<= (* 4 2) (+ 2 3)))
+  "<= should work with computed values - 8 not <= 5")
+
+;------------------------------------------------------------------------------
+; >= tests (derived from > and =)
+
+; Test 1: Basic >= functionality
+(test-assert
+    (>= 10 3)
+  ">= should return true when first > second")
+
+(test-assert
+    (>= 5 5)
+  ">= should return true when first == second")
+
+(test-assert
+    (not (>= 1 2))
+  ">= should return false when first < second")
+
+; Test 2: >= with zero
+(test-assert
+    (>= 5 0)
+  ">= should work with positive vs zero")
+
+(test-assert
+    (>= 0 0)
+  ">= should work with zero vs zero")
+
+(test-assert
+    (>= 0 -5)
+  ">= should work with zero vs negative")
+
+; Test 3: >= with negative numbers
+(test-assert
+    (>= -2 -8)
+  ">= should work with negative numbers - greater")
+
+(test-assert
+    (>= -7 -7)
+  ">= should work with negative numbers - equal")
+
+(test-assert
+    (not (>= -10 -5))
+  ">= should return false when first < second (negatives)")
+
+; Test 4: >= as Church Boolean
+(test-assert
+    (= ((>= 7 4) "greater-equal" "less") "greater-equal")
+  ">= should work as Church Boolean - true case")
+
+(test-assert
+    (= ((>= 3 5) "greater-equal" "less") "less")
+  ">= should work as Church Boolean - false case")
+
+; Test 5: >= with computed values
+(test-assert
+    (>= (* 3 4) (+ 2 3))
+  ">= should work with computed values - 12 >= 5")
+
+(test-assert
+    (>= (+ 3 3) (* 2 3))
+  ">= should work with computed values - 6 >= 6")
+
+(test-assert
+    (not (>= (+ 1 2) (* 2 3)))
+  ">= should work with computed values - 3 not >= 6")
+
+
+;------------------------------------------------------------------------------
+; Comparison operator integration tests
+
+; Test 1: All operators with same values
+(define test-val1 5)
+(define test-val2 5)
+(test-assert
+    (and (= test-val1 test-val2)
+         (not (!= test-val1 test-val2))
+         (not (< test-val1 test-val2))
+         (not (> test-val1 test-val2))
+         (<= test-val1 test-val2)
+         (>= test-val1 test-val2))
+  "all comparison operators should be consistent for equal values")
+
+; Test 2: All operators with different values (first < second)
+(define small-val 3)
+(define large-val 8)
+(test-assert
+    (and (not (= small-val large-val))
+         (!= small-val large-val)
+         (< small-val large-val)
+         (not (> small-val large-val))
+         (<= small-val large-val)
+         (not (>= small-val large-val)))
+  "all comparison operators should be consistent for first < second")
+
+; Test 3: All operators with different values (first > second)
+(test-assert
+    (and (not (= large-val small-val))
+         (!= large-val small-val)
+         (not (< large-val small-val))
+         (> large-val small-val)
+         (not (<= large-val small-val))
+         (>= large-val small-val))
+  "all comparison operators should be consistent for first > second")
+
+; Test 4: Transitivity properties
+(define val-a 2)
+(define val-b 5)
+(define val-c 8)
+(test-assert
+    (and (< val-a val-b) (< val-b val-c) (< val-a val-c))
+  "< should be transitive")
+
+(test-assert
+    (and (> val-c val-b) (> val-b val-a) (> val-c val-a))
+  "> should be transitive")
+
+; Test 5: Comparison operators with library functions
+(define comparison-list (list 10 5 15 3 12))
+(define max-val (foldl (lambda (acc x) ((> x acc) x acc)) (first comparison-list) (rest comparison-list)))
+(define min-val (foldl (lambda (acc x) ((< x acc) x acc)) (first comparison-list) (rest comparison-list)))
+
+(test-assert
+    (= max-val 15)
+  "comparison operators should work in finding maximum")
+
+(test-assert
+    (= min-val 3)
+  "comparison operators should work in finding minimum")
+
+; Test 6: Comparison operators with filter
+(define numbers (iota 10))  ; (0 1 2 3 4 5 6 7 8 9)
+(define small-numbers (filter (lambda (x) (< x 5)) numbers))
+(define large-numbers (filter (lambda (x) (>= x 5)) numbers))
+
+(test-assert
+    (= (length small-numbers) 5)
+  "comparison operators should work with filter - small numbers")
+
+(test-assert
+    (= (length large-numbers) 5)
+  "comparison operators should work with filter - large numbers")
+
+; Test 7: Complex comparison expressions
+(test-assert
+    (and (<= 1 2) (<= 2 3) (<= 3 4))
+  "chained comparisons should work")
+
+(test-assert
+    (or (< 5 3) (= 5 5) (> 5 7))
+  "comparison operators should work in logical expressions")
+
+; Test 8: Comparison with mutable variables
+(define-mutable comp-var 10)
+(test-assert
+    (> comp-var 5)
+  "comparison should work with mutable variables")
+
+(set! comp-var 2)
+(test-assert
+    (< comp-var 5)
+  "comparison should work with updated mutable variables")
+
+; Test 9: Comparison operators used in sorting-like operations
+(define insert-sorted
+  (lambda (lyst x)
+    (cond ((nil? lyst) (list x))
+          ((<= x (first lyst)) (cons x lyst))
+          (else (cons (first lyst) (insert-sorted (rest lyst) x))))))
+
+(define unsorted (list 5 2 8 1 9))
+(define sorted-list (foldl insert-sorted () unsorted))
+
+(test-assert
+    (= (first sorted-list) 1)
+  "comparison operators should work for sorting - minimum")
+
+(test-assert
+    (< (first sorted-list) (first (rest sorted-list)))
+  "comparison operators should work for sorting - order check")
+
+; Test 10: Edge cases with comparison operators
+(test-assert
+    (and (not (< 0 0)) (not (> 0 0)) (<= 0 0) (>= 0 0))
+  "comparison operators should handle zero correctly")
+
+(test-assert
+    (and (< -10 -5) (> -5 -10) (<= -10 -5) (>= -5 -10))
+  "comparison operators should handle negative numbers correctly")
+
+; Test 11: Comparison operators with apply
+(test-assert
+    (apply < (list 3 7))
+  "< should work with apply")
+
+(test-assert
+    (apply >= (list 10 10))
+  ">= should work with apply")
+
+; Test 12: Error propagation in derived operators
+(test-error (< 5) "< should propagate spaceship operator errors - too few args")
+(test-error (> 1 2 3) "> should propagate spaceship operator errors - too many args")
+(test-error (<= "hello" 5) "<= should propagate spaceship operator errors - wrong types")
+(test-error (>= 5 "world") ">= should propagate spaceship operator errors - wrong types")
+
+
+;------------------------------------------------------------------------------
+; modulo tests
+(lndisplayln "modulo tests")
+
+(test-assert (= (modulo 22/7 1/3)
+                0.(142857))
+  "modulo should work with non-integer values")
+
+(test-assert (= (modulo 7 3)
+                1)
+  "modulo should give the same result as remainder for positive values")
+
+(test-assert (= (modulo -7 3)
+                2)
+  "modulo should give a different result than remainder for negative dividend and positive modulus")
+
+(test-assert (= (modulo 7 -3)
+                -2)
+  "modulo should give a different result than remainder for positive dividend and negative modulus")
+
+(test-assert (= (modulo -7 -3)
+                -1)
+  "modulo should give the same result as remainder for negative values")
+
+

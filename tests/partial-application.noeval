@@ -1,0 +1,447 @@
+;------------------------------------------------------------------------------
+; partiall tests
+(lndisplayln "partial application tests")
+
+; Test 1: Basic partiall functionality
+(define add-five (partiall + 5))
+(test-assert (= (add-five 3) 8)
+  "partiall should create function that adds 5")
+
+(test-assert (= (add-five 10) 15)
+  "partiall should work with different arguments")
+
+; Test 2: partiall with multiple partial arguments
+(define add-two-numbers (partiall + 2 3))
+(test-assert (= (add-two-numbers 4) 9)
+  "partiall should handle multiple partial arguments")
+
+; Test 3: partiall with cons
+(define prepend-hello (partiall cons "hello"))
+(define result-list (prepend-hello (list "world")))
+(test-assert (= (first result-list) "hello")
+  "partiall with cons should prepend hello")
+
+; Test 4: partiall with string operations
+(define prefix-greeting (partiall string-append "Hello, "))
+(test-assert (= (prefix-greeting "world!") "Hello, world!")
+  "partiall should work with string operations")
+
+; Test 5: partiall with library functions
+(define double-all (partiall map (lambda (x) (* x 2))))
+(define doubled (double-all (list 1 2 3)))
+(test-assert (= (first doubled) 2)
+  "partiall with map should double first element")
+(test-assert (= (second doubled) 4)
+  "partiall with map should double second element")
+
+; Test 6: partiall with comparison operators
+(define greater-than-five (partiall > 5))
+(test-assert (greater-than-five 3)
+  "partiall comparison should work - 5 > 3")
+(test-assert (not (greater-than-five 7))
+  "partiall comparison should work - not 5 > 7")
+
+; Test 7: partiall with fold operations
+(define sum-from-ten (partiall foldl + 10))
+(test-assert (= (sum-from-ten (list 1 2 3)) 16)
+  "partiall with fold should sum from initial value")
+
+; Test 8: partiall composition
+(define add-one (partiall + 1))
+(define add-two (partiall + 2))
+(define compose-adds (lambda (x) (add-two (add-one x))))
+(test-assert (= (compose-adds 5) 8)
+  "partiall functions should compose properly")
+
+; Test 9: partiall with apply
+(define apply-add (partiall apply +))
+(test-assert (= (apply-add (list 1 2 3 4)) 10)
+  "partiall with apply should work")
+
+; Test 10: partiall error conditions
+(test-error (partiall) "partiall should require at least 1 argument")
+(test-error (partiall 42) "partiall should reject non-operative first argument")
+(test-error (partiall "not-function" 1) "partiall should reject non-operative first argument")
+
+
+;------------------------------------------------------------------------------
+; partialr tests
+
+; Test 1: Basic partialr functionality
+(define subtract-from-ten (partialr - 10))
+(test-assert (= (subtract-from-ten 3) -7)
+  "partialr should create function that subtracts from 10")
+
+(test-assert (= (subtract-from-ten 15) 5)
+  "partialr should work with different arguments")
+
+; Test 2: partialr with cons to create singleton lists
+(define make-singleton (partialr cons ()))
+(define singleton (make-singleton 42))
+(test-assert (= (first singleton) 42)
+  "partialr with cons should create singleton list")
+(test-assert (nil? (rest singleton))
+  "partialr singleton should have empty rest")
+
+; Test 3: partialr with multiple partial arguments
+(define subtract-multiple (partialr - 5 2))
+(test-assert (= (subtract-multiple 20) 13)
+  "partialr should handle multiple partial arguments: 20 - 5 - 2")
+
+; Test 4: partialr with string operations
+(define add-suffix (partialr string-append " suffix"))
+(test-assert (= (add-suffix "prefix") "prefix suffix")
+  "partialr should work with string operations")
+
+; Test 5: partialr with division
+(define divide-by-two (partialr / 2))
+(test-assert (= (divide-by-two 10) 5)
+  "partialr with division should work: 10 / 2")
+
+; Test 6: partialr with comparison operators
+(define less-than-ten (partialr < 10))
+(test-assert (less-than-ten 5)
+  "partialr comparison should work - 5 < 10")
+(test-assert (not (less-than-ten 15))
+  "partialr comparison should work - not 15 < 10")
+
+; Test 7: partialr with list operations
+(define append-tail (partialr append (list 4 5)))
+(define result-append (append-tail (list 1 2 3)))
+(test-assert (= (length result-append) 5)
+  "partialr with append should create 5-element list")
+(test-assert (= (nth result-append 3) 4)
+  "partialr append should have 4 at index 3")
+
+; Test 8: partialr composition
+(define times-two (partialr * 2))
+(define plus-one (partialr + 1))
+(define compose-ops (lambda (x) (times-two (plus-one x))))
+(test-assert (= (compose-ops 5) 12)
+  "partialr functions should compose: (5 + 1) * 2")
+
+; Test 9: partialr with higher-order functions
+(define flipped-filter (lambda (lyst pred) (filter pred lyst)))
+(define filter-even (partialr flipped-filter even?))
+(define evens (filter-even (list 1 2 3 4 5 6)))
+(test-assert (= (length evens) 3)
+  "partialr with filter should find 3 even numbers")
+
+; Test 10: partialr error conditions
+(test-error (partialr) "partialr should require at least 1 argument")
+(test-error (partialr 42) "partialr should reject non-operative first argument")
+(test-error (partialr "not-function" 1) "partialr should reject non-operative first argument")
+
+
+;------------------------------------------------------------------------------
+; partiall vs partialr comparison tests
+
+; Test 1: Different behavior with non-commutative operations
+(define left-subtract-five (partiall - 5))   ; (- 5 x)
+(define right-subtract-five (partialr - 5))  ; (- x 5)
+
+(test-assert (= (left-subtract-five 3) 2)
+  "partiall subtraction: 5 - 3 = 2")
+(test-assert (= (right-subtract-five 3) -2)
+  "partialr subtraction: 3 - 5 = -2")
+
+; Test 2: Different behavior with division
+(define left-divide-ten (partiall / 10))    ; (/ 10 x)
+(define right-divide-ten (partialr / 10))   ; (/ x 10)
+
+(test-assert (= (left-divide-ten 2) 5)
+  "partiall division: 10 / 2 = 5")
+(test-assert (= (right-divide-ten 2) 1/5)
+  "partialr division: 2 / 10 = 1/5")
+
+; Test 3: Same behavior with commutative operations
+(define left-add-five (partiall + 5))
+(define right-add-five (partialr + 5))
+
+(test-assert (= (left-add-five 3) (right-add-five 3))
+  "partiall and partialr should be equivalent for addition")
+
+; Test 4: Different behavior with list operations
+(define left-cons-hello (partiall cons "hello"))   ; (cons "hello" x)
+(define right-cons-hello (partialr cons "hello"))  ; (cons x "hello")
+
+(define left-result (left-cons-hello (list "world")))
+(define right-result (right-cons-hello (list "world")))
+
+(test-assert (= (first left-result) "hello")
+  "partiall cons puts hello first")
+(test-assert (= (first right-result) (list "world"))
+  "partialr cons puts list first")
+
+
+;------------------------------------------------------------------------------
+; partiall-lazy tests
+
+; Test 1: Basic partiall-lazy functionality
+(define add-five-lazy (partiall-lazy + 5))
+(test-assert (= (add-five-lazy 3) 8)
+  "partiall-lazy should work like partiall for simple cases")
+
+; Test 2: Lazy evaluation - arguments not evaluated until function called
+(define-mutable lazy-counter 0)
+(define increment-lazy-counter (lambda* () (set! lazy-counter (+ lazy-counter 1)) lazy-counter))
+
+(define lazy-adder (partiall-lazy + (increment-lazy-counter)))
+(test-assert (= lazy-counter 0)
+  "partiall-lazy should not evaluate arguments during creation")
+
+(define lazy-result (lazy-adder 10))
+(test-assert (= lazy-counter 1)
+  "partiall-lazy should evaluate arguments when function is called")
+(test-assert (= lazy-result 11)
+  "partiall-lazy should produce correct result: 1 + 10")
+
+; Test 3: Multiple calls evaluate arguments multiple times
+(define lazy-adder2 (partiall-lazy + (increment-lazy-counter)))
+(set! lazy-counter 0)
+
+(lazy-adder2 5)
+(test-assert (= lazy-counter 1)
+  "First call should evaluate lazy arguments once")
+
+(lazy-adder2 8)
+(test-assert (= lazy-counter 2)
+  "Second call should evaluate lazy arguments again")
+
+; Test 4: partiall-lazy with complex expressions
+(define complex-lazy (partiall-lazy * (+ 2 3) (- 10 5)))
+(test-assert (= (complex-lazy 4) 100)
+  "partiall-lazy should handle complex expressions: (2+3) * (10-5) * 4")
+
+; Test 5: partiall-lazy with variable references
+(define-mutable lazy-base-var 100)
+(define var-ref-lazy (partiall-lazy + lazy-base-var))
+(test-assert (= (var-ref-lazy 23) 123)
+  "partiall-lazy should capture variable values at call time")
+
+(set! lazy-base-var 200)
+(test-assert (= (var-ref-lazy 23) 223)
+  "partiall-lazy should use current variable values")
+
+; Test 6: partiall-lazy with side effects in arguments
+(define-mutable side-effect-var 0)
+(define side-effect-lazy (partiall-lazy + (do (set! side-effect-var (+ side-effect-var 10)) side-effect-var)))
+
+(side-effect-lazy 1)
+(test-assert (= side-effect-var 10)
+  "partiall-lazy should execute side effects when called")
+
+(side-effect-lazy 2)
+(test-assert (= side-effect-var 20)
+  "partiall-lazy should execute side effects on each call")
+
+; Test 7: partiall-lazy error conditions
+(test-error (partiall-lazy) "partiall-lazy should require at least 1 argument")
+(test-error (partiall-lazy 42) "partiall-lazy should reject non-operative first argument")
+
+
+;------------------------------------------------------------------------------
+; partialr-lazy tests
+
+; Test 1: Basic partialr-lazy functionality
+(define subtract-from-ten-lazy (partialr-lazy - 10))
+(test-assert (= (subtract-from-ten-lazy 3) -7)
+  "partialr-lazy should work like partialr for simple cases")
+
+; Test 2: Lazy evaluation - arguments not evaluated until function called
+(define-mutable lazy-r-counter 0)
+(define increment-lazy-r-counter (lambda* () (set! lazy-r-counter (+ lazy-r-counter 1)) lazy-r-counter))
+
+(define lazy-r-divider (partialr-lazy / (increment-lazy-r-counter)))
+(test-assert (= lazy-r-counter 0)
+  "partialr-lazy should not evaluate arguments during creation")
+
+(define lazy-r-result (lazy-r-divider 10))
+(test-assert (= lazy-r-counter 1)
+  "partialr-lazy should evaluate arguments when function is called")
+(test-assert (= lazy-r-result 10)
+  "partialr-lazy should produce correct result: 10 / 1")
+
+; Test 3: Multiple calls evaluate arguments multiple times
+(define lazy-r-multiplier (partialr-lazy * (increment-lazy-r-counter)))
+(set! lazy-r-counter 0)
+
+(lazy-r-multiplier 5)
+(test-assert (= lazy-r-counter 1)
+  "First call should evaluate lazy arguments once")
+
+(lazy-r-multiplier 8)
+(test-assert (= lazy-r-counter 2)
+  "Second call should evaluate lazy arguments again")
+
+; Test 4: partialr-lazy with complex expressions
+(define complex-r-lazy (partialr-lazy * (+ 2 3) (- 10 2)))
+(test-assert (= (complex-r-lazy 4) 160)
+  "partialr-lazy should handle complex expressions: 4 * (2+3) * (10-2)")
+
+; Test 5: partialr-lazy with variable references
+(define-mutable lazy-r-base-var 50)
+(define var-ref-r-lazy (partialr-lazy - lazy-r-base-var))
+(test-assert (= (var-ref-r-lazy 100) 50)
+  "partialr-lazy should capture variable values: 100 - 50")
+
+(set! lazy-r-base-var 25)
+(test-assert (= (var-ref-r-lazy 100) 75)
+  "partialr-lazy should use current variable values: 100 - 25")
+
+; Test 6: partialr-lazy with side effects in arguments
+(define-mutable side-effect-r-var 0)
+(define side-effect-r-lazy (partialr-lazy + (do (set! side-effect-r-var (+ side-effect-r-var 5)) side-effect-r-var)))
+
+(side-effect-r-lazy 10)
+(test-assert (= side-effect-r-var 5)
+  "partialr-lazy should execute side effects when called")
+
+(side-effect-r-lazy 20)
+(test-assert (= side-effect-r-var 10)
+  "partialr-lazy should execute side effects on each call")
+
+; Test 7: partialr-lazy error conditions
+(test-error (partialr-lazy) "partialr-lazy should require at least 1 argument")
+(test-error (partialr-lazy 42) "partialr-lazy should reject non-operative first argument")
+
+
+;------------------------------------------------------------------------------
+; Lazy vs eager partial application comparison tests
+
+; Test 1: Demonstrate difference between eager and lazy evaluation
+(define-mutable eager-lazy-counter 0)
+(define increment-eager-lazy (lambda* () (set! eager-lazy-counter (+ eager-lazy-counter 1)) eager-lazy-counter))
+
+; Create eager and lazy versions
+(define eager-partial (partiall + (increment-eager-lazy)))  ; Evaluates immediately
+(test-assert (= eager-lazy-counter 1)
+  "Eager partiall should evaluate arguments during creation")
+
+(set! eager-lazy-counter 0)
+(define lazy-partial (partiall-lazy + (increment-eager-lazy)))  ; Doesn't evaluate
+(test-assert (= eager-lazy-counter 0)
+  "Lazy partiall should not evaluate arguments during creation")
+
+; Test 2: Eager version uses same value for all calls
+(set! eager-lazy-counter 0)
+(define eager-mult (partiall * (increment-eager-lazy)))
+(define first-eager (eager-mult 5))   ; Uses value 1
+(define second-eager (eager-mult 5))  ; Still uses value 1
+(test-assert (= first-eager second-eager)
+  "Eager partial application should use same value for all calls")
+
+; Test 3: Lazy version re-evaluates for each call
+(set! eager-lazy-counter 0)
+(define lazy-mult (partiall-lazy * (increment-eager-lazy)))
+(define first-lazy (lazy-mult 5))    ; Uses value 1, result is 5
+(define second-lazy (lazy-mult 5))   ; Uses value 2, result is 10
+(test-assert (not (= first-lazy second-lazy))
+  "Lazy partial application should re-evaluate for each call")
+(test-assert (= first-lazy 5)
+  "First lazy call should use counter value 1")
+(test-assert (= second-lazy 10)
+  "Second lazy call should use counter value 2")
+
+; Test 4: Compare eager vs lazy with mutable variables
+(define-mutable mutable-test-var 100)
+(define eager-with-var (partiall + mutable-test-var))
+(define lazy-with-var (partiall-lazy + mutable-test-var))
+
+(test-assert (= (eager-with-var 5) 105)
+  "Eager version captures initial value: 100 + 5")
+(test-assert (= (lazy-with-var 5) 105)
+  "Lazy version also gets current value: 100 + 5")
+
+(set! mutable-test-var 200)
+(test-assert (= (eager-with-var 5) 105)
+  "Eager version still uses captured value: 100 + 5")
+(test-assert (= (lazy-with-var 5) 205)
+  "Lazy version uses updated value: 200 + 5")
+
+
+;------------------------------------------------------------------------------
+; Partial application integration tests
+
+; Test 1: Using partial application with higher-order functions
+(define double (partiall * 2))
+(define add-ten (partiall + 10))
+
+(define process-list (lambda (f lst) (map f lst)))
+(define doubled-list (process-list double (list 1 2 3 4)))
+(define added-list (process-list add-ten (list 1 2 3 4)))
+
+(test-assert (= (first doubled-list) 2)
+  "Partial application should work with higher-order functions")
+(test-assert (= (first added-list) 11)
+  "Multiple partial functions should work independently")
+
+; Test 2: Chaining partial applications
+(define add-five (partiall + 5))
+(define multiply-by-three (partiall * 3))
+(define chain-operations (lambda (x) (multiply-by-three (add-five x))))
+
+(test-assert (= (chain-operations 2) 21)
+  "Partial applications should chain properly: (2 + 5) * 3")
+
+; Test 3: Using partial application in fold operations
+(define add-and-mult (lambda (a b c) (* a (+ b c))))
+(define partial-add-and-mult (partiall add-and-mult 100))
+
+(define add-and-mult-fold-result (foldl partial-add-and-mult 0 (iota 5)))
+(test-assert (= add-and-mult-fold-result 102030400)
+  "Partial application should work in fold operations")
+
+; Test 4: Partial application with library predicates
+(define is-greater-than-five (partiall > 5))
+(define greater-numbers (filter is-greater-than-five (list 1 6 3 8 2 9)))
+
+(test-assert (= (length greater-numbers) 3)
+  "Partial comparison should work with filter - 3 numbers where 5 > x would be true")
+
+(define is-less-than-five (partialr < 5))
+(define lesser-numbers (filter is-less-than-five (list 1 6 3 8 2 9)))
+
+(test-assert (= (length lesser-numbers) 3)
+  "Partial comparison should work with filter - 3 numbers less than 5")
+
+#skip
+; Is this a valid test?
+; Test 5: Complex partial application scenario
+(define create-formatter (lambda (prefix suffix)
+                          (partiall-lazy string-append prefix (string-append " " suffix))))
+
+(define greet-formatter (create-formatter "Hello" "!"))
+(test-assert (= (greet-formatter "world") "Hello world !")
+  "Complex partial application should work for string formatting")
+#end
+
+; Test 6: Performance comparison - multiple partial applications
+(define many-partials (map (lambda (n) (partiall + n)) (iota 5)))
+(define partial-sum (foldl (lambda (acc f) (+ acc (f 1))) 0 many-partials))
+
+(test-assert (= partial-sum 15)
+  "Multiple partial applications should work efficiently: 0+1 + 1+1 + 2+1 + 3+1 + 4+1")
+
+; Test 7: Recursive use of partial applications
+(define factorial-step (lambda (n acc) (* n acc)))
+(define factorial-partial
+  (lambda (n)
+    (foldl
+      (partialr factorial-step)
+      1
+      (map
+        (partiall + 1)
+        (iota n)))))
+
+(test-assert (= (factorial-partial 5) 120)
+  "Partial application should work in recursive contexts")
+
+; Test 8: Error propagation through partial applications
+(define error-partial (partiall / 10))
+(test-error (error-partial "not-a-number") 
+  "Errors should propagate through partial applications")
+
+(define lazy-error-partial (partiall-lazy first (list 1 2 3)))
+(test-error (lazy-error-partial "not-valid-for-first")
+  "Errors should propagate through lazy partial applications")

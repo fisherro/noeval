@@ -1,0 +1,11 @@
+;------------------------------------------------------------------------------
+; get-current-environment tests
+
+; Test 1: Environment capture
+(define captured-env (get-current-environment))
+(define test-var-in-env 123)
+(test-assert
+    (= (eval (q test-var-in-env) captured-env) 123)
+  "get-current-environment should capture current bindings")
+
+

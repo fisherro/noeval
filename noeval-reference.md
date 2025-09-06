@@ -4,7 +4,7 @@ Summary to use as Github Copilot context so that it doesn't have to reference la
 
 ## Built-in Operatives (C++)
 
-**Control**: `vau`, `eval`, `define`, `invoke`, `do`, `try`, `raise`
+**Control**: `vau`, `eval`, `define`, `invoke`, `do`, `try`, `raise`, `load`
 **Arithmetic**: `+`, `-`, `*`, `/` (evaluate all arguments)
 **Numeric operations**: `numerator`, `denominator`, `remainder`
 **Numeric comparisons**: `<=>` (evaluate all arguments)

@@ -1,0 +1,941 @@
+;------------------------------------------------------------------------------
+; string->list/list->string tests
+(lndisplayln "string->list/list->string tests")
+
+; Test 1: Basic string decomposition
+(test-assert (= (length (string->list "hello")) 5)
+  "string->list should return correct length for ASCII")
+
+(test-assert (= (first (string->list "A")) 65)
+  "string->list should return correct codepoint for 'A'")
+
+; Test 2: Empty string handling
+(test-assert (= (string->list "") ())
+  "string->list should return empty list for empty string")
+
+(test-assert (= (list->string ()) "")
+  "list->string should return empty string for empty list")
+
+; Test 3: Round-trip conversion
+(test-assert (= (list->string (string->list "test")) "test")
+  "round-trip conversion should preserve string")
+
+; Test 4: Unicode support
+(define unicode-test "Hello, 世界! 🌍")
+(test-assert (= (list->string (string->list unicode-test)) unicode-test)
+  "round-trip should work with Unicode text")
+
+; Test 5: String primitives enable library functions
+(test-assert (= (string-length "hello") 5)
+  "string-length should work using string->list")
+
+(test-assert (= (string-length "😀🌍") 2)
+  "string-length should count Unicode characters correctly")
+
+; Test 6: String concatenation via list operations
+(test-assert (= (string-append "hello" " " "world") "hello world")
+  "string-append should work using list operations")
+
+; Test 7: Character access
+(test-assert (= (string-nth "hello" 1) "e")
+  "string-ref should return correct character")
+
+; Test 8: String filtering (remove spaces)
+(define remove-spaces
+  (lambda (s)
+    (list->string
+      (filter (lambda (cp) (not (= cp 32))) (string->list s)))))
+
+(test-assert (= (remove-spaces "a b c") "abc")
+  "string filtering should work with codepoint operations")
+
+; Test 9: Case conversion framework (uppercase A-Z)
+(define char-upcase-codepoint
+  (lambda (cp)
+    (if (and (>= cp 97) (<= cp 122))  ; lowercase a-z
+      (- cp 32)  ; convert to uppercase
+      cp)))
+
+(define string-upcase
+  (lambda (s)
+    (list->string (map char-upcase-codepoint (string->list s)))))
+
+(test-assert (= (string-upcase "hello") "HELLO")
+  "string case conversion should work with codepoint mapping")
+
+
+;------------------------------------------------------------------------------
+; substring tests
+(lndisplayln "substring tests")
+
+; Test 1: Basic substring with start index only
+(test-assert
+    (= (substring "hello" 0) "hello")
+  "substring with start 0 should return whole string")
+
+(test-assert
+    (= (substring "hello" 1) "ello")
+  "substring with start 1 should drop first character")
+
+(test-assert
+    (= (substring "hello" 3) "lo")
+  "substring with start 3 should return suffix")
+
+; Test 2: Basic substring with start and end indices
+(test-assert
+    (= (substring "hello" 0 3) "hel")
+  "substring with start 0 end 3 should return first 3 characters")
+
+(test-assert
+    (= (substring "hello" 1 4) "ell")
+  "substring with start 1 end 4 should return middle section")
+
+(test-assert
+    (= (substring "hello" 2 5) "llo")
+  "substring with start 2 end 5 should return suffix")
+
+; Test 3: Empty string cases
+(test-assert
+    (= (substring "" 0) "")
+  "substring of empty string should return empty string")
+
+(test-assert
+    (= (substring "" 0 0) "")
+  "substring of empty string with start and end should return empty string")
+
+; Test 4: Single character string
+(test-assert
+    (= (substring "a" 0) "a")
+  "substring of single char with start 0 should return the character")
+
+(test-assert
+    (= (substring "a" 0 1) "a")
+  "substring of single char with start 0 end 1 should return the character")
+
+(test-assert
+    (= (substring "a" 1) "")
+  "substring of single char with start 1 should return empty string")
+
+(test-assert
+    (= (substring "a" 0 0) "")
+  "substring with start equals end should return empty string")
+
+; Test 5: Start index at end of string
+(test-assert
+    (= (substring "hello" 5) "")
+  "substring with start at string length should return empty string")
+
+(test-assert
+    (= (substring "test" 4) "")
+  "substring with start at string length should return empty string")
+
+; Test 6: Start index beyond string length (should clamp)
+(test-assert
+    (= (substring "hello" 10) "")
+  "substring with start beyond string length should return empty string")
+
+(test-assert
+    (= (substring "test" 100) "")
+  "substring with large start index should return empty string")
+
+; Test 7: End index beyond string length (should clamp)
+(test-assert
+    (= (substring "hello" 2 100) "llo")
+  "substring with end beyond string length should clamp to string length")
+
+(test-assert
+    (= (substring "test" 0 50) "test")
+  "substring with large end should return from start to end of string")
+
+; Test 8: Start equals end cases
+(test-assert
+    (= (substring "hello" 2 2) "")
+  "substring with start equals end should return empty string")
+
+(test-assert
+    (= (substring "hello" 0 0) "")
+  "substring with start 0 end 0 should return empty string")
+
+(test-assert
+    (= (substring "hello" 5 5) "")
+  "substring with start and end at string length should return empty string")
+
+; Test 9: Start greater than end (should return empty)
+(test-assert
+    (= (substring "hello" 3 1) "")
+  "substring with start > end should return empty string")
+
+(test-assert
+    (= (substring "hello" 4 2) "")
+  "substring with start > end should return empty string")
+
+; Test 10: Extract single characters
+(test-assert
+    (= (substring "hello" 0 1) "h")
+  "substring extracting first character")
+
+(test-assert
+    (= (substring "hello" 1 2) "e")
+  "substring extracting second character")
+
+(test-assert
+    (= (substring "hello" 4 5) "o")
+  "substring extracting last character")
+
+; Test 11: Unicode support
+(test-assert
+    (= (substring "Hello, 世界!" 7 9) "世界")
+  "substring should work with Unicode characters")
+
+(test-assert
+    (= (substring "🌍🌎🌏" 1 2) "🌎")
+  "substring should work with emoji characters")
+
+(test-assert
+    (= (substring "café" 2 4) "fé")
+  "substring should work with accented characters")
+
+; Test 12: Longer strings
+(define long-string "The quick brown fox jumps over the lazy dog")
+(test-assert
+    (= (substring long-string 0 9) "The quick")
+  "substring should work with longer strings - beginning")
+
+(test-assert
+    (= (substring long-string 10 15) "brown")
+  "substring should work with longer strings - middle")
+
+(test-assert
+    (= (substring long-string 35) "lazy dog")
+  "substring should work with longer strings - end")
+
+; Test 13: Whitespace and special characters
+(test-assert
+    (= (substring "  hello  " 2 7) "hello")
+  "substring should handle whitespace correctly")
+
+(test-assert
+    (= (substring "a\nb\tc" 0 5) "a\nb\tc")
+  "substring should handle newlines and tabs")
+
+(test-assert
+    (= (substring "hello\nworld" 6) "world")
+  "substring should handle strings with newlines")
+
+; Test 14: Boundary conditions
+(test-assert
+    (= (substring "abc" 0 3) "abc")
+  "substring covering entire string should return original")
+
+(test-assert
+    (= (substring "abc" 1 3) "bc")
+  "substring from middle to end")
+
+(test-assert
+    (= (substring "abc" 0 2) "ab")
+  "substring from start excluding last character")
+
+; Test 15: Error conditions - wrong number of arguments
+(test-error (substring) "substring should require at least 2 arguments")
+(test-error (substring "hello") "substring should require at least 2 arguments")
+
+; Test 16: Error conditions - wrong argument types
+(test-error (substring 123 0) "substring should reject non-string first argument")
+(test-error (substring "hello" "start") "substring should reject non-numeric start index")
+(test-error (substring "hello" 0 "end") "substring should reject non-numeric end index")
+
+; Test 17: Error conditions - negative indices
+(test-error (substring "hello" -1) "substring should reject negative start index")
+(test-error (substring "hello" 0 -1) "substring should reject negative end index")
+
+; Test 18: Error conditions - non-integer indices
+(test-error (substring "hello" 1.5) "substring should reject non-integer start index")
+(test-error (substring "hello" 0 2.5) "substring should reject non-integer end index")
+
+; Test 19: Composition with other string functions
+(test-assert
+    (= (string-length (substring "hello world" 6)) 5)
+  "substring should compose with string-length")
+
+(test-assert
+    (= (substring (string-append "hello" " " "world") 0 5) "hello")
+  "substring should work with string-append results")
+
+; Test 20: substring used in higher-order functions
+(define extract-prefix (lambda (str) (substring str 0 3)))
+(test-assert
+    (= (extract-prefix "testing") "tes")
+  "substring should work in higher-order functions")
+
+(define string-list (list "apple" "banana" "cherry"))
+(define prefixes (map (lambda (s) (substring s 0 2)) string-list))
+(test-assert
+    (= (first prefixes) "ap")
+  "substring should work with map - first result")
+
+(test-assert
+    (= (first (rest prefixes)) "ba")
+  "substring should work with map - second result")
+
+; Test 21: substring with conditional logic
+(define safe-substring
+  (lambda (str start end)
+    (let ((len (string-length str)))
+      ((and (>= start 0) (< start len))
+       (substring str start ((nil? end) len end))
+       ""))))
+
+(test-assert
+    (= (safe-substring "hello" 2 4) "ll")
+  "conditional substring should work normally")
+
+(test-assert
+    (= (safe-substring "hello" 10 15) "")
+  "conditional substring should handle out-of-bounds safely")
+
+; Test 22: substring for string parsing patterns
+(define get-file-extension
+  (lambda (filename)
+    (let ((dot-pos (string-length filename)))  ; Simplified - assume extension exists
+      (substring filename (- dot-pos 3)))))   ; Get last 3 chars
+
+(test-assert
+    (= (get-file-extension "test.txt") "txt")
+  "substring should work for file extension extraction")
+
+; Test 23: Empty substring in middle of string
+(test-assert
+    (= (substring "hello" 2 2) "")
+  "substring with equal start and end should return empty string")
+
+(test-assert
+    (= (substring "world" 3 3) "")
+  "substring with equal indices should return empty string")
+
+; Test 24: substring with string->list round trip
+(define manual-substring
+  (lambda (str start end)
+    (let ((chars (string->list str)))
+      (list->string (take (- end start) (drop start chars))))))
+
+(test-assert
+    (= (manual-substring "hello" 1 4) (substring "hello" 1 4))
+  "substring should match manual implementation using string->list")
+
+; Test 25: Performance with longer strings
+(define very-long-string
+  (apply string-append (map (lambda (n) "hello ") (iota 10))))
+
+(test-assert
+    (= (substring very-long-string 0 5) "hello")
+  "substring should work efficiently with longer strings")
+
+(test-assert
+    (= (string-length (substring very-long-string 10)) (- (string-length very-long-string) 10))
+  "substring should preserve correct length with longer strings")
+
+; Test 26: Multiple substring operations
+(define test-string "abcdefghijk")
+(define first-half (substring test-string 0 5))
+(define second-half (substring test-string 5))
+(test-assert
+    (= (string-append first-half second-half) test-string)
+  "splitting and rejoining with substring should preserve original")
+
+; Test 27: substring with apply
+(test-assert
+    (= (apply substring (list "hello" 1 3)) "el")
+  "substring should work with apply")
+
+; Test 28: Edge case - very small strings
+(test-assert
+    (= (substring "x" 0) "x")
+  "substring should work with very small strings")
+
+(test-assert
+    (= (substring "ab" 1 2) "b")
+  "substring should extract single character from two-character string")
+
+; Test 29: Clamping behavior verification
+(test-assert
+    (= (substring "test" 2 100) (substring "test" 2))
+  "substring with large end should equal substring with no end")
+
+(test-assert
+    (= (substring "test" 100 200) "")
+  "substring with both indices beyond string should return empty")
+
+; Test 30: Unicode edge cases
+(define mixed-unicode "ASCII🌍中文")
+(test-assert
+    (= (substring mixed-unicode 5 6) "🌍")
+  "substring should correctly handle mixed ASCII and Unicode")
+
+(test-assert
+    (= (substring mixed-unicode 6) "中文")
+  "substring should handle Unicode at end of mixed string")
+
+
+;------------------------------------------------------------------------------
+; strings->string tests
+(lndisplayln "strings->string tests")
+
+; Test 1: Basic string concatenation
+(test-assert
+    (= (strings->string (list "hello" " " "world")) "hello world")
+  "strings->string should concatenate multiple strings")
+
+; Test 2: Empty list should return empty string
+(test-assert
+    (= (strings->string ()) "")
+  "strings->string with empty list should return empty string")
+
+; Test 3: Single string should return itself
+(test-assert
+    (= (strings->string (list "hello")) "hello")
+  "strings->string with single string should return that string")
+
+; Test 4: Multiple empty strings
+(test-assert
+    (= (strings->string (list "" "" "")) "")
+  "strings->string with multiple empty strings should return empty string")
+
+; Test 5: Mixed empty and non-empty strings
+(test-assert
+    (= (strings->string (list "a" "" "b" "" "c")) "abc")
+  "strings->string should handle mixed empty and non-empty strings")
+
+; Test 6: Longer string list
+(test-assert
+    (= (strings->string (list "The" " " "quick" " " "brown" " " "fox")) "The quick brown fox")
+  "strings->string should work with longer lists")
+
+; Test 7: Unicode strings
+(test-assert
+    (= (strings->string (list "Hello" " " "世界" "!" " " "🌍")) "Hello 世界! 🌍")
+  "strings->string should handle Unicode characters")
+
+; Test 8: Special characters and whitespace
+(test-assert
+    (= (strings->string (list "a\nb" "\t" "c\r\nd")) "a\nb\tc\r\nd")
+  "strings->string should handle special characters and whitespace")
+
+; Test 9: Numbers as strings (should work)
+(test-assert
+    (= (strings->string (list "123" "456" "789")) "123456789")
+  "strings->string should work with numeric strings")
+
+; Test 10: Single character strings
+(test-assert
+    (= (strings->string (list "a" "b" "c" "d" "e")) "abcde")
+  "strings->string should work with single character strings")
+
+; Test 11: strings->string with library-generated lists
+(define word-list (map (lambda (n) (list->string (list (+ 65 n)))) (iota 5)))
+(test-assert
+    (= (strings->string word-list) "ABCDE")
+  "strings->string should work with library-generated string lists")
+
+; Test 12: strings->string with filter results
+(define vowel-strings (filter (lambda (s) (any? (lambda (c) (or (= c 65) (= c 69) (= c 73) (= c 79) (= c 85))) (string->list s)))
+                        (list "A" "B" "E" "F" "I" "J")))
+(test-assert
+    (= (strings->string vowel-strings) "AEI")
+  "strings->string should work with filtered string lists")
+
+; Test 13: strings->string with apply
+(test-assert
+    (= (apply strings->string (list (list "x" "y" "z"))) "xyz")
+  "strings->string should work with apply")
+
+; Test 14: Composition with other string functions
+(test-assert
+    (= (string-length (strings->string (list "ab" "cd" "ef"))) 6)
+  "strings->string result should work with other string functions")
+
+; Test 15: Error conditions - non-string elements
+(test-error (strings->string (list "hello" 42 "world")) "strings->string should reject non-string elements")
+(test-error (strings->string (list "a" true "b")) "strings->string should reject boolean elements")
+(test-error (strings->string (list "x" () "y")) "strings->string should reject nil elements")
+
+
+;------------------------------------------------------------------------------
+; string->codepoint-strings tests
+(lndisplayln "string->codepoint-strings tests")
+
+; Test 1: Basic ASCII string decomposition
+(define hello-codepoints (string->codepoint-strings "hello"))
+(test-assert
+    (= (length hello-codepoints) 5)
+  "string->codepoint-strings should create correct number of elements")
+
+(test-assert
+    (= (first hello-codepoints) "h")
+  "string->codepoint-strings should preserve first character")
+
+(test-assert
+    (= (first (rest hello-codepoints)) "e")
+  "string->codepoint-strings should preserve second character")
+
+; Test 2: Empty string should return empty list
+(test-assert
+    (nil? (string->codepoint-strings ""))
+  "string->codepoint-strings with empty string should return empty list")
+
+; Test 3: Single character string
+(define single-char (string->codepoint-strings "A"))
+(test-assert
+    (= (length single-char) 1)
+  "string->codepoint-strings with single char should return single-element list")
+
+(test-assert
+    (= (first single-char) "A")
+  "string->codepoint-strings should preserve single character")
+
+; Test 4: Unicode characters
+(define unicode-chars (string->codepoint-strings "🌍世"))
+(test-assert
+    (= (length unicode-chars) 2)
+  "string->codepoint-strings should handle Unicode characters correctly")
+
+(test-assert
+    (= (first unicode-chars) "🌍")
+  "string->codepoint-strings should preserve Unicode emoji")
+
+(test-assert
+    (= (first (rest unicode-chars)) "世")
+  "string->codepoint-strings should preserve Unicode CJK characters")
+
+; Test 5: Mixed ASCII and Unicode
+(define mixed-chars (string->codepoint-strings "A🌍B"))
+(test-assert
+    (= (length mixed-chars) 3)
+  "string->codepoint-strings should handle mixed ASCII/Unicode")
+
+(test-assert
+    (= (first mixed-chars) "A")
+  "string->codepoint-strings should preserve ASCII in mixed content")
+
+(test-assert
+    (= (first (rest mixed-chars)) "🌍")
+  "string->codepoint-strings should preserve Unicode in mixed content")
+
+; Test 6: Special characters
+(define special-chars (string->codepoint-strings "\n\t\r"))
+(test-assert
+    (= (length special-chars) 3)
+  "string->codepoint-strings should handle special characters")
+
+(test-assert
+    (= (first special-chars) "\n")
+  "string->codepoint-strings should preserve newline")
+
+; Test 7: Numbers as characters
+(define digit-chars (string->codepoint-strings "123"))
+(test-assert
+    (= (first digit-chars) "1")
+  "string->codepoint-strings should handle digit characters")
+
+(test-assert
+    (= (first (rest digit-chars)) "2")
+  "string->codepoint-strings should preserve digit order")
+
+; Test 8: Whitespace characters
+(define space-chars (string->codepoint-strings "a b c"))
+(test-assert
+    (= (length space-chars) 5)
+  "string->codepoint-strings should count spaces as characters")
+
+(test-assert
+    (= (first (rest space-chars)) " ")
+  "string->codepoint-strings should preserve spaces")
+
+; Test 9: Round-trip conversion
+(test-assert
+    (= (strings->string (string->codepoint-strings "test")) "test")
+  "string->codepoint-strings should round-trip with strings->string")
+
+(test-assert
+    (= (strings->string (string->codepoint-strings "Hello, 世界!")) "Hello, 世界!")
+  "round-trip should work with Unicode content")
+
+; Test 10: Longer string
+(define long-string "The quick brown fox jumps over the lazy dog")
+(define long-chars (string->codepoint-strings long-string))
+(test-assert
+    (= (length long-chars) (string-length long-string))
+  "string->codepoint-strings length should match string-length")
+
+(test-assert
+    (= (strings->string long-chars) long-string)
+  "round-trip should work with longer strings")
+
+; Test 11: string->codepoint-strings with library functions
+(define vowel-chars (filter (lambda (s) (any? (lambda (c) (or (= s "a") (= s "e") (= s "i") (= s "o") (= s "u"))) (list s)))
+                      (string->codepoint-strings "hello world")))
+(test-assert
+    (= (length vowel-chars) 3)
+  "string->codepoint-strings should work with filter")
+
+; Test 12: Character counting with string->codepoint-strings
+(define char-count (foldl (lambda (acc char) (+ acc 1)) 0 (string->codepoint-strings "count me")))
+(test-assert
+    (= char-count 8)
+  "string->codepoint-strings should work with fold operations")
+
+; Test 13: string->codepoint-strings with map
+(define upper-case-check (map (lambda (s) (and (>= (first (string->list s)) 65) (<= (first (string->list s)) 90)))
+                           (string->codepoint-strings "ABC")))
+(test-assert
+    (all? (lambda (x) (= x true)) upper-case-check)
+  "string->codepoint-strings should work with character analysis")
+
+; Test 14: string->codepoint-strings with apply
+(test-assert
+    (= (length (apply string->codepoint-strings (list "test"))) 4)
+  "string->codepoint-strings should work with apply")
+
+; Test 15: Error conditions
+(test-error (string->codepoint-strings) "string->codepoint-strings should require exactly 1 argument")
+(test-error (string->codepoint-strings "hello" "world") "string->codepoint-strings should require exactly 1 argument")
+(test-error (string->codepoint-strings 42) "string->codepoint-strings should reject non-string arguments")
+(test-error (string->codepoint-strings true) "string->codepoint-strings should reject boolean arguments")
+(test-error (string->codepoint-strings ()) "string->codepoint-strings should reject nil arguments")
+
+; Test 16: Composition tests
+(define compose-test "programming")
+(test-assert
+    (= (first (string->codepoint-strings compose-test))
+       (string-nth compose-test 0))
+  "string->codepoint-strings should be consistent with string-nth")
+
+; Test 17: Edge case - very long Unicode string
+(define unicode-test "😀😃😄😁🤣😂🙂🙃😉😊😇")
+(test-assert
+    (= (strings->string (string->codepoint-strings unicode-test)) unicode-test)
+  "string->codepoint-strings should handle long Unicode strings")
+
+; Test 18: Special Unicode categories
+(define mixed-unicode "Café naïve résumé")
+(test-assert
+    (> (length (string->codepoint-strings mixed-unicode)) 0)
+  "string->codepoint-strings should handle accented characters")
+
+; Test 19: Performance test with moderate string
+(define medium-string (strings->string (map (lambda (n) "x") (iota 50))))
+(test-assert
+    (= (length (string->codepoint-strings medium-string)) 50)
+  "string->codepoint-strings should handle moderately long strings")
+
+; Test 20: Character manipulation pipeline
+(define reverse-string
+  (lambda (s)
+    (strings->string (reverse (string->codepoint-strings s)))))
+(test-assert
+    (= (reverse-string "hello") "olleh")
+  "string->codepoint-strings should enable string manipulation")
+
+
+;------------------------------------------------------------------------------
+; codepoints->utf8 tests
+(lndisplayln "codepoints->utf8 tests")
+
+; Test 1: Basic ASCII characters (1-byte UTF-8)
+(define ascii-codepoints (list 65 66 67))  ; A, B, C
+(define ascii-utf8 (codepoints->utf8 ascii-codepoints))
+(test-assert (= (length ascii-utf8) 3)
+  "ASCII characters should produce 1 byte each")
+(test-assert (= (first ascii-utf8) 65)
+  "ASCII 'A' should be byte 65")
+(test-assert (= (second ascii-utf8) 66)
+  "ASCII 'B' should be byte 66")
+(test-assert (= (third ascii-utf8) 67)
+  "ASCII 'C' should be byte 67")
+
+; Test 2: Empty list should return empty list
+(test-assert (= (codepoints->utf8 ()) ())
+  "Empty codepoint list should return empty byte list")
+
+; Test 3: Single ASCII character
+(define single-ascii (codepoints->utf8 (list 72)))  ; H
+(test-assert (= (length single-ascii) 1)
+  "Single ASCII character should produce 1 byte")
+(test-assert (= (first single-ascii) 72)
+  "ASCII 'H' should be byte 72")
+
+; Test 4: 2-byte UTF-8 sequences (Latin-1 Supplement)
+(define latin1-codepoints (list 233))  ; é
+(define latin1-utf8 (codepoints->utf8 latin1-codepoints))
+(test-assert (= (length latin1-utf8) 2)
+  "Latin-1 character should produce 2 bytes")
+(test-assert (= (first latin1-utf8) 195)
+  "First byte of é should be 195")
+(test-assert (= (second latin1-utf8) 169)
+  "Second byte of é should be 169")
+
+; Test 5: 3-byte UTF-8 sequences (CJK characters)
+(define cjk-codepoints (list 19990))  ; 世
+(define cjk-utf8 (codepoints->utf8 cjk-codepoints))
+(test-assert (= (length cjk-utf8) 3)
+  "CJK character should produce 3 bytes")
+(test-assert (= (first cjk-utf8) 228)
+  "First byte of 世 should be 228")
+(test-assert (= (second cjk-utf8) 184)
+  "Second byte of 世 should be 184")
+(test-assert (= (third cjk-utf8) 150)
+  "Third byte of 世 should be 150")
+
+; Test 6: 4-byte UTF-8 sequences (Emoji)
+(define emoji-codepoints (list 127757))  ; 🌍
+(define emoji-utf8 (codepoints->utf8 emoji-codepoints))
+(test-assert (= (length emoji-utf8) 4)
+  "Emoji character should produce 4 bytes")
+(test-assert (= (first emoji-utf8) 240)
+  "First byte of 🌍 should be 240")
+(test-assert (= (second emoji-utf8) 159)
+  "Second byte of 🌍 should be 159")
+(test-assert (= (third emoji-utf8) 140)
+  "Third byte of 🌍 should be 140")
+(test-assert (= (fourth emoji-utf8) 141)
+  "Fourth byte of 🌍 should be 141")
+
+; Test 7: Mixed character types
+(define mixed-codepoints (list 65 233 19990))  ; A, é, 世
+(define mixed-utf8 (codepoints->utf8 mixed-codepoints))
+(test-assert (= (length mixed-utf8) 6)
+  "Mixed characters should produce 1+2+3=6 bytes")
+(test-assert (= (first mixed-utf8) 65)
+  "First byte should be ASCII A")
+(test-assert (= (second mixed-utf8) 195)
+  "Second byte should be first byte of é")
+
+; Test 8: Boundary values
+(define boundary-low (codepoints->utf8 (list 0)))
+(test-assert (= (length boundary-low) 1)
+  "Null character should produce 1 byte")
+(test-assert (= (first boundary-low) 0)
+  "Null character should be byte 0")
+
+(define boundary-127 (codepoints->utf8 (list 127)))
+(test-assert (= (length boundary-127) 1)
+  "Codepoint 127 should produce 1 byte")
+
+(define boundary-128 (codepoints->utf8 (list 128)))
+(test-assert (= (length boundary-128) 2)
+  "Codepoint 128 should produce 2 bytes")
+
+; Test 9: Error conditions - invalid codepoints
+(test-error (codepoints->utf8 (list -1))
+  "Negative codepoints should raise error")
+(test-error (codepoints->utf8 (list 1114112))
+  "Codepoints beyond Unicode range should raise error")
+(test-error (codepoints->utf8 (list 55296))
+  "Surrogate codepoints should raise error")
+(test-error (codepoints->utf8 (list 57343))
+  "Surrogate codepoints should raise error")
+
+; Test 10: Error conditions - invalid arguments
+(test-error (codepoints->utf8 "not-a-list")
+  "Non-list argument should raise error")
+(test-error (codepoints->utf8 (list "not-a-number"))
+  "Non-numeric codepoints should raise error")
+(test-error (codepoints->utf8 (list 1.5))
+  "Non-integer codepoints should raise error")
+
+; Test 11: Large valid codepoint
+(define large-valid (codepoints->utf8 (list 1114111)))  ; Maximum valid codepoint
+(test-assert (= (length large-valid) 4)
+  "Maximum valid codepoint should produce 4 bytes")
+
+; Test 12: Codepoints->utf8 with apply
+(test-assert (= (apply codepoints->utf8 (list (list 65 66))) (list 65 66))
+  "codepoints->utf8 should work with apply")
+
+
+;------------------------------------------------------------------------------
+; utf8->codepoints tests
+(lndisplayln "utf8->codepoints tests")
+
+; Test 1: Basic ASCII bytes (1-byte UTF-8)
+(define ascii-bytes (list 65 66 67))  ; A, B, C
+(define ascii-result (utf8->codepoints ascii-bytes))
+(test-assert (= (length ascii-result) 3)
+  "ASCII bytes should produce 3 codepoints")
+(test-assert (= (first ascii-result) 65)
+  "Byte 65 should decode to codepoint 65")
+(test-assert (= (second ascii-result) 66)
+  "Byte 66 should decode to codepoint 66")
+(test-assert (= (third ascii-result) 67)
+  "Byte 67 should decode to codepoint 67")
+
+; Test 2: Empty list should return empty list
+(test-assert (= (utf8->codepoints ()) ())
+  "Empty byte list should return empty codepoint list")
+
+; Test 3: Single ASCII byte
+(define single-ascii-byte (utf8->codepoints (list 72)))  ; H
+(test-assert (= (length single-ascii-byte) 1)
+  "Single ASCII byte should produce 1 codepoint")
+(test-assert (= (first single-ascii-byte) 72)
+  "Byte 72 should decode to codepoint 72")
+
+; Test 4: 2-byte UTF-8 sequence (Latin-1 Supplement)
+(define latin1-bytes (list 195 169))  ; é
+(define latin1-result (utf8->codepoints latin1-bytes))
+(test-assert (= (length latin1-result) 1)
+  "2-byte sequence should produce 1 codepoint")
+(test-assert (= (first latin1-result) 233)
+  "Bytes 195,169 should decode to codepoint 233 (é)")
+
+; Test 5: 3-byte UTF-8 sequence (CJK characters)
+(define cjk-bytes (list 228 184 150))  ; 世
+(define cjk-result (utf8->codepoints cjk-bytes))
+(test-assert (= (length cjk-result) 1)
+  "3-byte sequence should produce 1 codepoint")
+(test-assert (= (first cjk-result) 19990)
+  "Bytes 228,184,150 should decode to codepoint 19990 (世)")
+
+; Test 6: 4-byte UTF-8 sequence (Emoji)
+(define emoji-bytes (list 240 159 140 141))  ; 🌍
+(define emoji-result (utf8->codepoints emoji-bytes))
+(test-assert (= (length emoji-result) 1)
+  "4-byte sequence should produce 1 codepoint")
+(test-assert (= (first emoji-result) 127757)
+  "Bytes 240,159,140,141 should decode to codepoint 127757 (🌍)")
+
+; Test 7: Mixed byte sequences
+(define mixed-bytes (list 65 195 169 228 184 150))  ; A, é, 世
+(define mixed-result (utf8->codepoints mixed-bytes))
+(test-assert (= (length mixed-result) 3)
+  "Mixed bytes should produce 3 codepoints")
+(test-assert (= (first mixed-result) 65)
+  "First codepoint should be 65 (A)")
+(test-assert (= (second mixed-result) 233)
+  "Second codepoint should be 233 (é)")
+(test-assert (= (third mixed-result) 19990)
+  "Third codepoint should be 19990 (世)")
+
+; Test 8: Boundary values
+(define null-byte (utf8->codepoints (list 0)))
+(test-assert (= (length null-byte) 1)
+  "Null byte should produce 1 codepoint")
+(test-assert (= (first null-byte) 0)
+  "Null byte should decode to codepoint 0")
+
+(define boundary-127-decode (utf8->codepoints (list 127)))
+(test-assert (= (first boundary-127-decode) 127)
+  "Byte 127 should decode to codepoint 127")
+
+; Test 9: Error conditions - invalid byte values
+(test-error (utf8->codepoints (list -1))
+  "Negative bytes should raise error")
+(test-error (utf8->codepoints (list 256))
+  "Bytes > 255 should raise error")
+(test-error (utf8->codepoints (list 1.5))
+  "Non-integer bytes should raise error")
+
+; Test 10: Error conditions - invalid UTF-8 sequences
+(test-error (utf8->codepoints (list 128))
+  "Invalid leading byte should raise error")
+(test-error (utf8->codepoints (list 195))
+  "Incomplete 2-byte sequence should raise error")
+(test-error (utf8->codepoints (list 228 184))
+  "Incomplete 3-byte sequence should raise error")
+(test-error (utf8->codepoints (list 240 159 140))
+  "Incomplete 4-byte sequence should raise error")
+
+; Test 11: Error conditions - invalid continuation bytes
+(test-error (utf8->codepoints (list 195 65))
+  "Invalid continuation byte should raise error")
+(test-error (utf8->codepoints (list 228 65 150))
+  "Invalid continuation byte in 3-byte sequence should raise error")
+(test-error (utf8->codepoints (list 240 65 140 141))
+  "Invalid continuation byte in 4-byte sequence should raise error")
+
+; Test 12: Error conditions - overlong encodings
+(test-error (utf8->codepoints (list 192 128))
+  "Overlong 2-byte encoding should raise error")
+(test-error (utf8->codepoints (list 224 128 128))
+  "Overlong 3-byte encoding should raise error")
+
+; Test 13: Error conditions - surrogate encodings
+(test-error (utf8->codepoints (list 237 160 128))
+  "UTF-8 encoding of surrogate should raise error")
+
+; Test 14: Error conditions - invalid arguments
+(test-error (utf8->codepoints "not-a-list")
+  "Non-list argument should raise error")
+(test-error (utf8->codepoints (list "not-a-number"))
+  "Non-numeric bytes should raise error")
+
+; Test 15: utf8->codepoints with apply
+(test-assert (= (apply utf8->codepoints (list (list 65 66))) (list 65 66))
+  "utf8->codepoints should work with apply")
+
+
+;------------------------------------------------------------------------------
+; Round-trip conversion tests
+(lndisplayln "utf8 round-trip tests")
+
+; Test 1: ASCII round-trip
+(define ascii-round-trip (list 65 66 67 68 69))
+(test-assert (= (utf8->codepoints (codepoints->utf8 ascii-round-trip)) ascii-round-trip)
+  "ASCII codepoints should round-trip correctly")
+
+; Test 2: Latin-1 round-trip
+(define latin1-round-trip (list 192 193 233 241))  ; À, Á, é, ñ
+(test-assert (= (utf8->codepoints (codepoints->utf8 latin1-round-trip)) latin1-round-trip)
+  "Latin-1 codepoints should round-trip correctly")
+
+; Test 3: CJK round-trip
+(define cjk-round-trip (list 19990 30028))  ; 世界
+(test-assert (= (utf8->codepoints (codepoints->utf8 cjk-round-trip)) cjk-round-trip)
+  "CJK codepoints should round-trip correctly")
+
+; Test 4: Emoji round-trip
+(define emoji-round-trip (list 127757 127758))  ; 🌍🌎
+(test-assert (= (utf8->codepoints (codepoints->utf8 emoji-round-trip)) emoji-round-trip)
+  "Emoji codepoints should round-trip correctly")
+
+; Test 5: Mixed content round-trip
+(define mixed-round-trip (list 72 101 108 108 111 44 32 19990 30028 33 32 127757))  ; Hello, 世界! 🌍
+(test-assert (= (utf8->codepoints (codepoints->utf8 mixed-round-trip)) mixed-round-trip)
+  "Mixed content should round-trip correctly")
+
+; Test 6: Boundary values round-trip
+(define boundary-round-trip (list 0 127 128 2047 2048 65535 65536 1114111))
+(test-assert (= (utf8->codepoints (codepoints->utf8 boundary-round-trip)) boundary-round-trip)
+  "Boundary values should round-trip correctly")
+
+; Test 7: String integration round-trip
+(define test-string "Hello, 世界! 🌍")
+(define string-codepoints (string->list test-string))
+(define utf8-bytes (codepoints->utf8 string-codepoints))
+(define recovered-codepoints (utf8->codepoints utf8-bytes))
+(define recovered-string (list->string recovered-codepoints))
+(test-assert (= recovered-string test-string)
+  "String should round-trip through UTF-8 conversion")
+
+#skip
+; This test takes over 3 minutes. The UTF-8 functions could benefit from optimization.
+; Test 8: Performance test with longer content
+(define long-codepoints (append (iota 128) (list 233 19990 127757)))
+(test-assert (= (utf8->codepoints (codepoints->utf8 long-codepoints)) long-codepoints)
+  "Longer content should round-trip correctly")
+#end
+
+; Test 9: Empty round-trip
+(test-assert (= (utf8->codepoints (codepoints->utf8 ())) ())
+  "Empty list should round-trip correctly")
+
+; Test 10: Single character round-trips for each UTF-8 length
+(test-assert (= (utf8->codepoints (codepoints->utf8 (list 65))) (list 65))
+  "1-byte character should round-trip")
+(test-assert (= (utf8->codepoints (codepoints->utf8 (list 233))) (list 233))
+  "2-byte character should round-trip")
+(test-assert (= (utf8->codepoints (codepoints->utf8 (list 19990))) (list 19990))
+  "3-byte character should round-trip")
+(test-assert (= (utf8->codepoints (codepoints->utf8 (list 127757))) (list 127757))
+  "4-byte character should round-trip")
+
+
