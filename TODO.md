@@ -14,7 +14,13 @@ Review code for conformance to the style guidelines
 Look for redundant or unneeded library tests that we can remove to keep the
 test suite size down.
 
+Update noeval-reference.md
+
 ## Regular
+
+Breakup library tests into multiple files using `load`.
+
+Have the parser track the file path so that `load` can use its directory as the "current directory" for relative paths.
 
 Capture the accumulator and the accumulate-reverse patterns in library forms.
 Or, more specifically, provide `unfoldl`, `unfoldr`, `foldl-until`, and
@@ -24,10 +30,6 @@ library functions.
 Prioritize macros and RRB trees in order to improve performance.
 
 Member functions to extract values from the value type.
-
-Breakup library tests into multiple files. Maybe an "include file" that would allow breaking the tests up into multiple files? Or would it be better to implement modules?
-
-update noeval-reference
 
 A special form for "requires contracts" to standardize argument checking?
 

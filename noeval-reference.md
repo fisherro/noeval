@@ -80,17 +80,20 @@ Summary to use as Github Copilot context so that it doesn't have to reference la
 ## Common Pitfalls
 
 ### Mutation Errors
+
 - `(define x 42)` creates an **immutable** binding - `(set! x 99)` will fail
 - `(define-mutable x 42)` creates a **mutable** binding - `(set! x 99)` will succeed
 - `set!` can only modify variables that were explicitly created as mutable
 
 ### Body Expression Limits
+
 - `lambda` takes exactly one body expression: `(lambda (x) (+ x 1))` ✓
 - For multiple expressions, use `lambda*`: `(lambda* (x) (displayln x) (+ x 1))` ✓  
 - Same applies to `vau` vs `vau*` for operatives
 - Multiple expressions without `*` forms will cause syntax errors
 
 ### Church Boolean Usage
+
 - Conditions return operatives, not boolean values
 - Use `((condition) true-branch false-branch)` pattern
 - `and`, `or`, `not` work with Church Booleans, not primitive booleans

@@ -1382,6 +1382,49 @@ namespace builtins {
         return value::make(s);
     }
 
+    continuation_type load_operative(const std::vector<value_ptr>& args, env_ptr env)
+    {
+        if (1 != args.size()) {
+            throw evaluation_error("load: expected 1 argument (filename)", "load", call_stack::format());
+        }
+        
+        auto filename_val = eval(args[0], env);
+        if (not std::holds_alternative<std::string>(filename_val->data)) {
+            throw evaluation_error("load: filename must be a string", "load", call_stack::format());
+        }
+        
+        auto filename = std::get<std::string>(filename_val->data);
+        
+        try {
+            std::string content = read_file_content(filename);
+            
+            if (content.empty()) {
+                return value::make(nullptr); // Return nil for empty files
+            }
+            
+            parser p(content);
+            auto expressions = p.parse_all();
+            
+            value_ptr result = value::make(nullptr); // Default to nil
+            
+            // Evaluate each expression in sequence using top_level_eval
+            for (const auto& expr : expressions) {
+                result = top_level_eval(expr, env);  // This is the key change
+            }
+            
+            return result; // Return result of last expression
+            
+        } catch (const evaluation_error&) {
+            throw; // Re-throw evaluation errors unchanged
+        } catch (const std::exception& e) {
+            throw evaluation_error(
+                std::format("include: {}", e.what()),
+                std::format("(load \"{}\")", filename),
+                call_stack::format()
+            );
+        }
+    }
+
 } // namespace builtins
 
 void add_church_boleans(env_ptr env)
@@ -1431,6 +1474,7 @@ env_ptr create_global_environment()
 #ifdef USE_PRIMITIVE_DO
     define_builtin("do", builtins::do_operative);
 #endif
+    define_builtin("load", builtins::load_operative);
     // Arithmetic
     define_arithmetic("+", std::plus<bignum>{});
     define_arithmetic("-", std::minus<bignum>{});
