@@ -1,93 +1,3 @@
-; Test suite for the vau language library
-; This file contains tests that are run after loading the standard library
-
-(define verbose false)
-
-; Set up test variables
-(define-mutable test-failures 0)
-(define-mutable test-count 0)
-(define-mutable test-dots 0)
-
-; Test helper functions
-(define test-assert
-  (vau (condition message) env
-    (do
-      (set! test-count (+ test-count 1))
-      (try
-          (if (eval condition env)
-            (if verbose
-              (do
-                (display "✓ ")
-                (display message)
-                (display "\n")
-                "PASS")
-              (do
-                (display ".")
-                (flush)
-                (set! test-dots (+ test-dots 1))
-                "PASS"))
-            (do
-              (set! test-failures (+ test-failures 1))
-              (when (not (= 0 test-dots))
-                (do (displayln "")
-                    (set! test-dots 0)))
-              (display "\e[31m✗ ")
-              (display message)
-              (display "\e[0m\n")
-              message))
-        (lambda* (error)
-          (set! test-failures (+ test-failures 1))
-          (display "\e[31m✗ ")
-          (display message)
-          (display "\n\t")
-          (display error)
-          (display "\e[0m\n"))))))
-
-(define test-error
-  (vau (expr message) env
-    (do
-      (define-mutable thrown 0)
-      (try
-          (eval expr env)
-        (lambda (e) (set! thrown 1)))
-      (if (= 1 thrown)
-        (if verbose
-          (do
-            (display "✓ ")
-            (display message)
-            (display "\n")
-            "PASS")
-          (do
-            (display ".")
-            (flush)
-            (set! test-dots (+ test-dots 1))
-            "PASS"))
-        (do
-          (set! test-failures (+ test-failures 1))
-          (when (not (= 0 test-dots))
-            (do (displayln "")
-                (set! test-dots 0)))
-          (display "\e[31m✗ ")
-          (display message)
-          (display "\e[0m\n")
-          message)))))
-
-; Helper operative to create unevaluated expressions for testing
-(define make-expr
-  (vau args env args))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-; Test nested skip blocks
-
-#skip
-(displayln bogus1)
-#skip
-(displayln bogus2)
-#end
-(displayln bogus3)
-#end
-
 ;------------------------------------------------------------------------------
 ; = tests
 ; = is a builtin operative, but we want to test it here
@@ -6463,7 +6373,6 @@
                 -1)
   "modulo should give the same result as remainder for negative values")
 
-#skip ; Skipping all the string related tests for now...they're slow
 ;------------------------------------------------------------------------------
 ; string->list/list->string tests
 (lndisplayln "string->list/list->string tests")
@@ -7398,8 +7307,6 @@
 (test-assert (= (utf8->codepoints (codepoints->utf8 (list 127757))) (list 127757))
   "4-byte character should round-trip")
 
-#end ; Skipping all the string related tests for now...they're slow
-
 ;------------------------------------------------------------------------------
 ; partiall tests
 (lndisplayln "partial application tests")
@@ -7841,11 +7748,3 @@
 (define lazy-error-partial (partiall-lazy first (list 1 2 3)))
 (test-error (lazy-error-partial "not-valid-for-first")
   "Errors should propagate through lazy partial applications")
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Show test results
-(if (= test-failures 0)
-  "All library tests passed!"
-  (do
-    (define message "Library tests failed!")
-    test-failures))

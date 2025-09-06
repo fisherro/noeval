@@ -1,0 +1,90 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Set up test environment
+
+(define verbose false)
+
+; Set up test variables
+(define-mutable test-failures 0)
+(define-mutable test-count 0)
+(define-mutable test-dots 0)
+
+; Test helper functions
+(define test-assert
+  (vau (condition message) env
+    (do
+      (set! test-count (+ test-count 1))
+      (try
+          (if (eval condition env)
+            (if verbose
+              (do
+                (display "✓ ")
+                (display message)
+                (display "\n")
+                "PASS")
+              (do
+                (display ".")
+                (flush)
+                (set! test-dots (+ test-dots 1))
+                "PASS"))
+            (do
+              (set! test-failures (+ test-failures 1))
+              (when (not (= 0 test-dots))
+                (do (displayln "")
+                    (set! test-dots 0)))
+              (display "\e[31m✗ ")
+              (display message)
+              (display "\e[0m\n")
+              message))
+        (lambda* (error)
+          (set! test-failures (+ test-failures 1))
+          (display "\e[31m✗ ")
+          (display message)
+          (display "\n\t")
+          (display error)
+          (display "\e[0m\n"))))))
+
+(define test-error
+  (vau (expr message) env
+    (do
+      (define-mutable thrown 0)
+      (try
+          (eval expr env)
+        (lambda (e) (set! thrown 1)))
+      (if (= 1 thrown)
+        (if verbose
+          (do
+            (display "✓ ")
+            (display message)
+            (display "\n")
+            "PASS")
+          (do
+            (display ".")
+            (flush)
+            (set! test-dots (+ test-dots 1))
+            "PASS"))
+        (do
+          (set! test-failures (+ test-failures 1))
+          (when (not (= 0 test-dots))
+            (do (displayln "")
+                (set! test-dots 0)))
+          (display "\e[31m✗ ")
+          (display message)
+          (display "\e[0m\n")
+          message)))))
+
+; Helper operative to create unevaluated expressions for testing
+(define make-expr
+  (vau args env args))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Load and run tests
+
+(load "tests/all.noeval")
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Show test results
+(if (= test-failures 0)
+  "All library tests passed!"
+  (do
+    (define message "Library tests failed!")
+    test-failures))
