@@ -1872,7 +1872,7 @@ int run_library_tests(env_ptr outer_env)
     
     try {
         // Load and run the test file
-        std::string content = read_file_content("src/tests.noeval");
+        std::string content = read_file_content("tests/tests.noeval");
         
         if (content.empty()) {
             std::println("Test file is empty or not found");
