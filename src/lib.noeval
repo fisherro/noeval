@@ -199,6 +199,57 @@
       (define if-expr (list if test () (cons do body)))
       (eval if-expr env))))
 
+; Partial application from the left
+; (partiall + 1) creates a function that adds 1 to its argument
+; (partiall cons 'a) creates a function that conses 'a to its argument
+(define partiall
+  (lambda args
+    (do
+      (define func (first args))
+      (define partial-args (rest args))
+      (unless (operative? func)
+        (raise "partiall's first argument must be callable"))
+      (lambda remaining-args
+        (apply func (append partial-args remaining-args))))))
+
+; Partial application from the right  
+; (partialr - 1) creates a function that subtracts 1 from its argument
+; (partialr cons '()) creates a function that creates a singleton list
+(define partialr
+  (lambda args
+    (do
+      (define func (first args))
+      (define partial-args (rest args))
+      (unless (operative? func)
+        (raise "partialr's first argument must be callable"))
+      (lambda remaining-args
+        (apply func (append remaining-args partial-args))))))
+
+; A lazy version of partiall that doesn't evaluate its partial arguments
+(define partiall-lazy
+  (vau args env
+    (do
+      (define func (eval (first args)
+                         env))
+      (unless (operative? func)
+        (raise "partiall-lazy's first argument must be callable"))
+      (define partial-args (rest args))
+      (lambda remaining-args
+        (apply func (append (eval-list partial-args env)
+                            remaining-args))))))
+
+; A lazy version of partialr that doesn't evaluate its partial arguments
+(define partialr-lazy
+  (vau args env
+    (do
+      (define func (eval (first args)
+                         env))
+      (unless (operative? func)
+        (raise "partiall-lazy's first argument must be callable"))
+      (define partial-args (rest args))
+      (lambda remaining-args
+        (apply func (append remaining-args (eval-list partial-args env)))))))
+
 (define for-each (lambda* (procedure lyst)
                    (unless (operative? procedure)
                      (raise "for-each's first argument must be callable"))
@@ -235,11 +286,11 @@
     (unless (list? lyst)
       (raise "foldl's second argument must be a list"))
     (define loop
-      (lambda (init lyst)
-        ((nil? lyst)
-         init
-         (loop (func init (first lyst))
-               (rest lyst)))))
+      (lambda (acc remaining)
+        ((nil? remaining)
+         acc
+         (loop (func acc (first remaining))
+               (rest remaining)))))
     (loop init lyst)))
 
 ; foldr applies a binary function to the elements of a list from right to left

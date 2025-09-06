@@ -20,11 +20,12 @@ Summary to use as Github Copilot context so that it doesn't have to reference la
 
 - **Church Booleans**: `((condition) true-branch false-branch)`
 - **Variadic parameters**: `vau` and `lambda` support variadic parameters using single symbol form `(lambda args ...)` but not dotted pair form `(lambda (first . rest) ...)`
-- **Multiple body expressions**: Use `vau*` and `lambda*` for multiple expressions
+- **Single vs multiple expressions**: `lambda` and `vau` support only single body expressions; use `lambda*` and `vau*` for multiple expressions in the body
+- **Lists**: Built from `cons` cells, terminated with `()`
 - **Unevaluated arguments**: Operatives receive raw expressions
 - **Environment access**: Second parameter to `vau` gets calling environment
 - **Nil representation**: `()` not `nil`
-- **Lists**: Built from `cons` cells, terminated with `()`
+- **Mutation restrictions**: Only variables created with `define-mutable` can be modified with `set!` - attempting to `set!` a variable created with `define` will raise an error
 - **Environment transparency**: `do` and `try` do not create new environments - definitions made within them persist in the current environment
 - **Numbers**: Arbitrary precision rationals (fractions) - all arithmetic preserves exact precision
 - **Rational decomposition**: `numerator` and `denominator` extract parts of fractions
@@ -33,7 +34,7 @@ Summary to use as Github Copilot context so that it doesn't have to reference la
 
 ## Standard Library (lib.noeval)
 
-**Core**: `lambda`, `lambda*`, `vau*`, `wrap`, `apply`, `if`, `let`, `cond`
+**Core**: `lambda` (single expression), `lambda*` (multiple expressions), `vau*` (multiple expressions), `wrap`, `apply`, `if`, `let`, `cond`
 **Lists**: `append`, `reverse`, `length`, `filter`, `map`, `foldl`, `foldr`, `list`, `snoc`, `iota`, `prepend`, `second`, `list-ref`, `list-index`
 **Control**: `when`, `unless`, `and`, `or`, `not`
 **Predicates**: `odd?`, `even?`, `number?`, `integer?`, `string?`, `symbol?`, `list?`, `operative?`, `environment?`
@@ -75,3 +76,21 @@ Summary to use as Github Copilot context so that it doesn't have to reference la
 - **Debug categories**: `eval`, `builtin`, `env_binding`, `tco`, `timer`, `library`
 - **Call stack tracking**: Maintains call stack for error reporting
 - **Environment chaining**: Environments form chains for lexical scoping
+
+## Common Pitfalls
+
+### Mutation Errors
+- `(define x 42)` creates an **immutable** binding - `(set! x 99)` will fail
+- `(define-mutable x 42)` creates a **mutable** binding - `(set! x 99)` will succeed
+- `set!` can only modify variables that were explicitly created as mutable
+
+### Body Expression Limits
+- `lambda` takes exactly one body expression: `(lambda (x) (+ x 1))` ✓
+- For multiple expressions, use `lambda*`: `(lambda* (x) (displayln x) (+ x 1))` ✓  
+- Same applies to `vau` vs `vau*` for operatives
+- Multiple expressions without `*` forms will cause syntax errors
+
+### Church Boolean Usage
+- Conditions return operatives, not boolean values
+- Use `((condition) true-branch false-branch)` pattern
+- `and`, `or`, `not` work with Church Booleans, not primitive booleans

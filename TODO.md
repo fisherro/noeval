@@ -17,6 +17,9 @@ test suite size down.
 ## Regular
 
 Capture the accumulator and the accumulate-reverse patterns in library forms.
+Or, more specifically, provide `unfoldl`, `unfoldr`, `foldl-until`, and
+`foldr-until`. Use these to implement all/most of the other list processing
+library functions.
 
 Prioritize macros and RRB trees in order to improve performance.
 
@@ -55,8 +58,7 @@ First-class delimited continuations
 
 Add expansion-time macros (see [having-both-fexprs-and-macros.html](https://axisofeval.blogspot.com/2012/09/having-both-fexprs-and-macros.html) )
 
-* A `macro` primitive works kind of like `wrap` to turn any operative into
-* a macro transformer.
+* A `macro` primitive works kind of like `wrap` to turn any operative into a macro transformer.
 * Need a macro transformer primitive that will expand macros.
 * When the code is creating an operative, run macro expansion on the body before storing it in the operative.
 
