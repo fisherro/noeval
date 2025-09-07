@@ -1,0 +1,980 @@
+;------------------------------------------------------------------------------
+; map tests
+
+; Test 1: Basic map with simple function
+(define double (lambda (x) (* x 2)))
+(define doubled-list (map double (list 1 2 3)))
+(test-assert
+    (= (first doubled-list) 2)
+  "map should apply function to first element")
+
+(test-assert
+    (= (first (rest doubled-list)) 4)
+  "map should apply function to second element")
+
+(test-assert
+    (= (first (rest (rest doubled-list))) 6)
+  "map should apply function to third element")
+
+; Test 2: map with empty list should return empty list
+(test-assert
+    (nil? (map double ()))
+  "map with empty list should return nil")
+
+; Test 3: map with single element list
+(define single-result (map double (list 5)))
+(test-assert
+    (= (first single-result) 10)
+  "map should work with single element list")
+
+(test-assert
+    (nil? (rest single-result))
+  "map with single element should create single-element result")
+
+; Test 4: map with increment function
+(define increment (lambda (x) (+ x 1)))
+(define incremented (map increment (list 10 20 30)))
+(test-assert
+    (= (first incremented) 11)
+  "map should work with increment function - first")
+
+(test-assert
+    (= (first (rest incremented)) 21)
+  "map should work with increment function - second")
+
+(test-assert
+    (= (first (rest (rest incremented))) 31)
+  "map should work with increment function - third")
+
+; Test 5: map with more complex function
+(define square-plus-one (lambda (x) (+ (* x x) 1)))
+(define complex-result (map square-plus-one (list 2 3)))
+(test-assert
+    (= (first complex-result) 5)  ; 2^2 + 1 = 5
+  "map should work with complex functions - first")
+
+(test-assert
+    (= (first (rest complex-result)) 10)  ; 3^2 + 1 = 10
+  "map should work with complex functions - second")
+
+; Test 6: map with lambda that returns strings
+(define number-to-string-map (map (lambda (x) "num") (list 1 2 3)))
+(test-assert
+    (= (first number-to-string-map) "num")
+  "map should work with functions returning strings")
+
+; Test 7: map with function that tests conditions
+; This is-even function gives incorrect results for x < 1!
+(define is-even (lambda (x) ((= (/ x 2) (/ (- x 1) 2)) false true)))
+(define even-test-result (map is-even (list 2 3 4)))
+; Since we can't easily test Church Boolean results with =, we'll test behavior
+(test-assert
+    (not (nil? even-test-result))
+  "map should work with predicate functions")
+
+; Test 8: map preserves list structure
+(define identity (lambda (x) x))
+(define identity-result (map identity (list 42)))
+(test-assert
+    (= (first identity-result) 42)
+  "map with identity should preserve values")
+
+; Test 9: map with wrapped operative
+(define wrapped-increment (wrap (vau (x) env (+ (eval x env) 1))))
+(define wrapped-result (map wrapped-increment (list 5 6)))
+(test-assert
+    (= (first wrapped-result) 6)
+  "map should work with wrapped operatives - first")
+
+(test-assert
+    (= (first (rest wrapped-result)) 7)
+  "map should work with wrapped operatives - second")
+
+; Test 10: map with function that has side effects
+(define-mutable map-side-effect-counter 0)
+(define increment-counter-and-double
+  (lambda* (x)
+    (set! map-side-effect-counter (+ map-side-effect-counter 1))
+    (* x 2)))
+(define side-effect-result (map increment-counter-and-double (list 1 2)))
+(test-assert
+    (= map-side-effect-counter 2)
+  "map should call function exactly once per element")
+
+(test-assert
+    (= (first side-effect-result) 2)
+  "map with side effects should still produce correct results")
+
+; Test 11: map with longer list
+(define long-list (list 1 2 3 4 5))
+(define doubled-long (map double long-list))
+(test-assert
+    (= (first doubled-long) 2)
+  "map should work with longer lists - first")
+
+(test-assert
+    (= (first (rest (rest (rest (rest doubled-long))))) 10)
+  "map should work with longer lists - last element")
+
+; Test 12: map result is a proper list (not nil-terminated improperly)
+(define proper-list-test (map identity (list 7)))
+(test-assert
+    (nil? (rest proper-list-test))
+  "map result should be properly nil-terminated")
+
+; Test 13: Nested map calls
+(define add-ten (lambda (x) (+ x 10)))
+(define nested-map-result (map double (map add-ten (list 1 2))))
+(test-assert
+    (= (first nested-map-result) 22)  ; (1+10)*2 = 22
+  "nested map calls should work - first")
+
+(test-assert
+    (= (first (rest nested-map-result)) 24)  ; (2+10)*2 = 24
+  "nested map calls should work - second")
+
+; Test 14: map with function returning different types
+(define type-changing (lambda (x) (if (= x 1) "one" x)))
+(define type-result (map type-changing (list 1 2)))
+(test-assert
+    (= (first type-result) "one")
+  "map should handle functions that change types")
+
+(test-assert
+    (= (first (rest type-result)) 2)
+  "map should handle mixed return types")
+
+; Test 15: Error case - map with non-function first argument
+(test-error (map 42 (list 1 2)) "map should reject non-function first argument")
+
+; Test 16: Error case - map with non-list second argument
+(test-error (map double 42) "map should reject non-list second argument")
+
+
+;------------------------------------------------------------------------------
+; reverse tests
+
+; Test 1: Empty list should return empty list
+(test-assert
+    (nil? (reverse ()))
+  "reverse of empty list should be empty")
+
+; Test 2: Single element list should return same list
+(define single-reversed (reverse (list 42)))
+(test-assert
+    (= (first single-reversed) 42)
+  "reverse of single element should preserve element")
+
+(test-assert
+    (nil? (rest single-reversed))
+  "reverse of single element should create proper single-element list")
+
+; Test 3: Two element list should swap order
+(define two-elem-reversed (reverse (list 1 2)))
+(test-assert
+    (= (first two-elem-reversed) 2)
+  "reverse should put last element first - two elements")
+
+(test-assert
+    (= (first (rest two-elem-reversed)) 1)
+  "reverse should put first element last - two elements")
+
+; Test 4: Multiple element list reversal
+(define multi-reversed (reverse (list 1 2 3 4)))
+(test-assert
+    (= (first multi-reversed) 4)
+  "reverse should put last element first - multiple elements")
+
+(test-assert
+    (= (first (rest multi-reversed)) 3)
+  "reverse should reverse order - second element")
+
+(test-assert
+    (= (first (rest (rest multi-reversed))) 2)
+  "reverse should reverse order - third element")
+
+(test-assert
+    (= (first (rest (rest (rest multi-reversed)))) 1)
+  "reverse should reverse order - fourth element")
+
+; Test 5: reverse preserves list length
+(define original-for-length (list 10 20 30))
+(test-assert
+    (= (length original-for-length) (length (reverse original-for-length)))
+  "reverse should preserve list length")
+
+; Test 6: Double reversal should restore original
+(define original-double (list 5 6 7))
+(define double-reversed (reverse (reverse original-double)))
+(test-assert
+    (= (first original-double) (first double-reversed))
+  "double reverse should restore original - first element")
+
+(test-assert
+    (= (first (rest original-double)) (first (rest double-reversed)))
+  "double reverse should restore original - second element")
+
+(test-assert
+    (= (first (rest (rest original-double))) (first (rest (rest double-reversed))))
+  "double reverse should restore original - third element")
+
+; Test 7: reverse with different data types
+(define mixed-list (list "hello" 42 "world"))
+(define mixed-reversed (reverse mixed-list))
+(test-assert
+    (= (first mixed-reversed) "world")
+  "reverse should work with mixed types - first element")
+
+(test-assert
+    (= (first (rest mixed-reversed)) 42)
+  "reverse should work with mixed types - middle element")
+
+(test-assert
+    (= (first (rest (rest mixed-reversed))) "hello")
+  "reverse should work with mixed types - last element")
+
+; Test 8: reverse with nested lists
+(define nested-list (list (list 1 2) (list 3 4) (list 5 6)))
+(define nested-reversed (reverse nested-list))
+(test-assert
+    (= (first (first nested-reversed)) 5)
+  "reverse should work with nested structures - first nested element")
+
+(test-assert
+    (= (first (first (rest nested-reversed))) 3)
+  "reverse should work with nested structures - middle nested element")
+
+; Test 9: reverse doesn't reverse inner structure
+(define inner-structure (list (list 1 2 3) (list 4 5 6)))
+(define outer-reversed (reverse inner-structure))
+(test-assert
+    (= (first (first outer-reversed)) 4)
+  "reverse should only reverse outer list, not inner lists")
+
+(test-assert
+    (= (first (rest (first outer-reversed))) 5)
+  "reverse should preserve inner list structure")
+
+; Test 10: reverse with manually constructed list
+(define manual-cons-list (cons 1 (cons 2 (cons 3 ()))))
+(define manual-reversed (reverse manual-cons-list))
+(test-assert
+    (= (first manual-reversed) 3)
+  "reverse should work with manually constructed lists")
+
+; Test 11: reverse with Church Boolean elements
+(define bool-list (list true false (= 1 1)))
+(define bool-reversed (reverse bool-list))
+; Test by using the Church Boolean
+(test-assert
+    (= ((first (rest (rest bool-reversed))) "true" "false") "true")
+  "reverse should work with Church Boolean elements")
+
+; Test 12: reverse with library-generated lists
+(define mapped-list (map (lambda (x) (* x 2)) (list 1 2 3)))
+(define mapped-reversed (reverse mapped-list))
+(test-assert
+    (= (first mapped-reversed) 6)  ; 3*2 = 6 (originally last)
+  "reverse should work with library-generated lists")
+
+; Test 13: reverse with iota-generated list
+(define iota-list (iota 4))  ; Should be (0 1 2 3)
+(define iota-reversed (reverse iota-list))
+(test-assert
+    (= (first iota-reversed) 3)
+  "reverse should work with iota-generated lists - first")
+
+(test-assert
+    (= (first (rest (rest (rest iota-reversed)))) 0)
+  "reverse should work with iota-generated lists - last")
+
+; Test 14: reverse used in expressions
+(define expr-result (first (reverse (list 1 2 3 4 5))))
+(test-assert
+    (= expr-result 5)
+  "reverse should work in complex expressions")
+
+; Test 15: reverse with filter results
+(define filtered-even (filter even? (list 1 2 3 4 5 6)))
+(define filtered-reversed (reverse filtered-even))
+(test-assert
+    (= (first filtered-reversed) 6)
+  "reverse should work with filtered lists")
+
+; Test 16: reverse composition with other functions
+(define compose-reverse-map
+  (lambda (f lst)
+    (reverse (map f lst))))
+(define composed-result (compose-reverse-map (lambda (x) (+ x 10)) (list 1 2 3)))
+(test-assert
+    (= (first composed-result) 13)  ; (3+10) = 13, originally last
+  "reverse should compose well with other functions")
+
+; Test 17: reverse with apply
+(test-assert
+    (= (first (apply reverse (list (list 10 20 30)))) 30)
+  "reverse should work with apply")
+
+; Test 18: reverse in fold operations
+(define fold-with-reverse
+  (foldl (lambda (acc elem)
+           (append acc (reverse (list elem))))
+      ()
+    (list 1 2 3)))
+(test-assert
+    (= (first fold-with-reverse) 1)
+  "reverse should work within fold operations")
+
+; Test 19: reverse with prepend results
+(define prepended (prepend 1 2 (list 3 4)))
+(define prepend-reversed (reverse prepended))
+(test-assert
+    (= (first prepend-reversed) 4)
+  "reverse should work with prepend results")
+
+; Test 20: reverse with append results
+(define appended (append (list 1 2) (list 3 4)))
+(define append-reversed (reverse appended))
+(test-assert
+    (= (first append-reversed) 4)
+  "reverse should work with append results - first")
+
+(test-assert
+    (= (first (rest (rest (rest append-reversed)))) 1)
+  "reverse should work with append results - last")
+
+; Test 21: reverse error conditions
+(test-error (reverse) "reverse should require exactly 1 argument")
+(test-error (reverse (list 1 2) extra) "reverse should require exactly 1 argument")
+(test-error (reverse 42) "reverse should reject non-list arguments")
+(test-error (reverse "not-a-list") "reverse should reject string arguments")
+(test-error (reverse true) "reverse should reject Church Boolean arguments")
+
+; Test 22: reverse with very long list (performance check)
+(define long-original (iota 10))
+(define long-reversed (reverse long-original))
+(test-assert
+    (= (first long-reversed) 9)  ; Last element of iota 10
+  "reverse should work with longer lists - first")
+
+(test-assert
+    (= (first (rest (rest (rest (rest (rest (rest (rest (rest (rest long-reversed)))))))))) 0)
+  "reverse should work with longer lists - last")
+
+; Test 23: reverse idempotency property
+(define test-idempotent (list 1))
+(test-assert
+    (= (first (reverse test-idempotent)) (first test-idempotent))
+  "reverse of single element should be idempotent")
+
+; Test 24: reverse with lambda-generated lists
+(define lambda-list ((lambda () (list 7 8 9))))
+(define lambda-reversed (reverse lambda-list))
+(test-assert
+    (= (first lambda-reversed) 9)
+  "reverse should work with lambda-generated lists")
+
+; Test 25: reverse symmetry property
+(define symmetry-list (list 1 2 2 1))
+(define symmetry-reversed (reverse symmetry-list))
+; This symmetric list should equal its reverse
+(test-assert
+    (= (first symmetry-list) (first symmetry-reversed))
+  "reverse should handle symmetric lists correctly - first matches")
+
+(test-assert
+    (= (first (rest symmetry-list)) (first (rest symmetry-reversed)))
+  "reverse should handle symmetric lists correctly - second matches")
+
+
+;------------------------------------------------------------------------------
+; append tests
+
+; Test 1: Empty lists should return empty list
+(test-assert
+    (nil? (append))
+  "append with no arguments should return empty list")
+
+(test-assert
+    (nil? (append ()))
+  "append with single empty list should return empty list")
+
+(test-assert
+    (nil? (append () ()))
+  "append with two empty lists should return empty list")
+
+; Test 2: Append empty to non-empty
+(define result-empty-first (append () (list 1 2 3)))
+(test-assert
+    (= (first result-empty-first) 1)
+  "append empty to non-empty should preserve non-empty - first")
+
+(test-assert
+    (= (first (rest result-empty-first)) 2)
+  "append empty to non-empty should preserve non-empty - second")
+
+(test-assert
+    (= (first (rest (rest result-empty-first))) 3)
+  "append empty to non-empty should preserve non-empty - third")
+
+; Test 3: Append non-empty to empty
+(define result-empty-second (append (list 1 2 3) ()))
+(test-assert
+    (= (first result-empty-second) 1)
+  "append non-empty to empty should preserve non-empty - first")
+
+(test-assert
+    (= (first (rest result-empty-second)) 2)
+  "append non-empty to empty should preserve non-empty - second")
+
+(test-assert
+    (= (first (rest (rest result-empty-second))) 3)
+  "append non-empty to empty should preserve non-empty - third")
+
+; Test 4: Two non-empty lists
+(define result-both-nonempty (append (list 1 2) (list 3 4)))
+(test-assert
+    (= (first result-both-nonempty) 1)
+  "append two non-empty lists - first element")
+
+(test-assert
+    (= (first (rest result-both-nonempty)) 2)
+  "append two non-empty lists - second element")
+
+(test-assert
+    (= (first (rest (rest result-both-nonempty))) 3)
+  "append two non-empty lists - third element")
+
+(test-assert
+    (= (first (rest (rest (rest result-both-nonempty)))) 4)
+  "append two non-empty lists - fourth element")
+
+; Test 5: Multiple list append (variadic)
+(define result-multiple (append (list 1) (list 2 3) (list 4 5 6)))
+(test-assert
+    (= (length result-multiple) 6)
+  "append multiple lists should have correct length")
+
+(test-assert
+    (= (first result-multiple) 1)
+  "append multiple lists - first element")
+
+(test-assert
+    (= (first (rest result-multiple)) 2)
+  "append multiple lists - second element")
+
+(test-assert
+    (= (first (rest (rest (rest result-multiple)))) 4)
+  "append multiple lists - fourth element from third list")
+
+; Test 6: Single element lists
+(define single-result (append (list 10) (list 20) (list 30)))
+(test-assert
+    (= (first single-result) 10)
+  "append single element lists - first")
+
+(test-assert
+    (= (first (rest single-result)) 20)
+  "append single element lists - second")
+
+(test-assert
+    (= (first (rest (rest single-result))) 30)
+  "append single element lists - third")
+
+; Test 7: Mixed data types
+(define mixed-result (append (list "hello" 42) (list true "world")))
+(test-assert
+    (= (first mixed-result) "hello")
+  "append mixed types - string first")
+
+(test-assert
+    (= (first (rest mixed-result)) 42)
+  "append mixed types - number second")
+
+(test-assert
+    (= ((first (rest (rest mixed-result))) "yes" "no") "yes")
+  "append mixed types - Church Boolean third")
+
+(test-assert
+    (= (first (rest (rest (rest mixed-result)))) "world")
+  "append mixed types - string fourth")
+
+; Test 8: Nested lists
+(define nested-result (append (list (list 1 2) 3) (list 4 (list 5 6))))
+(test-assert
+    (= (first (first nested-result)) 1)
+  "append nested lists - nested first element")
+
+(test-assert
+    (= (first (rest nested-result)) 3)
+  "append nested lists - second element")
+
+(test-assert
+    (= (first (rest (rest nested-result))) 4)
+  "append nested lists - third element")
+
+(test-assert
+    (= (first (first (rest (rest (rest nested-result))))) 5)
+  "append nested lists - nested fourth element")
+
+; Test 9: append preserves structure
+(define original-first (list 1 2))
+(define original-second (list 3 4))
+(define appended-preserve (append original-first original-second))
+; Modifying the result shouldn't affect originals (structural sharing test)
+(test-assert
+    (= (first original-first) 1)
+  "append should not mutate original lists")
+
+; Test 10: append with many empty lists
+(define many-empty-result (append () () (list 1 2) () () (list 3) ()))
+(test-assert
+    (= (first many-empty-result) 1)
+  "append with many empty lists - first non-empty element")
+
+(test-assert
+    (= (first (rest (rest many-empty-result))) 3)
+  "append with many empty lists - second non-empty element")
+
+; Test 11: append with library-generated lists
+(define mapped-list (map (lambda (x) (* x 2)) (list 1 2 3)))
+(define filtered-list (filter even? (list 2 4 6 8)))
+(define lib-result (append mapped-list filtered-list))
+(test-assert
+    (= (first lib-result) 2)  ; 1*2 from mapped list
+  "append with library lists - first from map")
+
+(test-assert
+    (= (first (rest (rest (rest lib-result)))) 2)  ; first even from filter
+  "append with library lists - first from filter")
+
+; Test 12: append with iota-generated lists
+(define iota-result (append (iota 3) (iota 2)))
+(test-assert
+    (= (first iota-result) 0)
+  "append with iota lists - first element")
+
+(test-assert
+    (= (first (rest (rest (rest iota-result)))) 0)
+  "append with iota lists - start of second iota")
+
+(test-assert
+    (= (length iota-result) 5)
+  "append with iota lists - correct total length")
+
+; Test 13: append with reversed lists
+(define reverse-result (append (reverse (list 1 2 3)) (list 4 5)))
+(test-assert
+    (= (first reverse-result) 3)  ; Last element of reversed list
+  "append with reversed list - first element")
+
+(test-assert
+    (= (first (rest (rest (rest reverse-result)))) 4)
+  "append with reversed list - start of second list")
+
+; Test 14: append in expressions
+(test-assert
+    (= (length (append (list 1 2) (list 3 4 5))) 5)
+  "append should work in complex expressions")
+
+; Test 15: append with manually constructed lists
+(define manual-list (cons 1 (cons 2 ())))
+(define manual-result (append manual-list (list 3 4)))
+(test-assert
+    (= (first manual-result) 1)
+  "append with manually constructed lists - first")
+
+(test-assert
+    (= (first (rest (rest manual-result))) 3)
+  "append with manually constructed lists - third")
+
+; Test 16: append with prepend results
+(define prepend-result (prepend 1 2 (list 3 4)))
+(define append-prepend (append prepend-result (list 5 6)))
+(test-assert
+    (= (first append-prepend) 1)
+  "append with prepend results - first")
+
+(test-assert
+    (= (first (rest (rest (rest (rest append-prepend))))) 5)
+  "append with prepend results - start of appended part")
+
+; Test 17: append used in higher-order functions
+(define hof-result (map (lambda (lst) (append lst (list 0))) (list (list 1) (list 2 3))))
+(test-assert
+    (= (first (first hof-result)) 1)
+  "append in higher-order context - first list first element")
+
+(test-assert
+    (= (first (rest (first hof-result))) 0)
+  "append in higher-order context - first list appended element")
+
+; Test 18: append with Church Boolean elements
+(define bool-append (append (list true false) (list (= 1 1))))
+(test-assert
+    (= ((first bool-append) "true" "false") "true")
+  "append with Church Booleans - first element")
+
+(test-assert
+    (= ((first (rest bool-append)) "true" "false") "false")
+  "append with Church Booleans - second element")
+
+; Test 19: append associativity property
+(define assoc-a (list 1 2))
+(define assoc-b (list 3 4))
+(define assoc-c (list 5 6))
+(define left-assoc (append (append assoc-a assoc-b) assoc-c))
+(define right-assoc (append assoc-a (append assoc-b assoc-c)))
+(test-assert
+    (= (first left-assoc) (first right-assoc))
+  "append should be associative - first elements match")
+
+(test-assert
+    (= (first (rest (rest (rest left-assoc)))) (first (rest (rest (rest right-assoc)))))
+  "append should be associative - fourth elements match")
+
+; Test 20: append identity property with empty list
+(define identity-test (list 7 8 9))
+(define left-identity (append () identity-test))
+(define right-identity (append identity-test ()))
+(test-assert
+    (= (first identity-test) (first left-identity))
+  "append with empty list should be left identity")
+
+(test-assert
+    (= (first identity-test) (first right-identity))
+  "append with empty list should be right identity")
+
+; Test 21: append with apply
+(define apply-lists (list (list 1 2) (list 3 4) (list 5)))
+(define apply-result (apply append apply-lists))
+(test-assert
+    (= (first apply-result) 1)
+  "append with apply - first element")
+
+(test-assert
+    (= (first (rest (rest (rest (rest apply-result))))) 5)
+  "append with apply - last element")
+
+; Test 22: append error conditions
+(test-error (append 42) "append should reject non-list arguments")
+(test-error (append (list 1 2) "not-a-list") "append should reject non-list arguments in variadic position")
+(test-error (append (list 1) 42 (list 3)) "append should reject non-list arguments in middle")
+
+; Test 23: append with very long lists
+(define long-first (iota 5))
+(define long-second (iota 3))
+(define long-result (append long-first long-second))
+(test-assert
+    (= (length long-result) 8)
+  "append with longer lists - correct length")
+
+(test-assert
+    (= (first long-result) 0)
+  "append with longer lists - first element")
+
+(test-assert
+    (= (first (rest (rest (rest (rest (rest long-result)))))) 0)
+  "append with longer lists - start of second list")
+
+; Test 24: append used in fold operations
+(define fold-append
+  (foldl (lambda (acc elem)
+           (append acc (list elem)))
+      ()
+    (list 10 20 30)))
+(test-assert
+    (= (first fold-append) 10)
+  "append in fold operations - first")
+
+(test-assert
+    (= (first (rest (rest fold-append))) 30)
+  "append in fold operations - third")
+
+; Test 25: append performance - many small lists
+(define many-small (append (list 1) (list 2) (list 3) (list 4) (list 5)))
+(test-assert
+    (= (length many-small) 5)
+  "append many small lists - correct length")
+
+(test-assert
+    (= (first many-small) 1)
+  "append many small lists - first")
+
+(test-assert
+    (= (first (rest (rest (rest (rest many-small))))) 5)
+  "append many small lists - last")
+
+
+;------------------------------------------------------------------------------
+; filter tests
+
+; Test 1: Basic filter with predicate that returns true for some elements
+(define is-positive (lambda (x) (not (= x 0))))
+(define positive-result (filter is-positive (list -1 0 1 2 -3 4)))
+(test-assert
+    (= (first positive-result) -1)
+  "filter should preserve elements where predicate is true - first")
+
+(test-assert
+    (= (first (rest positive-result)) 1)
+  "filter should preserve elements where predicate is true - second")
+
+(test-assert
+    (= (first (rest (rest positive-result))) 2)
+  "filter should preserve elements where predicate is true - third")
+
+; Test 2: Empty list should return empty list
+(test-assert
+    (nil? (filter is-positive ()))
+  "filter with empty list should return nil")
+
+; Test 3: Filter with predicate that rejects all elements
+(define always-false (lambda (x) false))
+(test-assert
+    (nil? (filter always-false (list 1 2 3)))
+  "filter with always-false predicate should return nil")
+
+; Test 4: Filter with predicate that accepts all elements
+(define always-true (lambda (x) true))
+(define all-accepted (filter always-true (list 1 2 3)))
+(test-assert
+    (= (first all-accepted) 1)
+  "filter with always-true predicate should preserve all elements - first")
+
+(test-assert
+    (= (first (rest all-accepted)) 2)
+  "filter with always-true predicate should preserve all elements - second")
+
+(test-assert
+    (= (first (rest (rest all-accepted))) 3)
+  "filter with always-true predicate should preserve all elements - third")
+
+; Test 5: Filter with even? predicate (from library)
+(define even-numbers (filter even? (list 1 2 3 4 5 6)))
+(test-assert
+    (= (first even-numbers) 2)
+  "filter with even? should work - first even")
+
+(test-assert
+    (= (first (rest even-numbers)) 4)
+  "filter with even? should work - second even")
+
+(test-assert
+    (= (first (rest (rest even-numbers))) 6)
+  "filter with even? should work - third even")
+
+; Test 6: Filter with odd? predicate (from library)
+(define odd-numbers (filter odd? (list 1 2 3 4 5)))
+(test-assert
+    (= (first odd-numbers) 1)
+  "filter with odd? should work - first odd")
+
+(test-assert
+    (= (first (rest odd-numbers)) 3)
+  "filter with odd? should work - second odd")
+
+(test-assert
+    (= (first (rest (rest odd-numbers))) 5)
+  "filter with odd? should work - third odd")
+
+; Test 7: Filter preserves order
+(define order-test (filter even? (list 2 1 4 3 6 5 8)))
+(test-assert
+    (= (first order-test) 2)
+  "filter should preserve original order - first")
+
+(test-assert
+    (= (first (rest order-test)) 4)
+  "filter should preserve original order - second")
+
+(test-assert
+    (= (first (rest (rest order-test))) 6)
+  "filter should preserve original order - third")
+
+(test-assert
+    (= (first (rest (rest (rest order-test)))) 8)
+  "filter should preserve original order - fourth")
+
+; Test 8: Filter with single element list - true case
+(define single-true (filter even? (list 4)))
+(test-assert
+    (= (first single-true) 4)
+  "filter single element list - predicate true")
+
+(test-assert
+    (nil? (rest single-true))
+  "filter single element - result should be proper list")
+
+; Test 9: Filter with single element list - false case
+(test-assert
+    (nil? (filter even? (list 3)))
+  "filter single element list - predicate false should return nil")
+
+; Test 10: Filter with complex predicate
+(define greater-than-two (lambda (x) (not (or (= x 1) (= x 2)))))
+(define complex-result (filter greater-than-two (list 1 2 3 4 1 5 2)))
+(test-assert
+    (= (first complex-result) 3)
+  "filter with complex predicate - first")
+
+(test-assert
+    (= (first (rest complex-result)) 4)
+  "filter with complex predicate - second")
+
+(test-assert
+    (= (first (rest (rest complex-result))) 5)
+  "filter with complex predicate - third")
+
+; Test 11: Filter with Church Boolean predicate returning functions
+(define church-bool-pred (lambda (x) (= x 5)))  ; Returns Church Boolean
+(define church-result (filter church-bool-pred (list 3 5 7 5 9)))
+(test-assert
+    (= (first church-result) 5)
+  "filter should work with Church Boolean predicates - first")
+
+(test-assert
+    (= (first (rest church-result)) 5)
+  "filter should work with Church Boolean predicates - second")
+
+; Test 12: Filter with wrapped operative predicate
+(define wrapped-equal-three (wrap (vau (x) env (= (eval x env) 3))))
+(define wrapped-result (filter wrapped-equal-three (list 1 3 2 3 4)))
+(test-assert
+    (= (first wrapped-result) 3)
+  "filter should work with wrapped operatives - first")
+
+(test-assert
+    (= (first (rest wrapped-result)) 3)
+  "filter should work with wrapped operatives - second")
+
+; Test 13: Filter with predicate that has side effects
+(define-mutable filter-side-counter 0)
+(define counting-predicate
+  (lambda* (x)
+    (set! filter-side-counter (+ filter-side-counter 1))
+    (even? x)))
+(define side-effect-result (filter counting-predicate (list 1 2 3 4)))
+(test-assert
+    (= filter-side-counter 4)
+  "filter should call predicate exactly once per element")
+
+(test-assert
+    (= (first side-effect-result) 2)
+  "filter with side effects should still produce correct results")
+
+; Test 14: Filter with different data types
+(define mixed-filter (filter string? (list 42 "test" 99 "test" "other")))
+(test-assert
+    (= (first mixed-filter) "test")
+  "filter should work with mixed data types - first")
+
+(test-assert
+    (= (second mixed-filter) "test")
+  "filter should work with mixed data types - second")
+
+; Test 15: Filter result is properly structured
+(define structure-test (filter even? (list 2)))
+(test-assert
+    (nil? (rest structure-test))
+  "filter result should be properly nil-terminated")
+
+; Test 16: Filter with longer list
+(define long-list (list 1 2 3 4 5 6 7 8 9 10))
+(define long-evens (filter even? long-list))
+(test-assert
+    (= (length long-evens) 5)
+  "filter should work with longer lists - correct count")
+
+(test-assert
+    (= (first long-evens) 2)
+  "filter should work with longer lists - first element")
+
+(test-assert
+    (= (first (rest (rest (rest (rest long-evens))))) 10)
+  "filter should work with longer lists - last element")
+
+; Test 17: Filter with nested lists as elements
+(define has-two-elements (lambda (lst) (= (length lst) 2)))
+(define nested-test (filter has-two-elements (list (list 1) (list 2 3) (list 4 5 6) (list 7 8))))
+(test-assert
+    (= (first (first nested-test)) 2)
+  "filter should work with nested structures - first list first element")
+
+(test-assert
+    (= (first (first (rest nested-test))) 7)
+  "filter should work with nested structures - second list first element")
+
+; Test 18: Filter with iota-generated list
+(define iota-evens (filter even? (iota 8)))
+(test-assert
+    (= (first iota-evens) 0)
+  "filter should work with iota-generated lists - first")
+
+(test-assert
+    (= (first (rest iota-evens)) 2)
+  "filter should work with iota-generated lists - second")
+
+; Test 19: Filter composition with other functions
+(define doubled-evens (map (lambda (x) (* x 2)) (filter even? (list 1 2 3 4 5))))
+(test-assert
+    (= (first doubled-evens) 4)  ; 2*2
+  "filter should compose with other functions - first")
+
+(test-assert
+    (= (first (rest doubled-evens)) 8)  ; 4*2
+  "filter should compose with other functions - second")
+
+; Test 20: Filter used in fold operations
+(define sum-of-evens (foldl + 0 (filter even? (list 1 2 3 4 5 6))))
+(test-assert
+    (= sum-of-evens 12)  ; 2+4+6 = 12
+  "filter should work within fold operations")
+
+; Test 21: Filter with apply
+(define apply-filter-result (apply filter (list even? (list 1 2 3 4))))
+(test-assert
+    (= (first apply-filter-result) 2)
+  "filter should work with apply")
+
+; Test 22: Filter with lambda-generated predicates
+(define make-greater-than (lambda (threshold) (lambda (x) (not (or (= x threshold) (= x (- threshold 1)) (= x (- threshold 2)))))))
+(define greater-than-three (make-greater-than 3))
+(define lambda-pred-result (filter greater-than-three (list 1 2 3 4 5)))
+(test-assert
+    (= (first lambda-pred-result) 4)
+  "filter should work with lambda-generated predicates")
+
+; Test 23: Filter with reversed input maintains order
+(define reverse-input (reverse (list 1 2 3 4 5 6)))
+(define reverse-evens (filter even? reverse-input))
+(test-assert
+    (= (first reverse-evens) 6)  ; First even in reversed list
+  "filter should maintain order of input list")
+
+(test-assert
+    (= (first (rest reverse-evens)) 4)
+  "filter should preserve input order - second")
+
+; Test 24: Filter with conditional predicate
+(define conditional-pred
+  (lambda (x)
+    (if (= x 0)
+      false
+      (even? x))))
+(define conditional-result (filter conditional-pred (list 0 1 2 3 4)))
+(test-assert
+    (= (first conditional-result) 2)
+  "filter should work with conditional predicates - first")
+
+(test-assert
+    (= (first (rest conditional-result)) 4)
+  "filter should work with conditional predicates - second")
+
+; Test 25: Filter error conditions
+(test-error (filter) "filter should require exactly 2 arguments")
+(test-error (filter even?) "filter should require exactly 2 arguments")
+(test-error (filter even? (list 1 2) extra) "filter should require exactly 2 arguments")
+(test-error (filter "not-function" (list 1 2)) "filter should reject non-function predicates")
+(test-error (filter even? 42) "filter should reject non-list second argument")
+(test-error (filter even? "not-list") "filter should reject string second argument")

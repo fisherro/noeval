@@ -1,0 +1,247 @@
+;------------------------------------------------------------------------------
+; nth tests
+
+; Test 1: Basic nth functionality
+(define test-list (list 10 20 30 40 50))
+(test-assert
+    (= (nth test-list 0) 10)
+  "nth should return first element with index 0")
+
+(test-assert
+    (= (nth test-list 1) 20)
+  "nth should return second element with index 1")
+
+(test-assert
+    (= (nth test-list 2) 30)
+  "nth should return third element with index 2")
+
+(test-assert
+    (= (nth test-list 4) 50)
+  "nth should return last element with correct index")
+
+; Test 2: Single element list
+(define single-list (list 42))
+(test-assert
+    (= (nth single-list 0) 42)
+  "nth should work with single element list")
+
+; Test 3: nth with different data types
+(define mixed-list (list "hello" 123 true (list 1 2)))
+(test-assert
+    (= (nth mixed-list 0) "hello")
+  "nth should work with strings")
+
+(test-assert
+    (= (nth mixed-list 1) 123)
+  "nth should work with numbers")
+
+(test-assert
+    (= ((nth mixed-list 2) "yes" "no") "yes")
+  "nth should work with Church Booleans")
+
+(test-assert
+    (= (first (nth mixed-list 3)) 1)
+  "nth should work with nested lists")
+
+; Test 4: nth with library-generated lists
+(define iota-list (iota 5))  ; (0 1 2 3 4)
+(test-assert
+    (= (nth iota-list 0) 0)
+  "nth should work with iota-generated lists - first")
+
+(test-assert
+    (= (nth iota-list 3) 3)
+  "nth should work with iota-generated lists - middle")
+
+(test-assert
+    (= (nth iota-list 4) 4)
+  "nth should work with iota-generated lists - last")
+
+; Test 5: nth with filtered lists
+(define even-list (filter even? (iota 10)))  ; (0 2 4 6 8)
+(test-assert
+    (= (nth even-list 0) 0)
+  "nth should work with filtered lists - first")
+
+(test-assert
+    (= (nth even-list 2) 4)
+  "nth should work with filtered lists - middle")
+
+(test-assert
+    (= (nth even-list 4) 8)
+  "nth should work with filtered lists - last")
+
+; Test 6: nth with mapped lists
+(define doubled-list (map (lambda (x) (* x 2)) (list 1 2 3 4)))
+(test-assert
+    (= (nth doubled-list 0) 2)
+  "nth should work with mapped lists - first")
+
+(test-assert
+    (= (nth doubled-list 3) 8)
+  "nth should work with mapped lists - last")
+
+; Test 7: nth with reversed lists
+(define original-list (list 1 2 3 4 5))
+(define reversed-list (reverse original-list))
+(test-assert
+    (= (nth reversed-list 0) 5)
+  "nth should work with reversed lists - first")
+
+(test-assert
+    (= (nth reversed-list 4) 1)
+  "nth should work with reversed lists - last")
+
+; Test 8: nth with appended lists
+(define appended-list (append (list 1 2) (list 3 4)))
+(test-assert
+    (= (nth appended-list 0) 1)
+  "nth should work with appended lists - first part")
+
+(test-assert
+    (= (nth appended-list 2) 3)
+  "nth should work with appended lists - second part")
+
+; Test 9: nth with prepended lists
+(define prepended-list (prepend 10 20 (list 30 40)))
+(test-assert
+    (= (nth prepended-list 0) 10)
+  "nth should work with prepended lists - prepended part")
+
+(test-assert
+    (= (nth prepended-list 2) 30)
+  "nth should work with prepended lists - original part")
+
+; Test 10: nth used in higher-order functions
+(define get-second (lambda (lst) (nth lst 1)))
+(test-assert
+    (= (get-second (list (q a) (q b) (q c))) (q b))
+  "nth should work in higher-order functions")
+
+; Test 11: nth with apply
+(test-assert
+    (= (apply nth (list (list 7 8 9) 1)) 8)
+  "nth should work with apply")
+
+; Test 12: nth used in fold operations
+(define first-elements (map (lambda (lst) (nth lst 0)) (list (list 1 2) (list 3 4) (list 5 6))))
+(test-assert
+    (= (first first-elements) 1)
+  "nth should work in map operations - first result")
+
+(test-assert
+    (= (nth first-elements 2) 5)
+  "nth should work in map operations - third result")
+
+; Test 13: nth with string elements
+(define string-list (list "first" "second" "third"))
+(test-assert
+    (= (nth string-list 1) "second")
+  "nth should work with string elements")
+
+; Test 14: nth with symbol elements
+(define symbol-list (list (q alpha) (q beta) (q gamma)))
+(test-assert
+    (= (nth symbol-list 2) (q gamma))
+  "nth should work with symbol elements")
+
+; Test 15: nth with computed indices
+(test-assert
+    (= (nth (list 100 200 300) (+ 1 1)) 300)
+  "nth should work with computed indices")
+
+; Test 16: nth consistency with other list operations
+(define consistency-list (list (q x) (q y) (q z)))
+(test-assert
+    (= (nth consistency-list 0) (first consistency-list))
+  "nth 0 should be equivalent to first")
+
+(test-assert
+    (= (nth consistency-list 1) (first (rest consistency-list)))
+  "nth 1 should be equivalent to first of rest")
+
+; Test 17: nth with Church Boolean operatives
+(define bool-list (list true false (= 1 1) (= 1 2)))
+(test-assert
+    (= ((nth bool-list 0) "true" "false") "true")
+  "nth should work with Church Boolean operatives - true")
+
+(test-assert
+    (= ((nth bool-list 1) "true" "false") "false")
+  "nth should work with Church Boolean operatives - false")
+
+; Test 18: Error conditions - index out of bounds
+(test-error (nth (list 1 2 3) 3) "nth should raise error for index out of bounds")
+(test-error (nth (list 1 2) 5) "nth should raise error for index way out of bounds")
+(test-error (nth () 0) "nth should raise error for empty list")
+
+; Test 19: Error conditions - invalid arguments
+(test-error (nth) "nth should require exactly 2 arguments")
+(test-error (nth (list 1 2)) "nth should require exactly 2 arguments")
+(test-error (nth (list 1 2) 1 extra) "nth should require exactly 2 arguments")
+(test-error (nth "not-list" 0) "nth should reject non-list first argument")
+(test-error (nth (list 1 2) "not-number") "nth should reject non-numeric index")
+(test-error (nth (list 1 2) -1) "nth should reject negative indices")
+(test-error (nth (list 1 2) 1.5) "nth should reject non-integer indices")
+
+; Test 20: nth with larger lists (performance check)
+(define large-list (iota 20))
+(test-assert
+    (= (nth large-list 0) 0)
+  "nth should work with larger lists - first")
+
+(test-assert
+    (= (nth large-list 10) 10)
+  "nth should work with larger lists - middle")
+
+(test-assert
+    (= (nth large-list 19) 19)
+  "nth should work with larger lists - last")
+
+; Test 21: nth with manually constructed lists
+(define manual-list (cons 1 (cons 2 (cons 3 ()))))
+(test-assert
+    (= (nth manual-list 0) 1)
+  "nth should work with manually constructed lists - first")
+
+(test-assert
+    (= (nth manual-list 2) 3)
+  "nth should work with manually constructed lists - last")
+
+; Test 22: nth used in conditional expressions
+(define conditional-nth
+  (lambda (lst idx default)
+    (try (nth lst idx)
+      (lambda (error) default))))
+(test-assert
+    (= (conditional-nth (list 10 20 30) 1 999) 20)
+  "nth should work in conditional expressions - success case")
+
+(test-assert
+    (= (conditional-nth (list 10 20 30) 5 999) 999)
+  "nth should work in conditional expressions - error case")
+
+; Test 23: nth with nested list access patterns
+(define nested-lists (list (list 1 2 3) (list 4 5 6) (list 7 8 9)))
+(test-assert
+    (= (nth (nth nested-lists 1) 2) 6)
+  "nth should work for nested list access")
+
+(test-assert
+    (= (nth (nth nested-lists 2) 0) 7)
+  "nth should work for nested list access - different indices")
+
+; Test 24: nth with fold operations
+(define sum-nth-elements
+  (foldl (lambda (acc lst) (+ acc (nth lst 0))) 0 (list (list 1 2) (list 3 4) (list 5 6))))
+(test-assert
+    (= sum-nth-elements 9)  ; 1 + 3 + 5 = 9
+  "nth should work within fold operations")
+
+; Test 25: nth boundary conditions
+(define boundary-list (list (q only)))
+(test-assert
+    (= (nth boundary-list 0) (q only))
+  "nth should work with single-element list at boundary")
+
+(test-error (nth boundary-list 1) "nth should fail just past boundary of single-element list")

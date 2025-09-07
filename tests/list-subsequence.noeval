@@ -1,0 +1,481 @@
+;------------------------------------------------------------------------------
+; drop tests
+
+; Test 1: Basic drop functionality
+(define test-drop-list (list 1 2 3 4 5))
+(define dropped-two (drop 2 test-drop-list))
+(test-assert
+    (= (first dropped-two) 3)
+  "drop should remove first n elements - first remaining")
+
+(test-assert
+    (= (first (rest dropped-two)) 4)
+  "drop should remove first n elements - second remaining")
+
+(test-assert
+    (= (length dropped-two) 3)
+  "drop should return list with correct length")
+
+; Test 2: Drop 0 elements should return original list
+(define dropped-zero (drop 0 (list 10 20 30)))
+(test-assert
+    (= (first dropped-zero) 10)
+  "drop 0 should return original list")
+
+(test-assert
+    (= (length dropped-zero) 3)
+  "drop 0 should preserve list length")
+
+; Test 3: Drop all elements
+(define original-list (list 1 2 3))
+(define dropped-all (drop 3 original-list))
+(test-assert
+    (nil? dropped-all)
+  "drop all elements should return empty list")
+
+; Test 4: Drop more than list length
+(define dropped-excess (drop 10 (list 1 2 3)))
+(test-assert
+    (nil? dropped-excess)
+  "drop more than length should return empty list")
+
+; Test 5: Drop from empty list
+(test-assert
+    (nil? (drop 5 ()))
+  "drop from empty list should return empty list")
+
+; Test 6: Drop single element
+(define single-elem-list (list 42))
+(test-assert
+    (= (first (drop 0 single-elem-list)) 42)
+  "drop 0 from single element should preserve element")
+
+(test-assert
+    (nil? (drop 1 single-elem-list))
+  "drop 1 from single element should return empty")
+
+; Test 7: Drop with different data types
+(define mixed-list (list "hello" 42 true (list 1 2)))
+(define mixed-dropped (drop 1 mixed-list))
+(test-assert
+    (= (first mixed-dropped) 42)
+  "drop should work with mixed data types")
+
+; Test 8: Drop with library-generated lists
+(define iota-list (iota 6))  ; (0 1 2 3 4 5)
+(define iota-dropped (drop 2 iota-list))
+(test-assert
+    (= (first iota-dropped) 2)
+  "drop should work with iota-generated lists")
+
+(test-assert
+    (= (length iota-dropped) 4)
+  "drop should preserve remaining length correctly")
+
+; Test 9: Drop with filtered lists
+(define even-list (filter even? (iota 10)))
+(define even-dropped (drop 1 even-list))
+(test-assert
+    (= (first even-dropped) 2)  ; Second even number (after 0)
+  "drop should work with filtered lists")
+
+; Test 10: Drop with mapped lists
+(define doubled-list (map (lambda (x) (* x 2)) (list 1 2 3 4)))
+(define doubled-dropped (drop 1 doubled-list))
+(test-assert
+    (= (first doubled-dropped) 4)  ; 2*2
+  "drop should work with mapped lists")
+
+; Test 11: Drop used with other functions
+(define drop-and-reverse (reverse (drop 2 (list 1 2 3 4 5))))
+(test-assert
+    (= (first drop-and-reverse) 5)
+  "drop should compose with other functions")
+
+; Test 12: Drop with nested lists
+(define nested-list (list (list 1 2) (list 3 4) (list 5 6)))
+(define nested-dropped (drop 1 nested-list))
+(test-assert
+    (= (first (first nested-dropped)) 3)
+  "drop should work with nested lists")
+
+; Test 13: Drop with apply
+(test-assert
+    (= (first (apply drop (list 1 (list 10 20 30)))) 20)
+  "drop should work with apply")
+
+; Test 14: Drop in fold operations
+(define drop-fold-result
+  (foldl (lambda (acc n) (+ acc (length (drop n (list 1 2 3 4 5)))))
+      0
+    (list 0 1 2 3)))
+(test-assert
+    (= drop-fold-result 14)  ; 5+4+3+2 = 14
+  "drop should work in fold operations")
+
+; Test 15: Drop with Church Boolean elements
+(define bool-list (list true false (= 1 1) (= 1 2)))
+(define bool-dropped (drop 1 bool-list))
+(test-assert
+    (= ((first bool-dropped) "true" "false") "false")
+  "drop should work with Church Boolean elements")
+
+; Test 16: Error conditions for drop
+(test-error (drop) "drop should require exactly 2 arguments")
+(test-error (drop 2) "drop should require exactly 2 arguments")
+(test-error (drop 1 2 3) "drop should require exactly 2 arguments")
+(test-error (drop "not-number" (list 1 2)) "drop should reject non-numeric first argument")
+(test-error (drop 2 "not-list") "drop should reject non-list second argument")
+(test-error (drop -1 (list 1 2)) "drop should reject negative numbers")
+
+; Test 17: Drop with rational numbers
+(test-assert
+    (= (first (drop 2.0 (list 1 2 3 4))) 3)
+  "drop should work with rational numbers that are integers")
+
+; Test 18: Drop with prepend results
+(define prepended-list (prepend 1 2 (list 3 4 5)))
+(define prepend-dropped (drop 2 prepended-list))
+(test-assert
+    (= (first prepend-dropped) 3)
+  "drop should work with prepend results")
+
+; Test 19: Drop with append results
+(define appended-list (append (list 1 2) (list 3 4) (list 5 6)))
+(define append-dropped (drop 3 appended-list))
+(test-assert
+    (= (first append-dropped) 4)
+  "drop should work with append results")
+
+; Test 20: Drop performance with larger lists
+(define large-list (iota 20))
+(define large-dropped (drop 10 large-list))
+(test-assert
+    (= (first large-dropped) 10)
+  "drop should work efficiently with larger lists")
+
+(test-assert
+    (= (length large-dropped) 10)
+  "drop should maintain correct length with larger lists")
+
+
+;------------------------------------------------------------------------------
+; take tests
+
+; Test 1: Basic take functionality
+(define test-take-list (list 1 2 3 4 5))
+(define taken-two (take 2 test-take-list))
+(test-assert
+    (= (first taken-two) 1)
+  "take should return first n elements - first")
+
+(test-assert
+    (= (first (rest taken-two)) 2)
+  "take should return first n elements - second")
+
+(test-assert
+    (= (length taken-two) 2)
+  "take should return list with correct length")
+
+; Test 2: Take 0 elements should return empty list
+(test-assert
+    (nil? (take 0 (list 10 20 30)))
+  "take 0 should return empty list")
+
+; Test 3: Take all elements
+(define take-all-list (list 1 2 3))
+(define taken-all (take 3 take-all-list))
+(test-assert
+    (= (first taken-all) 1)
+  "take all should preserve first element")
+
+(test-assert
+    (= (length taken-all) 3)
+  "take all should preserve list length")
+
+; Test 4: Take more than list length
+(define taken-excess (take 10 (list 1 2 3)))
+(test-assert
+    (= (length taken-excess) 3)
+  "take more than length should return full list")
+
+(test-assert
+    (= (first taken-excess) 1)
+  "take excess should preserve elements")
+
+; Test 5: Take from empty list
+(test-assert
+    (nil? (take 5 ()))
+  "take from empty list should return empty list")
+
+; Test 6: Take single element
+(define single-take-list (list 42))
+(test-assert
+    (= (first (take 1 single-take-list)) 42)
+  "take 1 from single element should return that element")
+
+(test-assert
+    (nil? (take 0 single-take-list))
+  "take 0 from single element should return empty")
+
+; Test 7: Take with different data types
+(define mixed-take-list (list "hello" 42 true (list 1 2)))
+(define mixed-taken (take 2 mixed-take-list))
+(test-assert
+    (= (first mixed-taken) "hello")
+  "take should work with mixed data types - first")
+
+(test-assert
+    (= (first (rest mixed-taken)) 42)
+  "take should work with mixed data types - second")
+
+; Test 8: Take with library-generated lists
+(define iota-take-list (iota 6))  ; (0 1 2 3 4 5)
+(define iota-taken (take 3 iota-take-list))
+(test-assert
+    (= (first iota-taken) 0)
+  "take should work with iota-generated lists - first")
+
+(test-assert
+    (= (first (rest (rest iota-taken))) 2)
+  "take should work with iota-generated lists - third")
+
+(test-assert
+    (= (length iota-taken) 3)
+  "take should return correct length")
+
+; Test 9: Take with filtered lists
+(define even-take-list (filter even? (iota 10)))
+(define even-taken (take 2 even-take-list))
+(test-assert
+    (= (first even-taken) 0)
+  "take should work with filtered lists - first")
+
+(test-assert
+    (= (first (rest even-taken)) 2)
+  "take should work with filtered lists - second")
+
+; Test 10: Take with mapped lists
+(define doubled-take-list (map (lambda (x) (* x 2)) (list 1 2 3 4)))
+(define doubled-taken (take 2 doubled-take-list))
+(test-assert
+    (= (first doubled-taken) 2)  ; 1*2
+  "take should work with mapped lists - first")
+
+(test-assert
+    (= (first (rest doubled-taken)) 4)  ; 2*2
+  "take should work with mapped lists - second")
+
+; Test 11: Take used with other functions
+(define take-and-reverse (reverse (take 3 (list 1 2 3 4 5))))
+(test-assert
+    (= (first take-and-reverse) 3)
+  "take should compose with other functions")
+
+(test-assert
+    (= (length take-and-reverse) 3)
+  "take composition should preserve length")
+
+; Test 12: Take with nested lists
+(define nested-take-list (list (list 1 2) (list 3 4) (list 5 6)))
+(define nested-taken (take 2 nested-take-list))
+(test-assert
+    (= (first (first nested-taken)) 1)
+  "take should work with nested lists - first list")
+
+(test-assert
+    (= (first (first (rest nested-taken))) 3)
+  "take should work with nested lists - second list")
+
+; Test 13: Take with apply
+(test-assert
+    (= (first (apply take (list 2 (list 10 20 30)))) 10)
+  "take should work with apply")
+
+; Test 14: Take in fold operations
+(define take-fold-result
+  (foldl (lambda (acc n) (+ acc (length (take n (list 1 2 3 4 5)))))
+      0
+    (list 0 1 2 3)))
+(test-assert
+    (= take-fold-result 6)  ; 0+1+2+3 = 6
+  "take should work in fold operations")
+
+; Test 15: Take with Church Boolean elements
+(define bool-take-list (list true false (= 1 1) (= 1 2)))
+(define bool-taken (take 2 bool-take-list))
+(test-assert
+    (= ((first bool-taken) "true" "false") "true")
+  "take should work with Church Boolean elements - first")
+
+(test-assert
+    (= ((first (rest bool-taken)) "true" "false") "false")
+  "take should work with Church Boolean elements - second")
+
+; Test 16: Error conditions for take
+(test-error (take) "take should require exactly 2 arguments")
+(test-error (take 2) "take should require exactly 2 arguments")
+(test-error (take 1 2 3) "take should require exactly 2 arguments")
+(test-error (take "not-number" (list 1 2)) "take should reject non-numeric first argument")
+(test-error (take 2 "not-list") "take should reject non-list second argument")
+(test-error (take -1 (list 1 2)) "take should reject negative numbers")
+
+; Test 17: Take with rational numbers
+(test-assert
+    (= (length (take 2.0 (list 1 2 3 4))) 2)
+  "take should work with rational numbers that are integers")
+
+; Test 18: Take with prepend results
+(define prepended-take-list (prepend 1 2 (list 3 4 5)))
+(define prepend-taken (take 3 prepended-take-list))
+(test-assert
+    (= (first prepend-taken) 1)
+  "take should work with prepend results - first")
+
+(test-assert
+    (= (first (rest (rest prepend-taken))) 3)
+  "take should work with prepend results - third")
+
+; Test 19: Take with append results
+(define appended-take-list (append (list 1 2) (list 3 4) (list 5 6)))
+(define append-taken (take 4 appended-take-list))
+(test-assert
+    (= (first append-taken) 1)
+  "take should work with append results - first")
+
+(test-assert
+    (= (first (rest (rest (rest append-taken)))) 4)
+  "take should work with append results - fourth")
+
+; Test 20: Take performance with larger lists
+(define large-take-list (iota 20))
+(define large-taken (take 5 large-take-list))
+(test-assert
+    (= (first large-taken) 0)
+  "take should work efficiently with larger lists - first")
+
+(test-assert
+    (= (first (rest (rest (rest (rest large-taken))))) 4)
+  "take should work efficiently with larger lists - last")
+
+(test-assert
+    (= (length large-taken) 5)
+  "take should maintain correct length with larger lists")
+
+
+;------------------------------------------------------------------------------
+; drop/take complementary behavior tests
+
+; Test 1: drop and take should be complementary
+(define complement-list (list 1 2 3 4 5 6))
+(define dropped-part (drop 2 complement-list))
+(define taken-part (take 2 complement-list))
+(define recombined (append taken-part dropped-part))
+
+(test-assert
+    (= (first recombined) 1)
+  "drop/take recombination should preserve original order - first")
+
+(test-assert
+    (= (first (rest (rest recombined))) 3)
+  "drop/take recombination should preserve original order - third")
+
+(test-assert
+    (= (length recombined) (length complement-list))
+  "drop/take recombination should preserve original length")
+
+; Test 2: drop n + take n should cover whole list when n = length/2
+(define even-length-list (list 10 20 30 40))
+(define first-half (take 2 even-length-list))
+(define second-half (drop 2 even-length-list))
+(define rejoined (append first-half second-half))
+
+(test-assert
+    (= (first rejoined) 10)
+  "split/rejoin should work - first element")
+
+(test-assert
+    (= (first (rest (rest (rest rejoined)))) 40)
+  "split/rejoin should work - last element")
+
+; Test 3: Edge case - drop 0 and take 0
+(define edge-list (list 7 8 9))
+(test-assert
+    (= (first (drop 0 edge-list)) 7)
+  "drop 0 should be identity")
+
+(test-assert
+    (nil? (take 0 edge-list))
+  "take 0 should be empty")
+
+; Test 4: Edge case - drop all and take all
+(define all-test-list (list 1 2 3))
+(test-assert
+    (nil? (drop 3 all-test-list))
+  "drop all should be empty")
+
+(test-assert
+    (= (length (take 3 all-test-list)) 3)
+  "take all should preserve length")
+
+; Test 5: Boundary behavior consistency
+(define boundary-list (list 5 10 15))
+(test-assert
+    (= (length (take 1 boundary-list)) 1)
+  "take 1 should have length 1")
+
+(test-assert
+    (= (length (drop 1 boundary-list)) 2)
+  "drop 1 should leave length-1 elements")
+
+; Test 6: Using drop/take for list slicing
+(define slice-list (list 100 200 300 400 500))
+(define middle-slice (take 2 (drop 1 slice-list)))  ; Elements 2-3 (200, 300)
+(test-assert
+    (= (first middle-slice) 200)
+  "list slicing with drop/take should work - first")
+
+(test-assert
+    (= (first (rest middle-slice)) 300)
+  "list slicing with drop/take should work - second")
+
+(test-assert
+    (= (length middle-slice) 2)
+  "list slicing should have correct length")
+
+; Test 7: drop/take with iota for range operations
+(define range-start-3-count-4 (take 4 (drop 3 (iota 10))))  ; Should be (3 4 5 6)
+(test-assert
+    (= (first range-start-3-count-4) 3)
+  "range simulation should work - first")
+
+(test-assert
+    (= (first (rest (rest (rest range-start-3-count-4)))) 6)
+  "range simulation should work - last")
+
+; Test 8: Nested drop/take operations
+(define nested-ops-list (list 1 2 3 4 5 6 7 8 9 10))
+(define nested-result (take 2 (drop 1 (take 5 (drop 2 nested-ops-list)))))
+(test-assert
+    (= (first nested-result) 4)  ; drop 2 -> (3 4 5 6 7 8 9 10), take 5 -> (3 4 5 6 7), drop 1 -> (4 5 6 7), take 2 -> (4 5)
+  "nested drop/take operations should work")
+
+; Test 9: drop/take with filter results
+(define filtered-for-drop-take (filter odd? (iota 10)))  ; (1 3 5 7 9)
+(define filtered-partial (take 3 (drop 1 filtered-for-drop-take)))  ; Should be (3 5 7)
+(test-assert
+    (= (first filtered-partial) 3)
+  "drop/take should work with filtered lists")
+
+; Test 10: Performance comparison - large lists
+(define perf-list (iota 100))
+(define perf-dropped (drop 50 perf-list))
+(define perf-taken (take 50 perf-list))
+
+(test-assert
+    (= (first perf-dropped) 50)
+  "drop should work efficiently on large lists")
+
+(test-assert
+    (= (length perf-taken) 50)
+  "take should work efficiently on large lists")

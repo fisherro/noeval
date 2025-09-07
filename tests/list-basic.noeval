@@ -1,0 +1,547 @@
+;------------------------------------------------------------------------------
+; for-each tests
+
+; Test 1: Basic for-each
+(define-mutable for-each-sum 0)
+(define add-to-sum (lambda (x) (set! for-each-sum (+ for-each-sum x))))
+(for-each add-to-sum (list 1 2 3))
+(test-assert
+    (= for-each-sum 6)
+  "for-each should apply function to each list element")
+
+
+;------------------------------------------------------------------------------
+; foldr tests
+
+; Test 1: Basic foldr with addition
+(test-assert
+    (= (foldr + (list 1 2 3) 0) 6)
+  "foldr should sum list elements")
+
+; Test 2: Empty list should return init value
+(test-assert
+    (= (foldr + () 42) 42)
+  "foldr with empty list should return init value")
+
+; Test 3: Single element list
+(test-assert
+    (= (foldr + (list 5) 0) 5)
+  "foldr with single element should work")
+
+; Test 4: foldr with multiplication
+(test-assert
+    (= (foldr * (list 2 3 4) 1) 24)
+  "foldr should multiply list elements")
+
+; Test 5: foldr with cons (should reconstruct the list)
+(define reconstructed (foldr cons (list 1 2 3) ()))
+(test-assert
+    (= (first reconstructed) 1)
+  "foldr with cons should reconstruct list - first element")
+
+(test-assert
+    (= (first (rest reconstructed)) 2)
+  "foldr with cons should reconstruct list - second element")
+
+(test-assert
+    (= (first (rest (rest reconstructed))) 3)
+  "foldr with cons should reconstruct list - third element")
+
+; Test 6: foldr with lambda function
+(define subtract-from-acc (lambda (x acc) (- acc x)))
+(test-assert
+    (= (foldr subtract-from-acc (list 1 2 3) 10) 4)
+  "foldr should work with lambda functions")
+
+; Test 7: foldr order matters (right associative)
+; (foldr - (list 1 2 3) 0) = (- 1 (- 2 (- 3 0))) = (- 1 (- 2 3)) = (- 1 -1) = 2
+(test-assert
+    (= (foldr - (list 1 2 3) 0) 2)
+  "foldr should be right-associative")
+
+; Test 8: foldr with wrapped operatives
+(define wrapped-mult (wrap *))
+(test-assert
+    (= (foldr wrapped-mult (list 2 3 4) 1) 24)
+  "foldr should work with wrapped operatives")
+
+; Test 9: foldr with different init values
+(test-assert
+    (= (foldr + (list 1 2 3) 10) 16)
+  "foldr should add init value to sum")
+
+; Test 10: foldr with nested function calls
+(define double-and-add (lambda (x acc) (+ (* x 2) acc)))
+(test-assert
+    (= (foldr double-and-add (list 1 2 3) 0) 12)
+  "foldr should work with complex functions")
+
+
+;------------------------------------------------------------------------------
+; foldl tests
+
+; Test 1: Basic foldl with addition
+(test-assert
+    (= (foldl + 0 (list 1 2 3)) 6)
+  "foldl should sum list elements")
+
+; Test 2: Empty list should return init value
+(test-assert
+    (= (foldl + 42 ()) 42)
+  "foldl with empty list should return init value")
+
+; Test 3: Single element list
+(test-assert
+    (= (foldl + 0 (list 5)) 5)
+  "foldl with single element should work")
+
+; Test 4: foldl with multiplication
+(test-assert
+    (= (foldl * 1 (list 2 3 4)) 24)
+  "foldl should multiply list elements")
+
+; Test 5: foldl with lambda function
+(define accumulate-subtract (lambda (acc x) (- acc x)))
+(test-assert
+    (= (foldl accumulate-subtract 10 (list 1 2 3)) 4)
+  "foldl should work with lambda functions")
+
+; Test 6: foldl order matters (left associative)
+; (foldl - 0 (list 1 2 3)) = (- (- (- 0 1) 2) 3) = (- (- -1 2) 3) = (- -3 3) = -6
+(test-assert
+    (= (foldl - 0 (list 1 2 3)) -6)
+  "foldl should be left-associative")
+
+; Test 7: Compare foldl vs foldr associativity
+; foldl: (- (- (- 0 1) 2) 3) = -6
+; foldr: (- 1 (- 2 (- 3 0))) = (- 1 (- 2 3)) = (- 1 -1) = 2
+(test-assert
+    (not (= (foldl - 0 (list 1 2 3)) (foldr - (list 1 2 3) 0)))
+  "foldl and foldr should give different results for non-associative operations")
+
+; Test 8: foldl with wrapped operatives
+(define wrapped-mult (wrap *))
+(test-assert
+    (= (foldl wrapped-mult 1 (list 2 3 4)) 24)
+  "foldl should work with wrapped operatives")
+
+; Test 9: foldl with different init values
+(test-assert
+    (= (foldl + 10 (list 1 2 3)) 16)
+  "foldl should include init value in accumulation")
+
+; Test 10: foldl with complex functions
+(define double-and-add (lambda (acc x) (+ acc (* x 2))))
+(test-assert
+    (= (foldl double-and-add 0 (list 1 2 3)) 12)
+  "foldl should work with complex functions")
+
+; Test 11: foldl building a reversed list (classic use case)
+(define reverse-via-foldl (lambda (lyst) (foldl (lambda (acc x) (cons x acc)) () lyst)))
+(define reversed (reverse-via-foldl (list 1 2 3)))
+(test-assert
+    (= (first reversed) 3)
+  "foldl should build reversed list - first element")
+
+(test-assert
+    (= (first (rest reversed)) 2)
+  "foldl should build reversed list - second element")
+
+(test-assert
+    (= (first (rest (rest reversed))) 1)
+  "foldl should build reversed list - third element")
+
+; Test 12: foldl with string concatenation (if we had string concat)
+; Using display capture would be complex, so we'll test with numbers instead
+(define number-concat (lambda (acc x) (+ (* acc 10) x)))
+(test-assert
+    (= (foldl number-concat 0 (list 1 2 3)) 123)
+  "foldl should work for accumulative concatenation-like operations")
+
+; Test 13: foldl with side effects
+(define-mutable foldl-side-effect 0)
+(define increment-and-add (lambda* (acc x)
+                            (set! foldl-side-effect (+ foldl-side-effect 1))
+                            (+ acc x)))
+(test-assert
+    (= (foldl increment-and-add 0 (list 10 20 30)) 60)
+  "foldl should work with side effects - result")
+
+(test-assert
+    (= foldl-side-effect 3)
+  "foldl should work with side effects - side effect count")
+
+; Test 14: foldl parameter order consistency check
+; foldl takes (func init list) while foldr takes (func list init)
+; Let's verify the parameter order is correct
+(define test-func (lambda (acc elem) (cons elem acc)))
+(define foldl-result (foldl test-func () (list 1 2 3)))
+(test-assert
+    (= (first foldl-result) 3)
+  "foldl parameter order should be (func init list)")
+
+; Test 15: foldl with nested function calls
+(define complex-accumulator
+  (lambda (acc x)
+    (+ acc (if (= (/ x 2) 1) (* x 2) x))))
+(test-assert
+    (= (foldl complex-accumulator 0 (list 1 2 3))
+       (complex-accumulator (complex-accumulator (complex-accumulator 0 1) 2) 3))
+  "foldl should work with nested conditionals in accumulator")
+(test-assert
+    ; The results should be 11 with integer arithmetic, but it is 8 with rational.
+  (= (foldl complex-accumulator 0 (list 1 2 3)) 8)
+  "foldl should work with nested conditionals in accumulator")
+
+
+;------------------------------------------------------------------------------
+; apply tests
+
+; Test 1: Basic apply with simple function
+(define add-func (lambda (x y) (+ x y)))
+(test-assert
+    (= (apply add-func (list 3 4)) 7)
+  "apply should work with basic lambda function")
+
+; Test 2: apply with single argument function
+(define double-func (lambda (x) (* x 2)))
+(test-assert
+    (= (apply double-func (list 5)) 10)
+  "apply should work with single argument function")
+
+; Test 3: apply with no-argument function
+(define constant-func (lambda () 42))
+(test-assert
+    (= (apply constant-func ()) 42)
+  "apply should work with no-argument function")
+
+; Test 4: apply with wrapped operatives
+(define wrapped-plus (wrap +))
+(test-assert
+    (= (apply wrapped-plus (list 10 20 30)) 60)
+  "apply should work with wrapped operatives")
+
+; Test 5: apply with multiple arguments
+(define sum-three (lambda (a b c) (+ (+ a b) c)))
+(test-assert
+    (= (apply sum-three (list 1 2 3)) 6)
+  "apply should work with multiple arguments")
+
+; Test 6: apply with built-in wrapped functions
+(test-assert
+    (= (apply (wrap *) (list 2 3 4)) 24)
+  "apply should work with wrapped built-in operatives")
+
+; Test 7: apply with library functions that return functions
+(define make-multiplier (lambda (n) (lambda (x) (* x n))))
+(define times-five (make-multiplier 5))
+(test-assert
+    (= (apply times-five (list 7)) 35)
+  "apply should work with higher-order function results")
+
+; Test 8: apply with lambda that has complex body
+(define complex-func
+  (lambda* (a b)
+    (define temp (+ a b))
+    (define result (* temp 2))
+    result))
+(test-assert
+    (= (apply complex-func (list 4 6)) 20)  ; (4+6)*2 = 20
+  "apply should work with lambda* functions")
+
+; Test 9: apply with function that returns strings
+(define string-func (lambda (prefix suffix) "combined"))
+(test-assert
+    (= (apply string-func (list "hello" "world")) "combined")
+  "apply should work with functions returning strings")
+
+; Test 10: apply with conditional logic in function
+(define conditional-func
+  (lambda (x y)
+    (if (= x y)
+      "equal"
+      "not-equal")))
+(test-assert
+    (= (apply conditional-func (list 5 5)) "equal")
+  "apply should work with conditional functions - equal case")
+
+(test-assert
+    (= (apply conditional-func (list 5 6)) "not-equal")
+  "apply should work with conditional functions - not equal case")
+
+; Test 11: apply with side effects
+(define-mutable apply-side-effect 0)
+(define side-effect-func
+  (lambda* (x)
+    (set! apply-side-effect (+ apply-side-effect x))
+    x))
+(test-assert
+    (= (apply side-effect-func (list 10)) 10)
+  "apply should work with side effect functions - return value")
+
+(test-assert
+    (= apply-side-effect 10)
+  "apply should work with side effect functions - side effect")
+
+; Test 12: apply with list manipulation functions
+(test-assert
+    (= (apply first (list (list 1 2 3))) 1)
+  "apply should work with list manipulation - first")
+
+(define make-list (lambda args args))
+(define applied-list (apply make-list (list 10 20 30)))
+(test-assert
+    (= (first applied-list) 10)
+  "apply should work with variadic functions - first element")
+
+(test-assert
+    (= (first (rest applied-list)) 20)
+  "apply should work with variadic functions - second element")
+
+; Test 13: Nested apply calls
+(define add-two (lambda (x y) (+ x y)))
+(test-assert
+    (= (apply add-two (apply list (list 8 9))) 17)
+  "nested apply calls should work")
+
+; Test 14: apply with map (higher-order usage)
+(define increment (lambda (x) (+ x 1)))
+(define numbers (list 1 2 3))
+(define incremented (apply map (list increment numbers)))
+(test-assert
+    (= (first incremented) 2)
+  "apply should work with higher-order functions like map")
+
+(test-assert
+    (= (first (rest incremented)) 3)
+  "apply with map should process all elements")
+
+; Test 15: apply preserves function behavior
+(define test-func (lambda (a b c) (+ a (* b c))))
+(define direct-call (test-func 2 3 4))  ; 2 + (3*4) = 14
+(define applied-call (apply test-func (list 2 3 4)))
+(test-assert
+    (= direct-call applied-call)
+  "apply should preserve function behavior compared to direct calls")
+
+; Test 16: apply with Church Boolean returning functions
+(define equality-test (lambda (x y) (= x y)))
+(define bool-result (apply equality-test (list 7 7)))
+; Test the Church Boolean by using it
+(test-assert
+    (= (bool-result "true" "false") "true")
+  "apply should work with Church Boolean returning functions")
+
+; Test 17: apply with complex argument lists
+(define sum-all (lambda args (foldl + 0 args)))
+(test-assert
+    (= (apply sum-all (list 1 2 3 4 5)) 15)
+  "apply should work with complex variadic functions")
+
+; Test 18: apply with empty argument list to variadic function
+(test-assert
+    (= (apply sum-all ()) 0)
+  "apply should work with empty argument lists")
+
+; Test 19: apply error conditions
+(test-error (apply) "apply should require exactly 2 arguments")
+(test-error (apply add-func) "apply should require exactly 2 arguments")
+(test-error (apply add-func (list 1 2) extra) "apply should require exactly 2 arguments")
+(test-error (apply "not-function" (list 1 2)) "apply should reject non-function first argument")
+(test-error (apply add-func "not-list") "apply should reject non-list second argument")
+
+; Test 20: apply with library functions
+(test-assert
+    (= (apply length (list (list 1 2 3 4))) 4)
+  "apply should work with library functions like length")
+
+(define filtered (apply filter (list even? (list 1 2 3 4 5 6))))
+(test-assert
+    (= (first filtered) 2)
+  "apply should work with library functions like filter")
+
+; Test 21: apply composition patterns
+(define compose-with-apply
+  (lambda (f g x)
+    (apply f (list (apply g (list x))))))
+(define add-one (lambda (n) (+ n 1)))
+(define times-two (lambda (n) (* n 2)))
+(test-assert
+    (= (compose-with-apply times-two add-one 5) 12)  ; (5+1)*2 = 12
+  "apply should support function composition patterns")
+
+; Test 22: apply with recursive functions
+(define factorial-func
+  (lambda (n)
+    (if (= n 0)
+      1
+      (* n (factorial-func (- n 1))))))
+(test-assert
+    (= (apply factorial-func (list 4)) 24)
+  "apply should work with recursive functions")
+
+; Test 23: Performance test - apply vs direct call should be equivalent
+(define perf-test-func (lambda (x) (+ x 100)))
+(define direct-result (perf-test-func 23))
+(define applied-result (apply perf-test-func (list 23)))
+(test-assert
+    (= direct-result applied-result)
+  "apply should give same results as direct function calls")
+
+; Test 24: apply with curried functions
+(define curry-test (lambda (x) (lambda (y) (+ x y))))
+(define add-ten (curry-test 10))
+(test-assert
+    (= (apply add-ten (list 5)) 15)
+  "apply should work with curried functions")
+
+; Test 25: apply used in fold operations
+(define apply-in-fold
+  (foldl (lambda (acc elem)
+           (apply + (list acc elem)))
+      0
+    (list 1 2 3 4)))
+(test-assert
+    (= apply-in-fold 10)
+  "apply should work when used within fold operations")
+
+
+;------------------------------------------------------------------------------
+; length tests
+
+; Test 1: Empty list should return 0
+(test-assert
+    (= (length ()) 0)
+  "length of empty list should be 0")
+
+; Test 2: Single element list should return 1
+(test-assert
+    (= (length (list 42)) 1)
+  "length of single element list should be 1")
+
+; Test 3: Multiple element list
+(test-assert
+    (= (length (list 1 2 3)) 3)
+  "length should count multiple elements correctly")
+
+; Test 4: Longer list
+(test-assert
+    (= (length (list 1 2 3 4 5 6 7)) 7)
+  "length should work with longer lists")
+
+; Test 5: List with different data types
+(test-assert
+    (= (length (list "hello" 42 () "world")) 4)
+  "length should count elements regardless of their types")
+
+; Test 6: List containing nested lists
+(test-assert
+    (= (length (list (list 1 2) (list 3 4 5) 6)) 3)
+  "length should count top-level elements only")
+
+; Test 7: List with repeated elements
+(test-assert
+    (= (length (list 1 1 1 1)) 4)
+  "length should count repeated elements")
+
+; Test 8: List with nil/empty elements
+(test-assert
+    (= (length (list () () ())) 3)
+  "length should count nil elements")
+
+; Test 9: Compare with manual list construction
+(define manual-list (cons 1 (cons 2 (cons 3 ()))))
+(test-assert
+    (= (length manual-list) 3)
+  "length should work with manually constructed lists")
+
+; Test 10: length with string elements
+(test-assert
+    (= (length (list "a" "bb" "ccc" "dddd")) 4)
+  "length should work with string elements")
+
+; Test 11: length with mixed nested structures
+(test-assert
+    (= (length (list 1 (list 2 3) "four" (list 5 (list 6 7)))) 4)
+  "length should work with complex nested structures")
+
+; Test 12: length used in expressions
+(test-assert
+    (= (+ (length (list 1 2)) (length (list 3 4 5))) 5)
+  "length results should work in arithmetic expressions")
+
+; Test 13: length with library-generated lists
+(test-assert
+    (= (length (map (lambda (x) (* x 2)) (list 1 2 3 4))) 4)
+  "length should work with lists generated by other library functions")
+
+; Test 14: length with filtered lists
+(test-assert
+    (= (length (filter even? (list 1 2 3 4 5 6))) 3)
+  "length should work with filtered lists")
+
+; Test 15: length with reversed lists
+(define original-list (list 10 20 30))
+(test-assert
+    (= (length original-list) (length (reverse original-list)))
+  "length should be same for original and reversed lists")
+
+; Test 16: length with appended lists
+(test-assert
+    (= (length (append (list 1 2) (list 3 4 5))) 5)
+  "length should work with appended lists")
+
+; Test 17: length with prepend results
+(test-assert
+    (= (length (prepend 1 2 (list 3 4))) 4)
+  "length should work with prepend results")
+
+; Test 18: length in conditional expressions
+(test-assert
+    (= (if (= (length (list 1 2 3)) 3) "correct" "wrong") "correct")
+  "length should work in conditional expressions")
+
+; Test 19: length with iota-generated lists
+(test-assert
+    (= (length (iota 5)) 5)
+  "length should work with iota-generated lists")
+
+(test-assert
+    (= (length (iota 0)) 0)
+  "length of iota 0 should be 0")
+
+; Test 20: length error conditions
+(test-error (length) "length should require exactly 1 argument")
+(test-error (length (list 1 2) extra) "length should require exactly 1 argument")
+(test-error (length 42) "length should reject non-list arguments")
+(test-error (length "not-a-list") "length should reject string arguments")
+(test-error (length true) "length should reject Church Boolean arguments")
+
+; Test 21: length with very nested structure
+(define deeply-nested (list 1 (list 2 (list 3 (list 4)))))
+(test-assert
+    (= (length deeply-nested) 2)
+  "length should only count top-level elements in deeply nested structures")
+
+; Test 22: length consistency with other operations
+(define test-list (list "a" "b" "c"))
+(test-assert
+    (= (length test-list) (length (foldr cons test-list ())))
+  "length should be consistent with foldr-reconstructed lists")
+
+; Test 23: length with Church Boolean elements
+(define bool-list (list true false (= 1 1) (= 1 2)))
+(test-assert
+    (= (length bool-list) 4)
+  "length should count Church Boolean elements")
+
+; Test 24: length used in higher-order functions
+(define get-length (lambda (lst) (length lst)))
+(test-assert
+    (= (get-length (list 10 20 30 40)) 4)
+  "length should work when wrapped in other functions")
+
+; Test 25: length with apply
+(test-assert
+    (= (apply length (list (list 7 8 9))) 3)
+  "length should work with apply")

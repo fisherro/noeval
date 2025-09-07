@@ -1,0 +1,106 @@
+;------------------------------------------------------------------------------
+; iota tests
+
+; Test 1: Basic iota functionality
+(define iota-three (iota 3))
+(test-assert
+    (= (first iota-three) 0)
+  "iota should start from 0 - first element")
+
+(test-assert
+    (= (first (rest iota-three)) 1)
+  "iota should increment by 1 - second element")
+
+(test-assert
+    (= (first (rest (rest iota-three))) 2)
+  "iota should continue sequence - third element")
+
+; Test 2: iota 0 should return empty list
+(test-assert
+    (nil? (iota 0))
+  "iota 0 should return empty list")
+
+; Test 3: iota 1 should return single element list
+(define iota-one (iota 1))
+(test-assert
+    (= (first iota-one) 0)
+  "iota 1 should contain only 0")
+
+(test-assert
+    (nil? (rest iota-one))
+  "iota 1 should be single-element list")
+
+; Test 4: iota with larger numbers
+(define iota-five (iota 5))
+(test-assert
+    (= (length iota-five) 5)
+  "iota should generate correct number of elements")
+
+(test-assert
+    (= (first iota-five) 0)
+  "iota should start from 0 - larger list")
+
+(test-assert
+    (= (first (rest (rest (rest (rest iota-five))))) 4)
+  "iota should end at n-1 - larger list")
+
+; Test 5: iota sequence correctness
+(define iota-seven (iota 7))
+(test-assert
+    (= (first (rest (rest iota-seven))) 2)
+  "iota sequence should be correct - middle elements")
+
+(test-assert
+    (= (first (rest (rest (rest (rest (rest (rest iota-seven))))))) 6)
+  "iota sequence should be correct - last element")
+
+; Test 6: iota works with other library functions
+(test-assert
+    (= (length (iota 10)) 10)
+  "iota should work with length function")
+
+; Test 7: iota with map
+(define doubled-iota (map (lambda (x) (* x 2)) (iota 4)))
+(test-assert
+    (= (first doubled-iota) 0)  ; 0*2 = 0
+  "iota should work with map - first element")
+
+(test-assert
+    (= (first (rest (rest (rest doubled-iota)))) 6)  ; 3*2 = 6
+  "iota should work with map - last element")
+
+; Test 8: iota with filter
+(define even-iota (filter even? (iota 6)))
+(test-assert
+    (= (first even-iota) 0)
+  "iota should work with filter - first even")
+
+(test-assert
+    (= (first (rest even-iota)) 2)
+  "iota should work with filter - second even")
+
+; Test 9: iota with fold operations
+(define sum-iota (foldl + 0 (iota 5)))
+(test-assert
+    (= sum-iota 10)  ; 0+1+2+3+4 = 10
+  "iota should work with fold operations")
+
+; Test 10: iota with reverse
+(define reversed-iota (reverse (iota 4)))
+(test-assert
+    (= (first reversed-iota) 3)
+  "iota should work with reverse - first element")
+
+(test-assert
+    (= (first (rest (rest (rest reversed-iota)))) 0)
+  "iota should work with reverse - last element")
+
+; Test 11: iota error conditions
+(test-error (iota) "iota should require exactly 1 argument")
+(test-error (iota 5 extra) "iota should require exactly 1 argument")
+(test-error (iota "not-number") "iota should reject non-numeric arguments")
+
+; Test 12: iota with apply
+(test-assert
+    (= (length (apply iota (list 8))) 8)
+  "iota should work with apply")
