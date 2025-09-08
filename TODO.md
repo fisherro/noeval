@@ -36,6 +36,9 @@ Prioritize macros and RRB trees in order to improve performance.
 
 Member functions to extract values from the value type.
 
+Add child tracking to environments so that garbarge collection may be done
+during top-level evaluations.
+
 A special form for "requires contracts" to standardize argument checking?
 
 File I/O

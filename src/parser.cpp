@@ -738,7 +738,7 @@ value_ptr parser::parse_expression()
             }
             
         case token_type::eof:
-            throw std::runtime_error("Unexpected end of input");
+            return value::make(eof_object{});
             
         default:
             throw std::runtime_error("Unexpected token");

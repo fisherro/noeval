@@ -1,0 +1,67 @@
+(define builtins
+  (list "define"
+        "lambda"
+        "if"
+        "quote"
+        "set!"
+        "begin"
+        "let"
+        "let*"
+        "letrec"
+        "cond"
+        "and"
+        "or"
+        "case"
+        "delay"
+        "cons"
+        "car"
+        "cdr"
+        "list"
+        "list?"
+        "null?"
+        "pair?"
+        "symbol?"
+        "number?"
+        "boolean?"
+        "string?"
+        "procedure?"
+        "display"
+        "newline"
+        "eval"
+        "apply"
+        "read"
+        "true"
+        "false"))
+
+(define symbol-in-list?
+  (lambda* (sym lst)
+    (cond ((nil? lst) false)
+          ((= sym (first lst)) true)
+          (else (symbol-in-list? sym (rest lst))))))
+
+(define extract-symbols
+  (lambda* (acc expr)
+    (cond ((and (symbol? expr)
+                (not (symbol-in-list? expr acc)))
+           (cons expr acc))
+          ((list? expr)
+           (foldl extract-symbols acc expr))
+          (else acc))))
+
+(define loop
+  (lambda* (n)
+    (define input (read))
+    (cond ((and (list? input)
+                (>= (length input)
+                    2)
+                (= (first input)
+                   (q define)))
+           (displayln n ": " (second input))
+           (displayln "  Symbols: " (extract-symbols () (third input)))
+           (flush)
+           (loop (+ n 1)))
+          ((eof-object? input)
+           ())
+          (else (loop n)))))
+
+(loop 1)

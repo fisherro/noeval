@@ -126,8 +126,16 @@ struct value: std::enable_shared_from_this<value> {
     > data;
 
 private:
+#if 0
+    static inline int object_count{0};
     template<typename T>
-    value(T&& t) : data(std::forward<T>(t)) {}
+    value(T&& t): data(std::forward<T>(t)) { ++object_count; /*std::println("objects: {}", object_count);*/ }
+public:
+    ~value() { --object_count; std::println("objects: {}", object_count); }
+#else
+    template<typename T>
+    value(T&& t): data(std::forward<T>(t)) {}
+#endif
 
 public:
     template<typename T>
