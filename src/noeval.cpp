@@ -1425,6 +1425,43 @@ namespace builtins {
         }
     }
 
+    parser make_stdin_parser()
+    {
+        std::string contents;
+        std::string line;
+        while (std::getline(std::cin, line)) {
+            contents += line + "\n";
+        }
+        return parser{contents};
+    }
+
+    continuation_type read_operative(const std::vector<value_ptr>& args, env_ptr)
+    {
+        if (args.size() != 0) {
+            throw evaluation_error(
+                std::format("read: expected 0 arguments, got {}", args.size()),
+                "read",
+                call_stack::format()
+            );
+        }
+
+        try {
+            // We cheat and read all of stdin at once until we upgrade the parser.
+            static parser stdin_parser{make_stdin_parser()};
+
+            auto expr = stdin_parser.parse_expression();
+            return expr;
+        } catch (const evaluation_error&) {
+            throw; // Re-throw evaluation errors as-is
+        } catch (const std::exception& e) {
+            throw evaluation_error(
+                std::format("read: {}", e.what()),
+                "read",
+                call_stack::format()
+            );
+        }
+    }
+
 } // namespace builtins
 
 void add_church_boleans(env_ptr env)
@@ -1475,6 +1512,7 @@ env_ptr create_global_environment()
     define_builtin("do", builtins::do_operative);
 #endif
     define_builtin("load", builtins::load_operative);
+    define_builtin("read", builtins::read_operative);
     // Arithmetic
     define_arithmetic("+", std::plus<bignum>{});
     define_arithmetic("-", std::minus<bignum>{});
@@ -1831,6 +1869,38 @@ value_ptr top_level_eval(value_ptr expr, env_ptr env)
     return eval_and_collect();
 }
 
+//TODO: Refactor this, load_library_file, and run_library_tests to share code.
+bool execute_script(const std::string& filename, env_ptr env)
+{
+    try {
+        std::string content = read_file_content(filename);
+        
+        if (content.empty()) {
+            std::println("Script file is empty or not found");
+            return false;
+        }
+        
+        parser p(content);
+        auto expressions = p.parse_all();
+        
+        for (const auto& expr: expressions) {
+            try {
+                //TODO: Should our result code be determined by the result of
+                //      the last expression?
+                top_level_eval(expr, env);
+            } catch (const std::exception& e) {
+                std::println("  Error executing expression '{}': {}", value_to_string(expr), e.what());
+                return false;
+            }
+        }
+        
+        return true;        
+    } catch (const std::exception& e) {
+        std::println("Error: Could not execute script {}: {}", filename, e.what());
+        return false;
+    }
+}
+
 bool load_library_file(const std::string& filename, env_ptr env)
 {
     bool ok{true};
@@ -1972,8 +2042,10 @@ bool reload_global_environment(bool test_the_library)
     return true;
 }
 
-int main()
+int main(const int argc, const char** argv)
 {
+    std::vector<std::string> args(argv + 1, argv + argc);
+
     if (!run_tests()) {
         std::print("Tests failed. Do you want to continue anyway? (y/N): ");
         std::string response;
@@ -1996,8 +2068,12 @@ int main()
     bool ok = reload_global_environment(false);
     if (not ok) return EXIT_FAILURE;
 
-    std::println("Starting REPL...");
-    repl();
+    if (args.empty()) {
+        std::println("Starting REPL...");
+        repl();
+    } else {
+        execute_script(args[0], environment::global_env);
+    }
 
     environment::global_env.reset();
     environment::collect();

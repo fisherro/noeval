@@ -1,0 +1,4 @@
+(displayln "Hello!")
+(for-each (lambda (n)
+            (displayln (read)))
+  (iota 5))

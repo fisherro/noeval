@@ -97,6 +97,11 @@ struct mutable_binding {
     { return value == that.value; }
 };
 
+struct eof_object {
+    std::string to_string() const { return "#<eof-object>"; }
+    bool operator==(const eof_object&) const { return true; }
+};
+
 // The main value type
 /*
 We could use Church encoding for integers, but the performance overhead and
@@ -116,6 +121,7 @@ struct value: std::enable_shared_from_this<value> {
         builtin_operative,
         env_ptr,
         mutable_binding,
+        eof_object,
         std::nullptr_t  // for nil
     > data;
 
@@ -142,6 +148,7 @@ struct typeof_visitor {
     std::string operator()(const builtin_operative&) const { return "operative"; }
     std::string operator()(env_ptr) const { return "environment"; }
     std::string operator()(const mutable_binding& mb) const;
+    std::string operator()(const eof_object&) const { return "eof-object"; }
     std::string operator()(std::nullptr_t) const { return "nil"; }
 };
 
