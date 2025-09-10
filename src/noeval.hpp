@@ -19,7 +19,24 @@ struct environment;
 struct value;
 
 using value_ptr = std::shared_ptr<value>;
-using env_ptr = std::shared_ptr<environment>;
+
+struct env_ptr final {
+    friend struct environment;
+
+    environment* get() const { return ptr.get(); }
+    operator std::weak_ptr<environment>() const { return ptr; }
+    operator bool() const { return static_cast<bool>(ptr); }
+    bool operator==(const env_ptr& that) const { return ptr == that.ptr; }
+    auto operator->() const { return ptr.operator->(); }
+    void reset() { ptr.reset(); }
+
+private:
+    //TODO: Use ctor & dtor to add to additional roots?
+    env_ptr() = default;
+    explicit env_ptr(std::shared_ptr<environment> p): ptr{std::move(p)} {}
+
+    std::shared_ptr<environment> ptr;
+};
 
 // Tail call captures the eval arguments for the next iteration of eval when
 // a tail call happens.
@@ -173,9 +190,11 @@ private:
 
     std::unordered_map<std::string, value_ptr> bindings;
     env_ptr parent;
+    std::vector<env_ptr> children;
 
-    // Private ctor; must use environment::make to create instances
-    environment(env_ptr p = nullptr) : parent(std::move(p)) { ++count; }
+    // Private ctors; must use environment::make to create instances
+    environment() { ++count; }
+    explicit environment(env_ptr p): parent{std::move(p)} { ++count; }
 
     static void cleanup_registry();
     static std::unordered_set<environment*> mark();
@@ -191,9 +210,10 @@ public:
     static size_t get_constructed_count() { return count; }
     static size_t get_registered_count() { return registry.size(); }
 
-    static std::shared_ptr<environment> make(env_ptr parent = nullptr);
+    static env_ptr make();
+    static env_ptr make(env_ptr parent);
 
-    ~environment() { --count; }
+    ~environment();
 
     value_ptr lookup(const std::string& name) const;
     void define(const std::string& name, value_ptr val);

@@ -1724,6 +1724,9 @@ void environment::mark_environment(std::unordered_set<environment*>& marked, env
     for (const auto& binding: env->bindings) {
         mark_value(marked, binding.second.get());
     }
+    for (const auto& child: env->children) {
+        mark_environment(marked, child.get());
+    }
 }
 
 std::unordered_set<environment*> environment::mark()
@@ -1760,11 +1763,29 @@ void environment::cleanup_registry()
     });
 }
 
-std::shared_ptr<environment> environment::make(env_ptr parent)
+env_ptr environment::make()
 {
-    auto env = std::shared_ptr<environment>(new environment(std::move(parent)));
+    return make(env_ptr{});
+}
+
+env_ptr environment::make(env_ptr parent)
+{
+    auto sp{std::shared_ptr<environment>{new environment(std::move(parent))}};
+    auto env = env_ptr{std::move(sp)};
     registry.insert(env);
+    if (parent) {
+        parent->children.push_back(env);
+    }
     return env;
+}
+
+environment::~environment()
+{
+    if (parent) {
+        std::erase_if(parent->children,
+            [this](env_ptr child) { return child.get() == this; });
+    }
+    --count;
 }
 
 void environment::collect()
@@ -1813,6 +1834,9 @@ value_ptr eval(value_ptr expr, env_ptr env)
             value_type_string(expr),
             value_to_string(expr));
         try {
+#if 0
+            environment::collect();
+#endif
             continuation_type k = std::visit([&](const auto& v) -> continuation_type {
                 using T = std::decay_t<decltype(v)>;
                 
