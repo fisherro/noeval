@@ -46,7 +46,7 @@ public:
     env_root_ptr& operator=(env_root_ptr&& that) noexcept
     {
         if (this != &that) {
-            if (env) environment::remove_additional_root(env);
+            if (env) environment::remove_root(env);
             env = std::move(that.env);
             that.env = nullptr;
         }
@@ -208,8 +208,8 @@ private:
     // Registry of all environments used for garbage collection
     // weak_ptr can't be used with unordered_set until owner_hash is implemented
     static inline std::set<std::weak_ptr<environment>, std::owner_less<std::weak_ptr<environment>>> registry;
-    // We keep a reference count for additional roots.
-    static inline std::map<std::weak_ptr<environment>, size_t, std::owner_less<std::weak_ptr<environment>>> additional_roots;
+    // Roots with reference counts:
+    static inline std::map<std::weak_ptr<environment>, size_t, std::owner_less<std::weak_ptr<environment>>> roots;
 
     std::unordered_map<std::string, value_ptr> bindings;
     env_ptr parent;
@@ -227,9 +227,9 @@ public:
     static void collect();
     static size_t get_constructed_count() { return count; }
     static size_t get_registered_count() { return registry.size(); }
-    static void dump_additional_roots();
-    static void add_additional_root(env_ptr env);
-    static void remove_additional_root(env_ptr env);
+    static void dump_roots();
+    static void add_root(env_ptr env);
+    static void remove_root(env_ptr env);
     static std::vector<std::string> get_root_symbols();
 
     static env_root_ptr make();

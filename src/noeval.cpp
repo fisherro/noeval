@@ -313,7 +313,7 @@ std::vector<std::string> environment::get_all_symbols() const
 std::vector<std::string> environment::get_root_symbols()
 {
     std::vector<std::string> symbols;
-    for (const auto& [env_weak, count] : additional_roots) {
+    for (const auto& [env_weak, count]: roots) {
         if (auto env = env_weak.lock(); env) {
             std::ranges::copy(env->get_all_symbols(), std::back_inserter(symbols));
         }
@@ -1705,53 +1705,53 @@ continuation_type eval_operation(const cons_cell& cell, env_root_ptr env)
 
 env_root_ptr::env_root_ptr(env_ptr e): env(std::move(e))
 {
-    environment::add_additional_root(env);
+    environment::add_root(env);
 }
 
 env_root_ptr::env_root_ptr(const env_root_ptr& that): env(that.env)
 {
-    environment::add_additional_root(env);
+    environment::add_root(env);
 }
 
 env_root_ptr& env_root_ptr::operator=(const env_root_ptr& that)
 {
     if (this != &that) {
-        environment::remove_additional_root(env);
+        environment::remove_root(env);
         env = that.env;
-        environment::add_additional_root(env);
+        environment::add_root(env);
     }
     return *this;
 }
 
 env_root_ptr::~env_root_ptr()
 {
-    environment::remove_additional_root(env);
+    environment::remove_root(env);
 }
 
-void environment::add_additional_root(env_ptr env)
+void environment::add_root(env_ptr env)
 {
     if (not env) return;
     std::weak_ptr<environment> weak_env{env};
-    auto iter{additional_roots.find(weak_env)};
-    if (iter != additional_roots.end()) {
-        NOEVAL_DEBUG(gc_roots, "Incrementing additional root count: {}:{}", to_string(env), iter->second);
+    auto iter{roots.find(weak_env)};
+    if (iter != roots.end()) {
+        NOEVAL_DEBUG(gc_roots, "Incrementing root count: {}:{}", to_string(env), iter->second);
         ++(iter->second);
     } else {
-        NOEVAL_DEBUG(gc_roots, "Adding additional root: {}", to_string(env));
-        additional_roots[weak_env] = 1;
+        NOEVAL_DEBUG(gc_roots, "Adding root: {}", to_string(env));
+        roots[weak_env] = 1;
     }
 }
 
-void environment::remove_additional_root(env_ptr env)
+void environment::remove_root(env_ptr env)
 {
     if (not env) return;
     std::weak_ptr<environment> weak_env{env};
-    auto iter{additional_roots.find(weak_env)};
-    if (iter != additional_roots.end()) {
-        NOEVAL_DEBUG(gc_roots, "Decrementing additional root count: {}:{}", to_string(env), iter->second);
+    auto iter{roots.find(weak_env)};
+    if (iter != roots.end()) {
+        NOEVAL_DEBUG(gc_roots, "Decrementing root count: {}:{}", to_string(env), iter->second);
         if (--(iter->second) == 0) {
-            NOEVAL_DEBUG(gc_roots, "Removing additional root: {}", to_string(env));
-            additional_roots.erase(iter);
+            NOEVAL_DEBUG(gc_roots, "Removing root: {}", to_string(env));
+            roots.erase(iter);
         }
     }
 }
@@ -1798,7 +1798,7 @@ void environment::mark_environment(std::unordered_set<environment*>& marked, env
 std::unordered_set<environment*> environment::mark()
 {
     std::unordered_set<environment*> marked;
-    for (const auto& [root, count]: additional_roots) {
+    for (const auto& [root, count]: roots) {
         if (count == 0) continue;
         if (auto p = root.lock()) {
             mark_environment(marked, p.get());
@@ -1820,7 +1820,7 @@ void environment::sweep(std::unordered_set<environment*>& marked)
 
 void environment::cleanup_registry()
 {
-    std::erase_if(additional_roots, [](const auto& entry) {
+    std::erase_if(roots, [](const auto& entry) {
         return entry.first.expired() or (entry.second == 0);
     });
     std::erase_if(registry, [](const auto& entry) {
@@ -1851,20 +1851,20 @@ void environment::collect()
 {
     NOEVAL_DEBUG(gc, "Before collection: Undestructed environments: {}", environment::get_constructed_count());
     NOEVAL_DEBUG(gc, "Before collection: Registered environments  : {}", environment::get_registered_count());
-    if (NOEVAL_DEBUG_ENABLED(gc_roots)) dump_additional_roots();
+    if (NOEVAL_DEBUG_ENABLED(gc_roots)) dump_roots();
     cleanup_registry();
     auto marked = mark();
     sweep(marked);
     cleanup_registry();
     NOEVAL_DEBUG(gc, "After collection : Undestructed environments: {}", environment::get_constructed_count());
     NOEVAL_DEBUG(gc, "After collection : Registered environments  : {}", environment::get_registered_count());
-    if (NOEVAL_DEBUG_ENABLED(gc_roots)) dump_additional_roots();
+    if (NOEVAL_DEBUG_ENABLED(gc_roots)) dump_roots();
 }
 
-void environment::dump_additional_roots()
+void environment::dump_roots()
 {
-    NOEVAL_DEBUG(gc_roots, "Additional roots:");
-    for (const auto& [entry, count]: additional_roots) {
+    NOEVAL_DEBUG(gc_roots, "Roots:");
+    for (const auto& [entry, count]: roots) {
         auto p = entry.lock();
         if (p) {
             NOEVAL_DEBUG(gc_roots, "\t{}:{}", to_string(p), count);

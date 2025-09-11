@@ -18,8 +18,6 @@ Update noeval-reference.md
 
 ## Regular
 
-Rename additional_roots to roots.
-
 Change "global environment" to top-level?
 
 Collect at top of eval loop (maybe not every time).
