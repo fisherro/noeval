@@ -1499,8 +1499,8 @@ void add_church_boleans(env_root_ptr env)
     env->define("false", false_value);
 }
 
-// Create a global environment with built-ins
-env_root_ptr create_global_environment()
+// Create a top-level environment with built-ins
+env_root_ptr create_top_level_environment()
 {
     auto env = environment::make();
 
@@ -2095,10 +2095,10 @@ int run_library_tests(env_root_ptr outer_env)
     }
 }
 
-env_root_ptr reload_global_environment(bool test_the_library)
+env_root_ptr reload_top_level_environment(bool test_the_library)
 {
     // Create environment and load library
-    auto env = create_global_environment();
+    auto env = create_top_level_environment();
     environment::collect();
 
     // Load standard library
@@ -2163,10 +2163,10 @@ int main(const int argc, const char** argv)
     // A scope for the environment to ensure it is destructed before our final
     // environment::collect() call.
     {
-        // Create global environment and load library
+        // Create top-level environment and load library
         // The library tests take long enough that we're not going to do them on
         // startup. A :reload can be used to run them.
-        auto env = reload_global_environment(false);
+        auto env = reload_top_level_environment(false);
         if (not env) return EXIT_FAILURE;
 
         if (args.empty()) {

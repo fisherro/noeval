@@ -125,7 +125,7 @@ void test_evaluator()
 // Test vau
 void test_vau()
 {
-    auto env = create_global_environment();
+    auto env = create_top_level_environment();
     
     std::println("Testing vau operative:");
     
@@ -150,7 +150,7 @@ void test_vau()
 
 void test_eval()
 {
-    auto env = create_global_environment();
+    auto env = create_top_level_environment();
     
     std::println("Testing eval operative:");
     
@@ -210,7 +210,7 @@ void test_eval()
 int test_self_evaluating_values()
 {
     std::println("\n--- Self-evaluating values ---");
-    auto env = create_global_environment();
+    auto env = create_top_level_environment();
     test_runner runner(env);
     
     runner.test_eval("42", "42");
@@ -224,7 +224,7 @@ int test_self_evaluating_values()
 int test_variable_operations()
 {
     std::println("\n--- Variable operations ---");
-    auto env = create_global_environment();
+    auto env = create_top_level_environment();
     test_runner runner(env);
     
     // Test nil symbol lookup
@@ -243,7 +243,7 @@ int test_variable_operations()
 int test_arithmetic_operations()
 {
     std::println("\n--- Arithmetic operations ---");
-    auto env = create_global_environment();
+    auto env = create_top_level_environment();
     test_runner runner(env);
     
     // Basic arithmetic
@@ -277,7 +277,7 @@ int test_arithmetic_operations()
 int test_list_operations()
 {
     std::println("\n--- List operations ---");
-    auto env = create_global_environment();
+    auto env = create_top_level_environment();
     test_runner runner(env);
     
     env->define("nil-val", value::make(nullptr));
@@ -295,7 +295,7 @@ int test_list_operations()
 int test_church_booleans()
 {
     std::println("\n--- Church Boolean behavior ---");
-    auto env = create_global_environment();
+    auto env = create_top_level_environment();
     test_runner runner(env);
     
     env->define("nil-val", value::make(nullptr));
@@ -316,7 +316,7 @@ int test_church_booleans()
 int test_vau_operatives()
 {
     std::println("\n--- Vau operative creation ---");
-    auto env = create_global_environment();
+    auto env = create_top_level_environment();
     test_runner runner(env);
 
     // Set up environment
@@ -393,7 +393,7 @@ int test_vau_operatives()
 int test_eval_operative()
 {
     std::println("\n--- Eval operative ---");
-    auto env = create_global_environment();
+    auto env = create_top_level_environment();
     test_runner runner(env);
     
     // Set up environment
@@ -414,7 +414,7 @@ int test_eval_operative()
 int test_invoke_operative()
 {
     std::println("\n--- Invoke operative ---");
-    auto env = create_global_environment();
+    auto env = create_top_level_environment();
     test_runner runner(env);
     
     env->define("nil-val", value::make(nullptr));
@@ -428,7 +428,7 @@ int test_invoke_operative()
 int test_error_conditions()
 {
     std::println("\n--- Error conditions ---");
-    auto env = create_global_environment();
+    auto env = create_top_level_environment();
     test_runner runner(env);
     
     runner.test_error("undefined-var", "Unbound variable");
@@ -465,7 +465,7 @@ int test_eval_comprehensive()
 int test_parameter_binding()
 {
     std::println("\nTesting parameter binding scenarios...");
-    auto env = create_global_environment();
+    auto env = create_top_level_environment();
     int failures = 0;
     
     auto test_eval = [&](const std::string& input, const std::string& expected_output) -> bool {
@@ -510,7 +510,7 @@ int test_parameter_binding()
 int test_inline_comments()
 {
     std::println("\n--- Inline comments ---");
-    auto env = create_global_environment();
+    auto env = create_top_level_environment();
     test_runner runner(env);
     
     // Basic inline comments
@@ -593,7 +593,7 @@ void test_lexer_comments()
 int test_operative_as_first_element()
 {
     std::println("\n--- Operative values as first element ---");
-    auto env = create_global_environment();
+    auto env = create_top_level_environment();
     test_runner runner(env);
     
     env->define("nil-val", value::make(nullptr));
@@ -627,7 +627,7 @@ int test_operative_as_first_element()
 int test_mutable_bindings()
 {
     std::println("\n--- Mutable bindings ---");
-    auto env = create_global_environment();
+    auto env = create_top_level_environment();
     test_runner runner(env);
     
     // Test 1: Basic mutable definition and initial value
@@ -692,7 +692,7 @@ int test_mutable_bindings()
 int test_number_parsing()
 {
     std::println("\n--- Number parsing ---");
-    auto env = create_global_environment();
+    auto env = create_top_level_environment();
     test_runner runner(env);
     
     // Test basic integer parsing
@@ -730,7 +730,7 @@ int test_number_parsing()
 int test_number_operations()
 {
     std::println("\n--- Advanced number operations ---");
-    auto env = create_global_environment();
+    auto env = create_top_level_environment();
     test_runner runner(env);
     
     // Test numerator/denominator extraction
@@ -763,7 +763,7 @@ int test_number_operations()
 int test_based_number_parsing()
 {
     std::println("\n--- Based number parsing ---");
-    auto env = create_global_environment();
+    auto env = create_top_level_environment();
     test_runner runner(env);
     
     // Test hexadecimal literals (case-insensitive base specifiers)
@@ -822,7 +822,7 @@ int test_based_number_parsing()
 int test_based_number_errors()
 {
     std::println("\n--- Based number error conditions ---");
-    auto env = create_global_environment();
+    auto env = create_top_level_environment();
     test_runner runner(env);
     
     // Invalid hex digits
@@ -969,7 +969,7 @@ int test_based_number_lexer()
 int test_based_number_edge_cases()
 {
     std::println("\n--- Based number edge cases ---");
-    auto env = create_global_environment();
+    auto env = create_top_level_environment();
     test_runner runner(env);
     
     // Test with whitespace and comments
@@ -1239,7 +1239,7 @@ int test_unicode_functions()
 int test_string_primitives()
 {
     std::println("\n--- String conversion primitives ---");
-    auto env = create_global_environment();
+    auto env = create_top_level_environment();
     test_runner runner(env);
     
     // Basic conversions

@@ -18,8 +18,6 @@ Update noeval-reference.md
 
 ## Regular
 
-Change "global environment" to top-level?
-
 Collect at top of eval loop (maybe not every time).
 
 Should use of `read` be prevented from the REPL?

@@ -288,10 +288,10 @@ std::vector<value_ptr> list_to_vector(value_ptr list);
 // Core evaluation functions
 value_ptr eval(value_ptr expr, env_root_ptr env);
 value_ptr top_level_eval(value_ptr expr, env_root_ptr env);
-env_root_ptr create_global_environment();
-// This creates a new global environment, loads the library, and runs the
+env_root_ptr create_top_level_environment();
+// This creates a new top-level environment, loads the library, and runs the
 // library tests if specified.
-env_root_ptr reload_global_environment(bool test_the_library = true);
+env_root_ptr reload_top_level_environment(bool test_the_library = true);
 
 // String conversion functions
 std::string to_string(const bignum& value);

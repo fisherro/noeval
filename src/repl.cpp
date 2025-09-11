@@ -331,7 +331,7 @@ bool handle_special_command(const std::string& input)
         iss >> command >> option;
         
         bool test_the_library = (option != "fast");
-        bool ok = reload_global_environment(test_the_library);
+        bool ok = reload_top_level_environment(test_the_library);
         if (ok) {
             std::println("Environment reloaded successfully{}", 
                         test_the_library? " (with tests)": " (skipping tests)");
