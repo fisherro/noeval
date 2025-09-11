@@ -347,7 +347,7 @@ bool handle_special_command(const std::string& input)
 }
 
 // Evaluate an expression string in the given environment
-value_ptr eval_expression(const std::string& expr_str, env_ptr env)
+value_ptr eval_expression(const std::string& expr_str, env_root_ptr env)
 {
     parser p(expr_str);
     auto expr = p.parse();
@@ -399,7 +399,7 @@ void repl()
         
         try {
             call_stack_reset_max_depth();
-            auto result = eval_expression(input, environment::global_env);
+            auto result = eval_expression(input, env_root_ptr(environment::global_env));
             NOEVAL_DEBUG(stack-depth, "max stack depth: {}", call_stack_get_max_depth());
             print_result(result);
         } catch (const std::exception& e) {

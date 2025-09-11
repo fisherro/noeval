@@ -12,10 +12,10 @@
 
 // Helper function for running tests
 struct test_runner {
-    env_ptr env;
+    env_root_ptr env;
     int failures = 0;
-    
-    test_runner(env_ptr e) : env(e) {}
+
+    test_runner(env_root_ptr e): env(e) {}
     bool test_eval(const std::string& input, const std::string& expected_output);
     bool test_error(const std::string& input, const std::string& expected_error_substring);
 };

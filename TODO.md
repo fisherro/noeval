@@ -18,6 +18,10 @@ Update noeval-reference.md
 
 ## Regular
 
+Remove global environment.
+
+Collect at top of eval loop (maybe not every time).
+
 Should use of `read` be prevented from the REPL?
 
 Change parser to use a "stream" "adaptor" that can wrap stdin or std::cin and
@@ -123,9 +127,6 @@ Do we need get-current-environment? Is it correct?
 
 Makes `value` formattable by std::format and std::print and then use them to
 expose formattting functions to Noeval.
-
-Move the testing infrastructure into the library?
-Or wait until we have modules and put it in a module?
 
 Consider `do` and `try` creating their own environment
 

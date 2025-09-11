@@ -21,11 +21,45 @@ struct value;
 using value_ptr = std::shared_ptr<value>;
 using env_ptr = std::shared_ptr<environment>;
 
+// Used to ensure that environments referenced only by the C++ code do not get
+// collected.
+class env_root_ptr final {
+    env_ptr env;
+public:
+    explicit env_root_ptr(env_ptr e);
+    ~env_root_ptr();
+    env_ptr get() const { return env; }
+    env_ptr operator->() const { return env; }
+    operator bool() const { return static_cast<bool>(env); }
+
+    // Copy operations
+    env_root_ptr(const env_root_ptr& that);
+    env_root_ptr& operator=(const env_root_ptr& that);
+
+#if 0
+    // Add move constructor and assignment
+    env_root_ptr(env_root_ptr&& that) noexcept: env(std::move(that.env))
+    {
+        that.env = nullptr; // Prevent destructor from removing
+    }
+    
+    env_root_ptr& operator=(env_root_ptr&& that) noexcept
+    {
+        if (this != &that) {
+            if (env) environment::remove_additional_root(env);
+            env = std::move(that.env);
+            that.env = nullptr;
+        }
+        return *this;
+    }
+#endif
+};
+
 // Tail call captures the eval arguments for the next iteration of eval when
 // a tail call happens.
 struct tail_call {
-    value_ptr expr;
-    env_ptr   env;
+    value_ptr    expr;
+    env_root_ptr env;
 };
 
 // Functions that eval calls that could result in a tail call will use this
@@ -64,10 +98,10 @@ struct operative {
     env_ptr closure_env;
     std::string tag;
     
-    operative(param_pattern p, std::string e, value_ptr b, env_ptr env,
+    operative(param_pattern p, std::string e, value_ptr b, env_root_ptr env,
         std::string_view t = "")
         : params(std::move(p)), env_param(std::move(e)),
-          body(std::move(b)), closure_env(std::move(env)), tag(t) {}
+          body(std::move(b)), closure_env(std::move(env.get())), tag(t) {}
 
     std::string to_string() const;
     bool operator==(const operative& that) const
@@ -80,9 +114,9 @@ struct operative {
 // Built-in operative type for primitives
 struct builtin_operative {
     std::string name;
-    std::function<continuation_type(const std::vector<value_ptr>&, env_ptr)> func;
+    std::function<continuation_type(const std::vector<value_ptr>&, env_root_ptr)> func;
 
-    builtin_operative(std::string n, std::function<continuation_type(const std::vector<value_ptr>&, env_ptr)> f)
+    builtin_operative(std::string n, std::function<continuation_type(const std::vector<value_ptr>&, env_root_ptr)> f)
         : name(std::move(n)), func(std::move(f)) {}
     std::string to_string() const { return "#<builtin-operative:" + name + ">"; }
     bool operator==(const builtin_operative&) const { return false; }
@@ -144,6 +178,11 @@ public:
         return std::shared_ptr<value>(new value(std::forward<T>(v)));
     }
 
+    static std::shared_ptr<value> make(env_root_ptr env)
+    {
+        return value::make(env.get());
+    }
+
     friend bool operator==(value& lhs, value& rhs);
 };
 
@@ -169,7 +208,8 @@ private:
     // Registry of all environments used for garbage collection
     // weak_ptr can't be used with unordered_set until owner_hash is implemented
     static inline std::set<std::weak_ptr<environment>, std::owner_less<std::weak_ptr<environment>>> registry;
-    static inline std::set<std::weak_ptr<environment>, std::owner_less<std::weak_ptr<environment>>> additional_roots;
+    // We keep a reference count for additional roots.
+    static inline std::map<std::weak_ptr<environment>, size_t, std::owner_less<std::weak_ptr<environment>>> additional_roots;
 
     std::unordered_map<std::string, value_ptr> bindings;
     env_ptr parent;
@@ -184,21 +224,19 @@ private:
     static void sweep(std::unordered_set<environment*>& marked);
 
 public:
+    //TODO: With env_root_ptr, we might not need this global_env anymore.
     static inline env_ptr global_env;
 
     static void collect();
-    static void add_additional_root(env_ptr env) { additional_roots.insert(env); }
-    static void remove_additional_root(env_ptr env)
-    {
-        std::erase_if(additional_roots, [&](const auto& entry) {
-            auto p = entry.lock();
-            return (not p) or (p == env);
-        });
-    }
     static size_t get_constructed_count() { return count; }
     static size_t get_registered_count() { return registry.size(); }
+    static void dump_additional_roots();
+    static void add_additional_root(env_ptr env);
+    static void remove_additional_root(env_ptr env);
 
-    static std::shared_ptr<environment> make(env_ptr parent = nullptr);
+    static env_root_ptr make();
+    static env_root_ptr make(env_ptr parent);
+    static env_root_ptr make(env_root_ptr parent);
 
     ~environment() { --count; }
 
@@ -250,9 +288,9 @@ value_ptr cdr(const value_ptr& val);
 std::vector<value_ptr> list_to_vector(value_ptr list);
 
 // Core evaluation functions
-value_ptr eval(value_ptr expr, env_ptr env);
-value_ptr top_level_eval(value_ptr expr, env_ptr env);
-env_ptr create_global_environment();
+value_ptr eval(value_ptr expr, env_root_ptr env);
+value_ptr top_level_eval(value_ptr expr, env_root_ptr env);
+env_root_ptr create_global_environment();
 // This creates a new global environment, loads the library, and runs the
 // library tests if specified.
 bool reload_global_environment(bool test_the_library = true);
@@ -260,8 +298,9 @@ bool reload_global_environment(bool test_the_library = true);
 // String conversion functions
 std::string to_string(const bignum& value);
 std::string to_string(const std::string& value);
-std::string to_string(const env_ptr& env);
 std::string to_string(std::nullptr_t);
+std::string to_string(const env_ptr& env);
+std::string to_string(const env_root_ptr& env);
 
 void   call_stack_reset_max_depth();
 size_t call_stack_get_max_depth();
