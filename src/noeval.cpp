@@ -415,8 +415,9 @@ continuation_type operate_builtin(const builtin_operative& op, value_ptr operand
 
 struct call_stack {
 private:
-    inline static thread_local std::vector<std::string> stack;
-    inline static thread_local size_t max_depth{0};
+    // These were thread_local, but we aren't using threads (yet).
+    inline static std::vector<std::string> stack;
+    inline static size_t max_depth{0};
 public:
     struct guard {
         guard(value_ptr expr)

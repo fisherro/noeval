@@ -188,6 +188,13 @@ public:
 
     static void collect();
     static void add_additional_root(env_ptr env) { additional_roots.insert(env); }
+    static void remove_additional_root(env_ptr env)
+    {
+        std::erase_if(additional_roots, [&](const auto& entry) {
+            auto p = entry.lock();
+            return (not p) or (p == env);
+        });
+    }
     static size_t get_constructed_count() { return count; }
     static size_t get_registered_count() { return registry.size(); }
 
