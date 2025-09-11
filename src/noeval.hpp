@@ -166,6 +166,8 @@ private:
     // Keep a count of all constructed (& not destructed) environments for debugging
     static inline size_t count{0};
 
+    static inline bool enabled{true};
+
     // Registry of all environments used for garbage collection
     // weak_ptr can't be used with unordered_set until owner_hash is implemented
     static inline std::set<std::weak_ptr<environment>, std::owner_less<std::weak_ptr<environment>>> registry;
@@ -197,6 +199,9 @@ public:
     }
     static size_t get_constructed_count() { return count; }
     static size_t get_registered_count() { return registry.size(); }
+    static bool is_enabled() { return enabled; }
+    static void disable_collection() { enabled = false; }
+    static void enable_collection() { enabled = true; }
 
     static std::shared_ptr<environment> make(env_ptr parent = nullptr);
 
@@ -206,6 +211,21 @@ public:
     void define(const std::string& name, value_ptr val);
     std::vector<std::string> get_all_symbols() const;
     std::string dump_chain() const;
+};
+
+class root_guard {
+    env_ptr env;
+public:
+    explicit root_guard(env_ptr e): env(std::move(e))
+    {
+        environment::add_additional_root(env);
+        std::println("root_guard: Added additional root {}", static_cast<const void*>(env.get()));
+    }
+    ~root_guard()
+    {
+        std::println("root_guard: Removing additional root {}", static_cast<const void*>(env.get()));
+        environment::remove_additional_root(env);
+    }
 };
 
 // Custom exception class with context

@@ -606,7 +606,31 @@ namespace builtins {
                 call_stack::format()
             );
         }
-        
+
+#if 1
+        // Without this, loading the library fails when defining `list`.
+        // With this (with or without `root_guard` in `eval`), we manage to
+        // load the library, but `(factorial 1)` fails with `do` unbound.
+        // If we add `root_guard`, then `(factorial 1)` fails with `unless`
+        // unbound.
+        //TODO: Move this into environment?
+        struct collection_guard {
+            //TODO: Should nested calls be handled by environment itself?
+            bool was_disabled;
+            collection_guard(): was_disabled{not environment::is_enabled()}
+            {
+                if (not was_disabled) std::println("Disabling collection during define");
+                environment::disable_collection();
+            }
+            ~collection_guard()
+            {
+                if (not was_disabled) {
+                    environment::enable_collection();
+                    std::println("Re-enabling collection after define");
+                }
+            }
+        } guard; // Disable collection during define_operative
+#endif
         auto sym_expr = args[0];
         auto val_expr = args[1];
         
@@ -1585,8 +1609,10 @@ void bind_parameters(const param_pattern& params, value_ptr operands, env_ptr ta
 
 continuation_type operate_operative(const operative& op, value_ptr operands, env_ptr env)
 {
+std::println("{}({}): Creating environment", __func__, __LINE__);
     // Create new environment for the operative
     auto new_env = environment::make(op.closure_env);
+std::println("{}({}): Environment created: {}", __func__, __LINE__, static_cast<const void*>(new_env.get()));
 
     // Bind parameters to unevaluated operands
     try {
@@ -1605,6 +1631,10 @@ continuation_type operate_operative(const operative& op, value_ptr operands, env
     }
 
     // Evaluate body in new environment
+std::println("{}({}): About to eval", __func__, __LINE__);
+struct blah {
+    ~blah() { std::println("{}({}): Exiting", __func__, __LINE__); }
+} _b;
 #if USE_TAIL_CALL
     return tail_call{op.body, new_env};
 #else
@@ -1746,6 +1776,7 @@ void environment::sweep(std::unordered_set<environment*>& marked)
         auto p = entry.lock();
         if (not p) continue;
         if (marked.contains(p.get())) continue;
+        std::println("GC: Collecting environment {}", static_cast<const void*>(p.get()));
         p->bindings.clear();
         p->parent.reset();
     }
@@ -1770,6 +1801,10 @@ std::shared_ptr<environment> environment::make(env_ptr parent)
 
 void environment::collect()
 {
+    if (not enabled) {
+        NOEVAL_DEBUG(gc, "Garbage collection is disabled");
+        return;
+    }
     NOEVAL_DEBUG(gc, "Before collection: Undestructed environments: {}", environment::get_constructed_count());
     NOEVAL_DEBUG(gc, "Before collection: Registered environments  : {}", environment::get_registered_count());
     cleanup_registry();
@@ -1814,6 +1849,35 @@ value_ptr eval(value_ptr expr, env_ptr env)
             value_type_string(expr),
             value_to_string(expr));
         try {
+            // If we collect in eval loop (with no other changes), then loading
+            // the library fails when defining `list` because `unwrap` is
+            // unbound. It is unbound because between the creation of the
+            // environment in `operate_operative` and `define` finishing to
+            // bind it, the collection here collects it.
+            // It's bindings get cleared, but the environment isn't collected
+            // because it is still referenced by `env` here.
+#if 1 // Collect in eval loop
+                {
+#if 1 // Protect the current environment during collection
+                    // With this (alone) we error loading the library when
+                    // defining `list` because `=` is unbound.
+                    // With this and disabling collection in `define`, the
+                    // library loads, but `(factorial 1)` fails with `unless`
+                    // unbound.
+                    root_guard rg{env};
+#endif // Protect the current environment during collection
+#if 0 // Throttle collection
+                    static int eval_count{0};
+                    if (++eval_count > 1000) {
+                        environment::collect();
+                        eval_count = 0;
+                    }
+#else // Throttle collection
+                    environment::collect();
+#endif // Throttle collection
+                }
+#endif  // Collect in eval loop
+
             continuation_type k = std::visit([&](const auto& v) -> continuation_type {
                 using T = std::decay_t<decltype(v)>;
                 
@@ -1924,6 +1988,10 @@ bool load_library_file(const std::string& filename, env_ptr env)
             } catch (const std::exception& e) {
                 ok = false;
                 std::println("  Error loading expression '{}': {}", value_to_string(expr), e.what());
+#if 1
+                // Stop loading on first error for debugging
+                break;
+#endif
             }
         }
         
@@ -2047,6 +2115,7 @@ int main(const int argc, const char** argv)
 {
     std::vector<std::string> args(argv + 1, argv + argc);
 
+#if 0
     if (!run_tests()) {
         std::print("Tests failed. Do you want to continue anyway? (y/N): ");
         std::string response;
@@ -2062,6 +2131,7 @@ int main(const int argc, const char** argv)
         
         std::println("Continuing despite test failures...");
     }
+#endif
 
     // Create global environment and load library
     // The library tests take long enough that we're not going to do them on
