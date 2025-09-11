@@ -224,15 +224,13 @@ private:
     static void sweep(std::unordered_set<environment*>& marked);
 
 public:
-    //TODO: With env_root_ptr, we might not need this global_env anymore.
-    static inline env_ptr global_env;
-
     static void collect();
     static size_t get_constructed_count() { return count; }
     static size_t get_registered_count() { return registry.size(); }
     static void dump_additional_roots();
     static void add_additional_root(env_ptr env);
     static void remove_additional_root(env_ptr env);
+    static std::vector<std::string> get_root_symbols();
 
     static env_root_ptr make();
     static env_root_ptr make(env_ptr parent);
@@ -293,7 +291,7 @@ value_ptr top_level_eval(value_ptr expr, env_root_ptr env);
 env_root_ptr create_global_environment();
 // This creates a new global environment, loads the library, and runs the
 // library tests if specified.
-bool reload_global_environment(bool test_the_library = true);
+env_root_ptr reload_global_environment(bool test_the_library = true);
 
 // String conversion functions
 std::string to_string(const bignum& value);

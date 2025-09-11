@@ -310,6 +310,17 @@ std::vector<std::string> environment::get_all_symbols() const
     return symbols;
 }
 
+std::vector<std::string> environment::get_root_symbols()
+{
+    std::vector<std::string> symbols;
+    for (const auto& [env_weak, count] : additional_roots) {
+        if (auto env = env_weak.lock(); env) {
+            std::ranges::copy(env->get_all_symbols(), std::back_inserter(symbols));
+        }
+    }
+    return symbols;
+}
+
 std::string environment::dump_chain() const
 {
     std::string chain = std::format("{}", static_cast<const void*>(this));
@@ -1786,9 +1797,7 @@ void environment::mark_environment(std::unordered_set<environment*>& marked, env
 
 std::unordered_set<environment*> environment::mark()
 {
-    if (not global_env) return {};
     std::unordered_set<environment*> marked;
-    mark_environment(marked, global_env.get());
     for (const auto& [root, count]: additional_roots) {
         if (count == 0) continue;
         if (auto p = root.lock()) {
@@ -1854,13 +1863,13 @@ void environment::collect()
 
 void environment::dump_additional_roots()
 {
-    std::cout << "Additional roots:" << std::endl;
+    NOEVAL_DEBUG(gc_roots, "Additional roots:");
     for (const auto& [entry, count]: additional_roots) {
         auto p = entry.lock();
         if (p) {
-            std::println("\t{}:{}", to_string(p), count);
+            NOEVAL_DEBUG(gc_roots, "\t{}:{}", to_string(p), count);
         } else {
-            std::println("\t<expired>: {}", count);
+            NOEVAL_DEBUG(gc_roots, "\t<expired>:{}", count);
         }
     }
 }
@@ -2086,20 +2095,18 @@ int run_library_tests(env_root_ptr outer_env)
     }
 }
 
-bool reload_global_environment(bool test_the_library)
+env_root_ptr reload_global_environment(bool test_the_library)
 {
-    // Create global environment and load library
-    //TODO: Global environment might go away at some point.
-    environment::global_env = create_global_environment().get();
+    // Create environment and load library
+    auto env = create_global_environment();
     environment::collect();
 
     // Load standard library
     std::println("Loading standard library...");
-    bool library_ok = load_library_file("src/lib.noeval",
-        env_root_ptr(environment::global_env));
+    bool library_ok = load_library_file("src/lib.noeval", env);
     if (not library_ok) {
         std::println("Loading the library failed!");
-        return false;
+        return env_root_ptr{nullptr};
     }
 
     if (test_the_library) {
@@ -2107,7 +2114,7 @@ bool reload_global_environment(bool test_the_library)
         // Run library tests after loading
         std::println("\n{}", std::string(60, '='));
         std::println("Running library tests...");
-        failures += run_library_tests(env_root_ptr(environment::global_env));
+        failures += run_library_tests(env);
         std::println("{}", std::string(60, '='));
         if (0 != failures) {
             println_red("\n✗ library tests failed!");
@@ -2121,7 +2128,7 @@ bool reload_global_environment(bool test_the_library)
             
             if (response != "y" and response != "yes") {
                 std::println("Aborting due to library test failures.");
-                return false;
+                return env_root_ptr{nullptr};
             }
             
             std::println("Continuing despite library test failures...");
@@ -2130,7 +2137,7 @@ bool reload_global_environment(bool test_the_library)
         }
     }
 
-    return true;
+    return env;
 }
 
 int main(const int argc, const char** argv)
@@ -2153,20 +2160,23 @@ int main(const int argc, const char** argv)
         std::println("Continuing despite test failures...");
     }
 
-    // Create global environment and load library
-    // The library tests take long enough that we're not going to do them on
-    // startup. A :reload can be used to run them.
-    bool ok = reload_global_environment(false);
-    if (not ok) return EXIT_FAILURE;
+    // A scope for the environment to ensure it is destructed before our final
+    // environment::collect() call.
+    {
+        // Create global environment and load library
+        // The library tests take long enough that we're not going to do them on
+        // startup. A :reload can be used to run them.
+        auto env = reload_global_environment(false);
+        if (not env) return EXIT_FAILURE;
 
-    if (args.empty()) {
-        std::println("Starting REPL...");
-        repl();
-    } else {
-        execute_script(args[0], env_root_ptr(environment::global_env));
+        if (args.empty()) {
+            std::println("Starting REPL...");
+            repl(env);
+        } else {
+            execute_script(args[0], env);
+        }
     }
 
-    environment::global_env.reset();
     environment::collect();
 
 #ifdef TEST_FOR_MOVE_ONLY_FUNCTION

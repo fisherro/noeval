@@ -44,18 +44,16 @@ char* symbol_generator(const char* prefix, int state)
         matches.clear();
         match_index = 0;
         
-        if (environment::global_env) {
-            // Get all symbols from the environment
-            auto symbols = environment::global_env->get_all_symbols();
-            // So annoying that we have std::bind_back, but it doesn't work
-            // with overload sets.
-            auto string_starts_with = [](const std::string& str, const char* prefix) {
-                return std::string_view(str).starts_with(prefix);
-            };
-            std::ranges::copy(
-                symbols | std::views::filter(std::bind_back(string_starts_with, prefix)),
-                std::back_inserter(matches));
-        }
+        // Get all symbols from the root environments
+        auto symbols = environment::get_root_symbols();
+        // So annoying that we have std::bind_back, but it doesn't work
+        // with overload sets.
+        auto string_starts_with = [](const std::string& str, const char* prefix) {
+            return std::string_view(str).starts_with(prefix);
+        };
+        std::ranges::copy(
+            symbols | std::views::filter(std::bind_back(string_starts_with, prefix)),
+            std::back_inserter(matches));
 
         std::ranges::sort(matches);
         const auto [first, last] = std::ranges::unique(matches);
@@ -367,7 +365,7 @@ void print_error(const std::exception& e)
 }
 
 // Simple REPL with multi-line support
-void repl()
+void repl(env_root_ptr env)
 {
 #if 0
     // I'm not ready to enable saving the history yet.
@@ -399,7 +397,7 @@ void repl()
         
         try {
             call_stack_reset_max_depth();
-            auto result = eval_expression(input, env_root_ptr(environment::global_env));
+            auto result = eval_expression(input, env);
             NOEVAL_DEBUG(stack-depth, "max stack depth: {}", call_stack_get_max_depth());
             print_result(result);
         } catch (const std::exception& e) {
