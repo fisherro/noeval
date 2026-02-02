@@ -4,7 +4,7 @@ CXXFLAGS := -Wall -Wextra -std=c++26 -g
 DEPFLAGS := -MMD -MP
 
 # Libraries to link
-LDLIBS := -lreadline
+LDLIBS := -lreadline -lstdc++exp
 
 # Directories
 SRCDIR := src

@@ -10,6 +10,7 @@
 #include <memory>
 #include <print>
 #include <ranges>
+#include <stacktrace>
 #include <string_view>
 #include <string>
 #include <unordered_map>
@@ -206,7 +207,7 @@ std::string operative::to_string() const
     if (not tag.empty()) return tag;
     // It isn't easy (yet) to change the delimiter that format uses for ranges,
     // so explicitly use std::views::join_with.
-    return std::format("(operative {}{:s}{} {} {})",
+    return std::format("(#<operative> {}{:s}{} {} {})",
         params.is_variadic? "": "(",
         params.param_names | std::views::join_with(' '),
         params.is_variadic? "": ")",
@@ -1734,7 +1735,7 @@ void environment::add_root(env_ptr env)
     std::weak_ptr<environment> weak_env{env};
     auto iter{roots.find(weak_env)};
     if (iter != roots.end()) {
-        NOEVAL_DEBUG(gc_roots, "Incrementing root count: {}:{}", to_string(env), iter->second);
+        NOEVAL_DEBUG(gc_roots, "Incrementing root count: {}:{} → {}", to_string(env), iter->second, iter->second + 1);
         ++(iter->second);
     } else {
         NOEVAL_DEBUG(gc_roots, "Adding root: {}", to_string(env));
@@ -1748,14 +1749,18 @@ void environment::remove_root(env_ptr env)
     std::weak_ptr<environment> weak_env{env};
     auto iter{roots.find(weak_env)};
     if (iter != roots.end()) {
-        NOEVAL_DEBUG(gc_roots, "Decrementing root count: {}:{}", to_string(env), iter->second);
+        NOEVAL_DEBUG(gc_roots, "Decrementing root count: {}:{} → {}", to_string(env), iter->second, iter->second - 1);
         if (--(iter->second) == 0) {
             NOEVAL_DEBUG(gc_roots, "Removing root: {}", to_string(env));
+#if 0
+            std::println("STACK TRACE:\n{}", std::stacktrace::current());
+#endif
             roots.erase(iter);
         }
     }
 }
 
+std::set<std::weak_ptr<environment>, std::owner_less<std::weak_ptr<environment>>> marked_closure_envs;
 /*
  * We need to recursively check this values for env_ptrs:
  * `env_ptr`
@@ -1776,6 +1781,7 @@ void environment::mark_value(std::unordered_set<environment*>& marked, value* v)
         mark_value(marked, cell.cdr.get());
     } else if (std::holds_alternative<operative>(v->data)) {
         auto& op = std::get<operative>(v->data);
+        marked_closure_envs.insert(op.closure_env);
         mark_environment(marked, op.closure_env.get());
         mark_value(marked, op.body.get());
     } else if (std::holds_alternative<mutable_binding>(v->data)) {
@@ -1797,13 +1803,21 @@ void environment::mark_environment(std::unordered_set<environment*>& marked, env
 
 std::unordered_set<environment*> environment::mark()
 {
+std::println("{}({})", __FILE__, __LINE__);
     std::unordered_set<environment*> marked;
+std::println("{}({})", __FILE__, __LINE__);
     for (const auto& [root, count]: roots) {
+std::println("{}({})", __FILE__, __LINE__);
         if (count == 0) continue;
+std::println("{}({})", __FILE__, __LINE__);
         if (auto p = root.lock()) {
+std::println("{}({})", __FILE__, __LINE__);
             mark_environment(marked, p.get());
+std::println("{}({})", __FILE__, __LINE__);
         }
+std::println("{}({})", __FILE__, __LINE__);
     }
+std::println("{}({})", __FILE__, __LINE__);
     return marked;
 }
 
@@ -1813,6 +1827,8 @@ void environment::sweep(std::unordered_set<environment*>& marked)
         auto p = entry.lock();
         if (not p) continue;
         if (marked.contains(p.get())) continue;
+if (roots.contains(entry)) throw std::runtime_error("Root environment not marked");
+        NOEVAL_DEBUG(gc, "Collecting environment: {}", to_string(p));
         p->bindings.clear();
         p->parent.reset();
     }
@@ -1820,6 +1836,12 @@ void environment::sweep(std::unordered_set<environment*>& marked)
 
 void environment::cleanup_registry()
 {
+    for (const auto& marked: marked_closure_envs) {
+        if (auto p = marked.lock()) {
+            environment::remove_root(p);
+        }
+    }
+    marked_closure_envs.clear();
     std::erase_if(roots, [](const auto& entry) {
         return entry.first.expired() or (entry.second == 0);
     });
@@ -1852,10 +1874,15 @@ void environment::collect()
     NOEVAL_DEBUG(gc, "Before collection: Undestructed environments: {}", environment::get_constructed_count());
     NOEVAL_DEBUG(gc, "Before collection: Registered environments  : {}", environment::get_registered_count());
     if (NOEVAL_DEBUG_ENABLED(gc_roots)) dump_roots();
+std::println("{}({})", __FILE__, __LINE__);
     cleanup_registry();
+std::println("{}({})", __FILE__, __LINE__);
     auto marked = mark();
+std::println("{}({})", __FILE__, __LINE__);
     sweep(marked);
+std::println("{}({})", __FILE__, __LINE__);
     cleanup_registry();
+std::println("{}({})", __FILE__, __LINE__);
     NOEVAL_DEBUG(gc, "After collection : Undestructed environments: {}", environment::get_constructed_count());
     NOEVAL_DEBUG(gc, "After collection : Registered environments  : {}", environment::get_registered_count());
     if (NOEVAL_DEBUG_ENABLED(gc_roots)) dump_roots();
@@ -1908,6 +1935,12 @@ value_ptr eval(value_ptr expr, env_root_ptr env)
             value_type_string(expr),
             value_to_string(expr));
         try {
+            static size_t count{0};
+            if (++count > 0) {
+                environment::collect();
+                count = 0;
+            }
+
             continuation_type k = std::visit([&](const auto& v) -> continuation_type {
                 using T = std::decay_t<decltype(v)>;
                 
@@ -2142,6 +2175,7 @@ env_root_ptr reload_top_level_environment(bool test_the_library)
 
 int main(const int argc, const char** argv)
 {
+    get_debug().enable_all();
     std::vector<std::string> args(argv + 1, argv + argc);
 
     if (!run_tests()) {

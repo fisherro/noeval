@@ -97,11 +97,19 @@ struct operative {
     value_ptr body;
     env_ptr closure_env;
     std::string tag;
-    
+
+#if 0
     operative(param_pattern p, std::string e, value_ptr b, env_root_ptr env,
         std::string_view t = "")
         : params(std::move(p)), env_param(std::move(e)),
-          body(std::move(b)), closure_env(std::move(env.get())), tag(t) {}
+          body(std::move(b)),
+          closure_env(std::move(env.get())),
+          tag(t) {}
+#else
+    operative(param_pattern p, std::string e, value_ptr b, env_root_ptr env,
+        std::string_view t = "");
+    ~operative();
+#endif
 
     std::string to_string() const;
     bool operator==(const operative& that) const
@@ -243,6 +251,21 @@ public:
     std::vector<std::string> get_all_symbols() const;
     std::string dump_chain() const;
 };
+
+inline operative::operative(param_pattern p, std::string e, value_ptr b, env_root_ptr env,
+    std::string_view t)
+    : params(std::move(p)), env_param(std::move(e)),
+        body(std::move(b)),
+        closure_env(std::move(env.get())),
+        tag(t)
+{
+    environment::add_root(closure_env);
+}
+
+inline operative::~operative()
+{
+    environment::remove_root(closure_env);
+}
 
 // Custom exception class with context
 class evaluation_error: public std::runtime_error {

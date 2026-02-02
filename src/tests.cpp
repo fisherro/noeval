@@ -133,12 +133,16 @@ void test_vau()
     // This creates an operative that just returns its first argument unevaluated
     parser p("(vau (x) env x)");
     auto vau_expr = p.parse();
+std::println("{}({})", __FILE__, __LINE__);
     auto identity_op = eval(vau_expr, env);
+std::println("{}({})", __FILE__, __LINE__);
     
     std::println("Created operative: {}", value_to_string(identity_op));
+std::println("{}({})", __FILE__, __LINE__);
     
     // Now test using this operative
     env->define("my-op", identity_op);
+std::println("{}({})", __FILE__, __LINE__);
     
     // Test: (my-op (+ 1 2)) should return the unevaluated expression (+ 1 2)
     parser p2("(my-op (+ 1 2))");
@@ -323,13 +327,13 @@ int test_vau_operatives()
     env->define("global-env", value::make(env));
     
     // Test 1: Basic vau operative creation
-    runner.test_eval("(vau (x) env x)", "(operative (x) env x)");
+    runner.test_eval("(vau (x) env x)", "(#<operative> (x) env x)");
     
     // Test 2: Variadic vau operative creation
-    runner.test_eval("(vau args env args)", "(operative args env args)");
+    runner.test_eval("(vau args env args)", "(#<operative> args env args)");
     
     // Test 3: Define and store a vau operative
-    runner.test_eval("(define identity (vau (x) env x))", "(operative (x) env x)");
+    runner.test_eval("(define identity (vau (x) env x))", "(#<operative> (x) env x)");
     
     // Test 4: Use stored operative - should return unevaluated argument
     runner.test_eval("(identity (+ 1 2))", "(+ 1 2)");
@@ -337,53 +341,53 @@ int test_vau_operatives()
     runner.test_eval("(identity 42)", "42");
     
     // Test 5: Variadic operative usage
-    runner.test_eval("(define collect-all (vau args env args))", "(operative args env args)");
+    runner.test_eval("(define collect-all (vau args env args))", "(#<operative> args env args)");
     runner.test_eval("(collect-all)", "()");
     runner.test_eval("(collect-all a)", "(a)");
     runner.test_eval("(collect-all a b c)", "(a b c)");
     runner.test_eval("(collect-all (+ 1 2) hello)", "((+ 1 2) hello)");
     
     // Test 6: Environment parameter access - operative that evaluates its argument
-    runner.test_eval("(define evaluator (vau (x) e (eval x e)))", "(operative (x) e (eval x e))");
+    runner.test_eval("(define evaluator (vau (x) e (eval x e)))", "(#<operative> (x) e (eval x e))");
     
     // Test 7: Need to provide environment for evaluator to work
     env->define("current-env", value::make(env));
     runner.test_eval("(evaluator (+ 10 5))", "15");
     
     // Test 8: Operative that manipulates its environment parameter
-    runner.test_eval("(define get-env (vau () e e))", "(operative () e e)");
+    runner.test_eval("(define get-env (vau () e e))", "(#<operative> () e e)");
     // Note: We can't easily test the result since environments print as addresses
     
     // Test 9: Nested vau creation
     runner.test_eval("(define make-identity (vau () env (vau (x) env x)))", 
-                     "(operative () env (vau (x) env x))");
+                     "(#<operative> () env (vau (x) env x))");
     runner.test_eval("((make-identity) test)", "test");
     
     // Test 10: Operative with multiple parameters
-    runner.test_eval("(define first-arg (vau (x y) env x))", "(operative (x y) env x)");
+    runner.test_eval("(define first-arg (vau (x y) env x))", "(#<operative> (x y) env x)");
     runner.test_eval("(first-arg hello world)", "hello");
     runner.test_eval("(first-arg (+ 1 2) (* 3 4))", "(+ 1 2)");
 
     // Test 11: Operative that evaluates only some arguments
     runner.test_eval("(define eval-second (vau (x y) e (eval y e)))", 
-                     "(operative (x y) e (eval y e))");
+                     "(#<operative> (x y) e (eval y e))");
     runner.test_eval("(eval-second dont-eval-me (+ 5 5))", "10");
 
     // Test 12: Environment parameter ignored with ()
-    runner.test_eval("(define ignore-env-op (vau (x) () x))", "(operative (x)  x)");
+    runner.test_eval("(define ignore-env-op (vau (x) () x))", "(#<operative> (x)  x)");
     runner.test_eval("(ignore-env-op hello-world)", "hello-world");
 
     // Test 13: Verify () doesn't create environment binding
     runner.test_eval("(define test-no-binding (vau (x) () (eval x global-env)))", 
-                    "(operative (x)  (eval x global-env))");
+                    "(#<operative> (x)  (eval x global-env))");
     env->define("test-value", value::make(42));
     runner.test_eval("(test-no-binding test-value)", "42");
 
     // Test 15: Compare behavior with named vs ignored environment parameter
     runner.test_eval("(define with-env (vau (x) e (eval x e)))", 
-                    "(operative (x) e (eval x e))");
+                    "(#<operative> (x) e (eval x e))");
     runner.test_eval("(define without-env (vau (x) () x))", 
-                    "(operative (x)  x)");
+                    "(#<operative> (x)  x)");
     runner.test_eval("(with-env (+ 1 2))", "3");   // Evaluates the expression
     runner.test_eval("(without-env (+ 1 2))", "(+ 1 2)");  // Returns unevaluated
 
@@ -492,14 +496,14 @@ int test_parameter_binding()
     // Test fixed parameter binding
     std::println("\n--- Fixed parameters ---");
     if (!test_eval("(define add-op (vau (x y) env (+ (eval x env) (eval y env))))", 
-              "(operative (x y) env (+ (eval x env) (eval y env)))")) failures++;
+              "(#<operative> (x y) env (+ (eval x env) (eval y env)))")) failures++;
     if (!test_eval("(add-op 3 4)", "7")) failures++;
     if (!test_eval("(add-op (+ 1 1) (* 2 3))", "8")) failures++;
 
     // Test environment parameter access
     std::println("\n--- Environment parameter ---");
     if (!test_eval("(define show-env (vau (var) e (eval var e)))", 
-              "(operative (var) e (eval var e))")) failures++;
+              "(#<operative> (var) e (eval var e))")) failures++;
     if (!test_eval("(define test-var 999)", "999")) failures++;
     if (!test_eval("(show-env test-var)", "999")) failures++;
     
@@ -603,7 +607,7 @@ int test_operative_as_first_element()
     runner.test_eval("((vau args env args) 1 2 3)", "(1 2 3)");
     
     // Test 2: Operative value from variable
-    runner.test_eval("(define my-op (vau (x) env x))", "(operative (x) env x)");
+    runner.test_eval("(define my-op (vau (x) env x))", "(#<operative> (x) env x)");
     runner.test_eval("(my-op hello)", "hello");
 
     // Test 3: Operative value from Church Boolean selection  
@@ -618,7 +622,7 @@ int test_operative_as_first_element()
     
     // Test 6: Mixed scenarios - operative returned from evaluation
     runner.test_eval("(define make-identity (vau () env (vau (x) env x)))", 
-                     "(operative () env (vau (x) env x))");
+                     "(#<operative> () env (vau (x) env x))");
     runner.test_eval("((make-identity) foo)", "foo");
     
     return runner.failures;
@@ -675,7 +679,7 @@ int test_mutable_bindings()
     // Test 11: Mutable bindings work across scopes
     runner.test_eval("(define-mutable counter 0)", "0");
     runner.test_eval("(define increment (vau () env (set! counter (+ counter 1))))", 
-                     "(operative () env (set! counter (+ counter 1)))");
+                     "(#<operative> () env (set! counter (+ counter 1)))");
     runner.test_eval("(increment)", "1");
     runner.test_eval("(increment)", "2");
     runner.test_eval("counter", "2");

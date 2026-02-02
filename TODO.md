@@ -18,6 +18,8 @@ Update noeval-reference.md
 
 ## Regular
 
+Implement transducers (See Clojure and SRFI-171)
+
 Collect at top of eval loop (maybe not every time).
 
 Should use of `read` be prevented from the REPL?

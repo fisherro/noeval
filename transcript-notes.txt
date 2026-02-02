@@ -1,0 +1,62 @@
+0x1ac51990: The environment when do is unbound
+    added as a root (last time) on line 862435
+    bad lookup on line 862497
+        wrapped-call-env
+        unevaluated-args
+        parent: 0x1ac51770:
+    removed as root after bad lookup
+
+0x1ac51770: The empty parent environment
+    added as a root (last time) on line 856081
+    lookup for vau on line 859457
+        resolved-operative
+        wrap-call-environment
+        operative
+        parent: 0x1aad9f70
+    removed as root (last time) on line 859605
+    collected (last time) on line 861700
+
+0x1aad9f70: top-level env
+
+0x1ac51770 is the environment for wrap
+0x1ac51990 is the environment for its inner vau
+wrap's environment is collected before the inner vau environment is created
+
+Maybe parent should be passed as a env_root_ptr?
+
+Error in test: (load "tests/equals.noeval")
+Error: Unbound variable: do
+ while evaluating: do
+ stack trace:
+0: (load "tests/equals.noeval")
+1: (lndisplayln "= tests")
+2: (define transformed (cond-transformer cond-clauses))
+3: (cond-transformer cond-clauses)
+4: do
+
+If we have an API to get a stack trace, maybe we should get one when the
+environment is removed from the roots.
+
+Transcript 2:
+0x3ee47a70: The env of the lookup
+0x3ee47a20: The parent env
+Parent removed at line 1154966
+
+remove_root
+~env_root_ptr
+builtins::cons_operative line 743, which is calling eval on the first arg
+operate_builtin line 1642, which is calling the builtin_operative's func
+eval_operation line 1695, calls operate_builtin
+visitor in eval, line 1931, which calls operate_builtin
+eval line 1939, which calls the visitor
+
+We construct an operative which lives through evaluations without being bound
+to an environment. So its closure environment gets collected.
+
+Maybe if an operative holds its closure environment with a env_root_ptr it will
+be OK because when the operative is destructed, the env_root_ptr will get
+removed? No.
+
+I tried to change operative to where the the closure environment would be added
+to the roots but then removed when the operative was marked. That's failing in
+the C++ tests at the moment.
