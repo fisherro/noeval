@@ -215,6 +215,17 @@ private:
     // Keep a count of all constructed (& not destructed) environments for debugging
     static inline size_t count{0};
 
+    // Collection scheduling: We collect when the number of environments created
+    // since the last collection reaches the number that survived the last
+    // collection (but no fewer than min_collection_interval). In stress mode,
+    // we instead collect every stress_interval environments (1 means every
+    // time an environment is created).
+    static constexpr size_t min_collection_interval{1000};
+    static inline size_t created_since_collection{0};
+    static inline size_t survivors{0};
+    static inline size_t stress_interval{0}; // 0 means stress mode is off
+    static void maybe_collect();
+
     // Registry of all live environments used for garbage collection.
     // Environments add and remove themselves.
     static inline std::unordered_set<environment*> registry;
@@ -237,6 +248,8 @@ private:
 
 public:
     static void collect();
+    static void set_stress_interval(size_t interval) { stress_interval = interval; }
+    static size_t get_stress_interval() { return stress_interval; }
     static size_t get_constructed_count() { return count; }
     static size_t get_registered_count() { return registry.size(); }
     static void dump_roots();

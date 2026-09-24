@@ -105,6 +105,25 @@ probably come before Phase 2.
 * Add a stress mode (a debug category or an environment variable) that
   collects on every `environment::make`.
 
+Status: done (before Phase 2, as suggested above).
+
+* `eval` and `top_level_eval` no longer collect. `environment::make` calls
+  `maybe_collect()`, which collects once the environments created since the
+  last collection reach `max(1000, survivors)`.
+* `NOEVAL_GC_STRESS=n` collects every `n` environment creations (`1` means
+  every one). The GC tests use stress mode with `n = 1` and 100 iterations.
+* Results, building with `-O2`:
+  * C++ tests (including the GC tests) and library tests pass. A full run of
+    both takes 95 seconds, and 765 environments are live afterwards.
+  * They also pass with `NOEVAL_GC_STRESS=37` (472 seconds).
+  * Sampling stacks during the library tests puts about 20% of the time in
+    the collector and about 33% in `value_to_string`: `NOEVAL_DEBUG`
+    evaluates its arguments even when its category is off, and
+    `call_stack::guard` converts every expression to a string. That, not the
+    collector, is now the bigger cost.
+* The Makefile doesn't enable optimization, so the default build is several
+  times slower than the numbers above.
+
 ## Phase 4: Documentation
 
 * Record these invariants in `env-gc.md`:
@@ -139,7 +158,8 @@ code that can't contain one.
 * All environments are destroyed at exit.
 * The library tests take about as long as the pure reference counting build
   did (around 19 seconds on the machine used for the postmortem), not many
-  minutes.
+  minutes. (The test suite has grown since then, and much of the current
+  cost is debug string building rather than collection. See Phase 3.)
 
 ## Build note
 

@@ -4,6 +4,7 @@
 // NOTE THAT nil IS SPELT ()
 
 #include <algorithm>
+#include <cstdlib>
 #include <chrono>
 #include <format>
 #include <functional>
@@ -1914,14 +1915,29 @@ struct cycle_collector {
     }
 };
 
+// Collect if enough environments have been created since the last
+// collection. Collection can happen here, in the middle of an evaluation, so
+// C++ code must hold environments and values it is using by shared_ptr.
+void environment::maybe_collect()
+{
+    auto interval = (stress_interval > 0)?
+        stress_interval: std::max(min_collection_interval, survivors);
+    if (created_since_collection >= interval) {
+        collect();
+    }
+    ++created_since_collection;
+}
+
 env_root_ptr environment::make()
 {
+    maybe_collect();
     auto env = std::shared_ptr<environment>(new environment);
     return env_root_ptr(env);
 }
 
 env_root_ptr environment::make(env_ptr parent)
 {
+    maybe_collect();
     auto env = std::shared_ptr<environment>(new environment(std::move(parent)));
     return env_root_ptr(env);
 }
@@ -1938,6 +1954,8 @@ void environment::collect()
     if (NOEVAL_DEBUG_ENABLED(gc_roots)) dump_roots();
     auto collected = cycle_collector{}.collect();
     NOEVAL_DEBUG(gc, "Collected environments   : {}", collected);
+    created_since_collection = 0;
+    survivors = count;
     // Roots are no longer used for collection. (They'll be removed.)
     std::erase_if(roots, [](const auto& entry) {
         return entry.first.expired() or (entry.second == 0);
@@ -1994,12 +2012,6 @@ value_ptr eval(value_ptr expr, env_root_ptr env)
             value_type_string(expr),
             value_to_string(expr));
         try {
-            static size_t count{0};
-            if (++count > 0) {
-                environment::collect();
-                count = 0;
-            }
-
             continuation_type k = std::visit([&](const auto& v) -> continuation_type {
                 using T = std::decay_t<decltype(v)>;
                 
@@ -2044,16 +2056,11 @@ value_ptr eval(value_ptr expr, env_root_ptr env)
 
 value_ptr top_level_eval(value_ptr expr, env_root_ptr env)
 {
-    auto eval_and_collect = [&]() {
-        auto result{eval(expr, env)};
-        environment::collect();
-        return result;
-    };
     if (NOEVAL_DEBUG_ENABLED(timer)) {
         timer eval_timer{"eval"};
-        return eval_and_collect();
+        return eval(expr, env);
     }
-    return eval_and_collect();
+    return eval(expr, env);
 }
 
 //TODO: Refactor this, load_library_file, and run_library_tests to share code.
@@ -2235,6 +2242,11 @@ env_root_ptr reload_top_level_environment(bool test_the_library)
 int main(const int argc, const char** argv)
 {
     std::vector<std::string> args(argv + 1, argv + argc);
+
+    // Stress mode: NOEVAL_GC_STRESS=n collects every n environment creations.
+    if (auto stress = std::getenv("NOEVAL_GC_STRESS")) {
+        environment::set_stress_interval(std::max(1, std::atoi(stress)));
+    }
 
     // Run only the garbage collection tests.
     if ((not args.empty()) and ("--gc-tests" == args[0])) {

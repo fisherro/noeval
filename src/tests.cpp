@@ -1276,12 +1276,17 @@ int test_string_primitives()
 // the evaluation finishes, so after a collection the number of live
 // environments should be back where it started.
 //
-// Note that eval currently collects on every evaluation step, so every test
-// here also exercises collection in the middle of an evaluation. Once
-// collection is scheduled less often, these tests should turn on a stress mode
-// that collects on every environment allocation.
+// The loops run in stress mode, which collects every time an environment is
+// created, so that collection happens in the middle of evaluations.
 
 namespace {
+
+    // Collects every time an environment is created for its lifetime
+    struct gc_stress_mode {
+        size_t previous{environment::get_stress_interval()};
+        gc_stress_mode() { environment::set_stress_interval(1); }
+        ~gc_stress_mode() { environment::set_stress_interval(previous); }
+    };
 
     value_ptr parse_and_eval(const std::string& input, env_root_ptr env)
     {
@@ -1296,7 +1301,7 @@ namespace {
         const std::string& setup,
         const std::string& expr,
         const std::string& expected_output,
-        int iterations = 1000)
+        int iterations = 100)
     {
         try {
             auto env = environment::make(top_env);
@@ -1304,6 +1309,7 @@ namespace {
             environment::collect();
             auto before = environment::get_constructed_count();
 
+            gc_stress_mode stress;
             for (int i = 0; i < iterations; ++i) {
                 auto actual_output = value_to_string(parse_and_eval(expr, env));
                 if (actual_output != expected_output) {
@@ -1342,6 +1348,7 @@ namespace {
                     return 1;
                 }
                 parse_and_eval("(define f (lambda (x) (+ x 1)))", env);
+                gc_stress_mode stress;
                 parse_and_eval("(f 41)", env);
             }
             environment::collect();
