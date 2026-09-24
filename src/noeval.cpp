@@ -1761,99 +1761,168 @@ void environment::remove_root(env_ptr env)
     }
 }
 
-std::set<std::weak_ptr<environment>, std::owner_less<std::weak_ptr<environment>>> marked_closure_envs;
-/*
- * We need to recursively check this values for env_ptrs:
- * `env_ptr`
- * `cons_cell::car`
- * `cons_cell::cdr`
- * `operative::closure_env`
- * `operative::body`?
- * `mutable_binding::value`
- */
-void environment::mark_value(std::unordered_set<environment*>& marked, value* v)
-{
-    if (not v) return;
-    if (std::holds_alternative<env_ptr>(v->data)) {
-        mark_environment(marked, std::get<env_ptr>(v->data).get());
-    } else if (std::holds_alternative<cons_cell>(v->data)) {
-        auto& cell = std::get<cons_cell>(v->data);
-        mark_value(marked, cell.car.get());
-        mark_value(marked, cell.cdr.get());
-    } else if (std::holds_alternative<operative>(v->data)) {
-        auto& op = std::get<operative>(v->data);
-        marked_closure_envs.insert(op.closure_env);
-        mark_environment(marked, op.closure_env.get());
-        mark_value(marked, op.body.get());
-    } else if (std::holds_alternative<mutable_binding>(v->data)) {
-        auto& mb = std::get<mutable_binding>(v->data);
-        mark_value(marked, mb.value.get());
-    }
-}
+// Trial deletion cycle collector (see design/gc-plan.md)
+//
+// Every cycle in Noeval passes through an environment, so we scan everything
+// reachable from the registered environments. Each environment and value we
+// find starts with its reference count, and we subtract one for every reference
+// to it that we find inside the scanned heap. Anything left with a positive
+// count is also referenced from outside the heap (e.g. from the C++ stack), so
+// it is a root. Environments that aren't reachable from a root are garbage.
+//
+// If the scan misses a reference, the thing it refers to looks like it is
+// referenced from outside the heap, so it is kept. A mistake here causes a
+// leak, not a corrupted environment. Counting a reference twice, however, could
+// cause live environments to be collected, so each reference must be counted
+// exactly once.
+struct cycle_collector {
+    std::unordered_map<environment*, long> env_refs;
+    std::unordered_map<value*, long> value_refs;
 
-void environment::mark_environment(std::unordered_set<environment*>& marked, environment* env)
-{
-    if (not env) return;
-    if (marked.contains(env)) return;
-    marked.insert(env);
-    mark_environment(marked, env->parent.get());
-    for (const auto& binding: env->bindings) {
-        mark_value(marked, binding.second.get());
-    }
-}
-
-std::unordered_set<environment*> environment::mark()
-{
-    std::unordered_set<environment*> marked;
-    for (const auto& [root, count]: roots) {
-        if (count == 0) continue;
-        if (auto p = root.lock()) {
-            mark_environment(marked, p.get());
+    // Call on_env or on_value for each environment or value that env holds a
+    // reference to.
+    static void for_each_reference(environment* env, auto on_env, auto on_value)
+    {
+        if (env->parent) on_env(env->parent.get());
+        for (const auto& binding: env->bindings) {
+            if (binding.second) on_value(binding.second.get());
         }
     }
-    return marked;
-}
 
-void environment::sweep(std::unordered_set<environment*>& marked)
-{
-    for (const auto& entry: registry) {
-        auto p = entry.lock();
-        if (not p) continue;
-        if (marked.contains(p.get())) continue;
-if (roots.contains(entry)) throw std::runtime_error("Root environment not marked");
-        NOEVAL_DEBUG(gc, "Collecting environment: {}", to_string(p));
-        p->bindings.clear();
-        p->parent.reset();
-    }
-}
-
-void environment::cleanup_registry()
-{
-    for (const auto& marked: marked_closure_envs) {
-        if (auto p = marked.lock()) {
-            environment::remove_root(p);
+    // Call on_env or on_value for each environment or value that v holds a
+    // reference to.
+    //
+    // Builtin operatives could hold references in their std::function, but we
+    // can't see those. That's OK. (It will cause a leak rather than a
+    // collection of something in use.)
+    static void for_each_reference(value* v, auto on_env, auto on_value)
+    {
+        if (auto env = std::get_if<env_ptr>(&v->data)) {
+            if (*env) on_env(env->get());
+        } else if (auto cell = std::get_if<cons_cell>(&v->data)) {
+            if (cell->car) on_value(cell->car.get());
+            if (cell->cdr) on_value(cell->cdr.get());
+        } else if (auto op = std::get_if<operative>(&v->data)) {
+            if (op->closure_env) on_env(op->closure_env.get());
+            if (op->body) on_value(op->body.get());
+        } else if (auto mb = std::get_if<mutable_binding>(&v->data)) {
+            if (mb->value) on_value(mb->value.get());
         }
     }
-    marked_closure_envs.clear();
-    std::erase_if(roots, [](const auto& entry) {
-        return entry.first.expired() or (entry.second == 0);
-    });
-    std::erase_if(registry, [](const auto& entry) {
-        return entry.expired();
-    });
-}
+
+    // Find the reference count of each environment and value that isn't
+    // accounted for by references from inside the heap.
+    void count_external_references()
+    {
+        for (auto env: environment::registry) {
+            // An environment that isn't owned by a shared_ptr yet (or anymore)
+            // can't be referenced by anything, so we leave it out.
+            auto refs = env->weak_from_this().use_count();
+            if (refs > 0) env_refs[env] = refs;
+        }
+
+        std::vector<value*> pending;
+        auto on_env = [&](environment* env) {
+            auto iter = env_refs.find(env);
+            if (iter != env_refs.end()) --(iter->second);
+        };
+        auto on_value = [&](value* v) {
+            auto [iter, inserted] = value_refs.try_emplace(v, 0);
+            if (inserted) {
+                iter->second = v->weak_from_this().use_count();
+                pending.push_back(v);
+            }
+            --(iter->second);
+        };
+
+        for (const auto& entry: env_refs) {
+            for_each_reference(entry.first, on_env, on_value);
+        }
+        while (not pending.empty()) {
+            auto v = pending.back();
+            pending.pop_back();
+            for_each_reference(v, on_env, on_value);
+        }
+
+        auto negative = [](const auto& entry) { return entry.second < 0; };
+        if (std::ranges::any_of(env_refs, negative) or std::ranges::any_of(value_refs, negative)) {
+            throw std::logic_error("Garbage collector found more references than the reference count");
+        }
+    }
+
+    // Find the environments reachable from roots (the environments and values
+    // that are referenced from outside the heap).
+    std::unordered_set<environment*> find_live_environments() const
+    {
+        std::unordered_set<environment*> live_envs;
+        std::unordered_set<value*> live_values;
+        std::vector<environment*> env_work;
+        std::vector<value*> value_work;
+
+        auto on_env = [&](environment* env) {
+            if (not env_refs.contains(env)) return;
+            if (live_envs.insert(env).second) env_work.push_back(env);
+        };
+        auto on_value = [&](value* v) {
+            if (live_values.insert(v).second) value_work.push_back(v);
+        };
+
+        for (const auto& [env, refs]: env_refs) {
+            if (refs > 0) on_env(env);
+        }
+        for (const auto& [v, refs]: value_refs) {
+            if (refs > 0) on_value(v);
+        }
+
+        while (not (env_work.empty() and value_work.empty())) {
+            if (not env_work.empty()) {
+                auto env = env_work.back();
+                env_work.pop_back();
+                for_each_reference(env, on_env, on_value);
+            } else {
+                auto v = value_work.back();
+                value_work.pop_back();
+                for_each_reference(v, on_env, on_value);
+            }
+        }
+        return live_envs;
+    }
+
+    // Returns the number of environments collected
+    size_t collect()
+    {
+        count_external_references();
+        auto live_envs = find_live_environments();
+
+        // Hold on to the garbage while we break the cycles so that nothing gets
+        // destroyed until we're done.
+        std::vector<env_ptr> garbage;
+        for (const auto& entry: env_refs) {
+            if (not live_envs.contains(entry.first)) {
+                garbage.push_back(entry.first->shared_from_this());
+            }
+        }
+        env_refs.clear();
+        value_refs.clear();
+
+        for (auto& env: garbage) {
+            NOEVAL_DEBUG(gc, "Collecting environment: {}", to_string(env));
+            env->bindings.clear();
+            env->parent.reset();
+        }
+        return garbage.size();
+    }
+};
 
 env_root_ptr environment::make()
 {
     auto env = std::shared_ptr<environment>(new environment);
-    registry.insert(env);
     return env_root_ptr(env);
 }
 
 env_root_ptr environment::make(env_ptr parent)
 {
     auto env = std::shared_ptr<environment>(new environment(std::move(parent)));
-    registry.insert(env);
     return env_root_ptr(env);
 }
 
@@ -1867,10 +1936,12 @@ void environment::collect()
     NOEVAL_DEBUG(gc, "Before collection: Undestructed environments: {}", environment::get_constructed_count());
     NOEVAL_DEBUG(gc, "Before collection: Registered environments  : {}", environment::get_registered_count());
     if (NOEVAL_DEBUG_ENABLED(gc_roots)) dump_roots();
-    cleanup_registry();
-    auto marked = mark();
-    sweep(marked);
-    cleanup_registry();
+    auto collected = cycle_collector{}.collect();
+    NOEVAL_DEBUG(gc, "Collected environments   : {}", collected);
+    // Roots are no longer used for collection. (They'll be removed.)
+    std::erase_if(roots, [](const auto& entry) {
+        return entry.first.expired() or (entry.second == 0);
+    });
     NOEVAL_DEBUG(gc, "After collection : Undestructed environments: {}", environment::get_constructed_count());
     NOEVAL_DEBUG(gc, "After collection : Registered environments  : {}", environment::get_registered_count());
     if (NOEVAL_DEBUG_ENABLED(gc_roots)) dump_roots();

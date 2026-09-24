@@ -70,6 +70,21 @@ reports exactly the expected leak.
   exactly once (keep a set of visited pointers) so that each `shared_ptr`
   member is subtracted exactly once.
 
+Status: done. The collector is `cycle_collector` in `src/noeval.cpp`. The root
+machinery is still present but no longer used for collection.
+
+* All C++ tests pass, including the GC tests. Before this phase the C++ tests
+  aborted with `Unbound variable`.
+* The library tests pass, and the number of live environments is the same
+  (705) after each of two consecutive `:reload`s.
+
+`eval` still collects on every evaluation step, and each collection scans all
+the library code, so anything that loads the library is very slow: the
+library-dependent GC tests didn't finish in 8 minutes. For verification, the
+library-dependent GC tests were run while collecting every 97 steps, and the
+library tests while collecting every 997 steps. Phase 3 (scheduling) should
+probably come before Phase 2.
+
 ## Phase 2: Delete the root machinery
 
 * Delete `env_root_ptr`, the `roots` map, `add_root`/`remove_root`,

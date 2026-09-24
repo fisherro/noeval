@@ -210,14 +210,14 @@ struct typeof_visitor {
 };
 
 // Environment for variable bindings
-struct environment final {
+struct environment final: std::enable_shared_from_this<environment> {
 private:
     // Keep a count of all constructed (& not destructed) environments for debugging
     static inline size_t count{0};
 
-    // Registry of all environments used for garbage collection
-    // weak_ptr can't be used with unordered_set until owner_hash is implemented
-    static inline std::set<std::weak_ptr<environment>, std::owner_less<std::weak_ptr<environment>>> registry;
+    // Registry of all live environments used for garbage collection.
+    // Environments add and remove themselves.
+    static inline std::unordered_set<environment*> registry;
     // Roots with reference counts:
     static inline std::map<std::weak_ptr<environment>, size_t, std::owner_less<std::weak_ptr<environment>>> roots;
 
@@ -225,13 +225,15 @@ private:
     env_ptr parent;
 
     // Private ctor; must use environment::make to create instances
-    environment(env_ptr p = nullptr) : parent(std::move(p)) { ++count; }
+    environment(env_ptr p = nullptr) : parent(std::move(p))
+    {
+        ++count;
+        registry.insert(this);
+    }
 
-    static void cleanup_registry();
-    static std::unordered_set<environment*> mark();
-    static void mark_value(std::unordered_set<environment*>& marked, value* v);
-    static void mark_environment(std::unordered_set<environment*>& marked, environment* env);
-    static void sweep(std::unordered_set<environment*>& marked);
+    // The garbage collector (in noeval.cpp) needs access to the bindings and
+    // parent.
+    friend struct cycle_collector;
 
 public:
     static void collect();
@@ -246,7 +248,11 @@ public:
     static env_root_ptr make(env_ptr parent);
     static env_root_ptr make(env_root_ptr parent);
 
-    ~environment() { --count; }
+    ~environment()
+    {
+        --count;
+        registry.erase(this);
+    }
 
     value_ptr lookup(const std::string& name) const;
     void define(const std::string& name, value_ptr val);
