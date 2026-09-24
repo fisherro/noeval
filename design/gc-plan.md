@@ -50,6 +50,13 @@ has its bindings cleared.
   With the current collector these fail, either by leaking or with
   `Unbound variable`.
 
+Status: done. The GC tests are `run_gc_tests()` in `src/tests.cpp`. They run at
+the end of `run_tests()`, and on their own with `bin/noeval --gc-tests` (the
+existing C++ tests currently abort before reaching them). With the current
+collector, all of them fail with `Unbound variable`. With collection disabled
+(pure reference counting), a no-cycle control passes and each cycle test
+reports exactly the expected leak.
+
 ## Phase 1: New collector
 
 * Give `environment` `enable_shared_from_this` (`value` already has it). Read
@@ -122,6 +129,5 @@ code that can't contain one.
 ## Build note
 
 The Makefile needs GCC 15 (`<print>`, range formatting in `std::format`).
-Building with GCC 14 needs the small patches described in the postmortem's
-"Reproducing" section. Either use GCC 15, or make those portability fixes as
-part of Phase 0.
+Phase 0 made the portability fixes, so it also builds with GCC 14
+(`make CXX=g++-14`).

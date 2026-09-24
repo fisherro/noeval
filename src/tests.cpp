@@ -133,16 +133,12 @@ void test_vau()
     // This creates an operative that just returns its first argument unevaluated
     parser p("(vau (x) env x)");
     auto vau_expr = p.parse();
-std::println("{}({})", __FILE__, __LINE__);
     auto identity_op = eval(vau_expr, env);
-std::println("{}({})", __FILE__, __LINE__);
     
     std::println("Created operative: {}", value_to_string(identity_op));
-std::println("{}({})", __FILE__, __LINE__);
     
     // Now test using this operative
     env->define("my-op", identity_op);
-std::println("{}({})", __FILE__, __LINE__);
     
     // Test: (my-op (+ 1 2)) should return the unevaluated expression (+ 1 2)
     parser p2("(my-op (+ 1 2))");
@@ -1273,6 +1269,149 @@ int test_string_primitives()
     return runner.failures;
 }
 
+// Garbage collection tests
+//
+// Each test evaluates some setup code, then evaluates an expression many times.
+// Every environment created while evaluating that expression is garbage once
+// the evaluation finishes, so after a collection the number of live
+// environments should be back where it started.
+//
+// Note that eval currently collects on every evaluation step, so every test
+// here also exercises collection in the middle of an evaluation. Once
+// collection is scheduled less often, these tests should turn on a stress mode
+// that collects on every environment allocation.
+
+namespace {
+
+    value_ptr parse_and_eval(const std::string& input, env_root_ptr env)
+    {
+        parser p(input);
+        return top_level_eval(p.parse(), env);
+    }
+
+    // Returns 0 on success and 1 on failure, like the other test functions.
+    int test_gc_no_leak(
+        env_root_ptr top_env,
+        const std::string& name,
+        const std::string& setup,
+        const std::string& expr,
+        const std::string& expected_output,
+        int iterations = 1000)
+    {
+        try {
+            auto env = environment::make(top_env);
+            if (not setup.empty()) parse_and_eval(setup, env);
+            environment::collect();
+            auto before = environment::get_constructed_count();
+
+            for (int i = 0; i < iterations; ++i) {
+                auto actual_output = value_to_string(parse_and_eval(expr, env));
+                if (actual_output != expected_output) {
+                    println_red("✗ gc: {}: {} (iteration {}): expected {}, got {}",
+                        name, expr, i, expected_output, actual_output);
+                    return 1;
+                }
+            }
+
+            environment::collect();
+            auto after = environment::get_constructed_count();
+            if (after != before) {
+                println_red("✗ gc: {}: {} environments leaked after {} evaluations of {}",
+                    name, after - before, iterations, expr);
+                return 1;
+            }
+            std::println("✓ gc: {}", name);
+            return 0;
+        } catch (const std::exception& e) {
+            println_red("✗ gc: {}: threw exception: {}", name, e.what());
+            return 1;
+        }
+    }
+
+    // All environments should be destroyed once the top-level environment is
+    // no longer referenced.
+    int test_gc_teardown()
+    {
+        try {
+            environment::collect();
+            auto before = environment::get_constructed_count();
+            {
+                auto env = reload_top_level_environment(false);
+                if (not env) {
+                    println_red("✗ gc: teardown: could not load the library");
+                    return 1;
+                }
+                parse_and_eval("(define f (lambda (x) (+ x 1)))", env);
+                parse_and_eval("(f 41)", env);
+            }
+            environment::collect();
+            auto after = environment::get_constructed_count();
+            if (after != before) {
+                println_red("✗ gc: teardown: {} environments still alive after "
+                    "dropping the top-level environment", after - before);
+                return 1;
+            }
+            std::println("✓ gc: teardown");
+            return 0;
+        } catch (const std::exception& e) {
+            println_red("✗ gc: teardown: threw exception: {}", e.what());
+            return 1;
+        }
+    }
+
+} // namespace
+
+int run_gc_tests()
+{
+    std::println("Running garbage collection tests...");
+    int failures{0};
+    {
+        // These only need the builtins.
+        auto builtins_env = create_top_level_environment();
+
+        // A local operative that is never called still forms a cycle:
+        // call env -> helper -> closure env (the call env).
+        failures += test_gc_no_leak(builtins_env, "local operative",
+            "(define f (vau () () (do (define helper (vau () () 1)) 0)))",
+            "(f)", "0");
+
+        // A mutable binding set to a closure over its own environment.
+        failures += test_gc_no_leak(builtins_env, "define-mutable and set! cycle",
+            "(define g (vau () () (do (define-mutable m 0) (set! m (vau () () m)) 0)))",
+            "(g)", "0");
+
+        // An environment bound to itself.
+        failures += test_gc_no_leak(builtins_env, "environment bound to itself",
+            "(define h (vau () () (do (define self ((vau () e e))) 0)))",
+            "(h)", "0");
+    }
+    {
+        // These need wrap and lambda from the library.
+        auto library_env = reload_top_level_environment(false);
+        if (not library_env) {
+            println_red("✗ gc: could not load the library");
+            ++failures;
+        } else {
+            // Operatives that are only referenced from C++ temporaries while
+            // they're being called.
+            failures += test_gc_no_leak(library_env, "temporary wrapped operative",
+                "",
+                "((wrap (vau (x) () x)) 1)", "1");
+            failures += test_gc_no_leak(library_env, "temporary lambda",
+                "",
+                "((lambda (x) (+ x 1)) 41)", "42");
+        }
+    }
+    failures += test_gc_teardown();
+
+    if (failures != 0) {
+        println_red("✗ {} garbage collection test(s) failed", failures);
+    } else {
+        std::println("✓ All garbage collection tests passed");
+    }
+    return failures;
+}
+
 bool run_tests()
 {
     // Run existing tests (these could also be converted to return failure counts)
@@ -1306,6 +1445,8 @@ bool run_tests()
     failures += test_based_number_edge_cases();
     failures += test_unicode_functions();
     failures += test_string_primitives();
+    std::println("{}", std::string(60, '='));
+    failures += run_gc_tests();
     std::println("{}", std::string(60, '='));
 
     if (failures != 0) {

@@ -222,7 +222,8 @@ bool handle_debug_command(const std::string& input)
         std::println("");
         auto categories{debug_categories | std::views::keys | std::ranges::to<std::vector>()};
         std::ranges::sort(categories);
-        std::println("Categories: {}", categories);
+        std::println("Categories: {}",
+            categories | std::views::join_with(std::string_view{", "}) | std::ranges::to<std::string>());
         return true;
     }
 

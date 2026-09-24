@@ -206,10 +206,11 @@ std::string operative::to_string() const
 {
     if (not tag.empty()) return tag;
     // It isn't easy (yet) to change the delimiter that format uses for ranges,
-    // so explicitly use std::views::join_with.
-    return std::format("(#<operative> {}{:s}{} {} {})",
+    // so explicitly use std::views::join_with. (Converting to a string, rather
+    // than formatting the range directly, also supports GCC 14.)
+    return std::format("(#<operative> {}{}{} {} {})",
         params.is_variadic? "": "(",
-        params.param_names | std::views::join_with(' '),
+        params.param_names | std::views::join_with(' ') | std::ranges::to<std::string>(),
         params.is_variadic? "": ")",
         env_param,
         value_to_string(body)
@@ -1803,21 +1804,13 @@ void environment::mark_environment(std::unordered_set<environment*>& marked, env
 
 std::unordered_set<environment*> environment::mark()
 {
-std::println("{}({})", __FILE__, __LINE__);
     std::unordered_set<environment*> marked;
-std::println("{}({})", __FILE__, __LINE__);
     for (const auto& [root, count]: roots) {
-std::println("{}({})", __FILE__, __LINE__);
         if (count == 0) continue;
-std::println("{}({})", __FILE__, __LINE__);
         if (auto p = root.lock()) {
-std::println("{}({})", __FILE__, __LINE__);
             mark_environment(marked, p.get());
-std::println("{}({})", __FILE__, __LINE__);
         }
-std::println("{}({})", __FILE__, __LINE__);
     }
-std::println("{}({})", __FILE__, __LINE__);
     return marked;
 }
 
@@ -1874,15 +1867,10 @@ void environment::collect()
     NOEVAL_DEBUG(gc, "Before collection: Undestructed environments: {}", environment::get_constructed_count());
     NOEVAL_DEBUG(gc, "Before collection: Registered environments  : {}", environment::get_registered_count());
     if (NOEVAL_DEBUG_ENABLED(gc_roots)) dump_roots();
-std::println("{}({})", __FILE__, __LINE__);
     cleanup_registry();
-std::println("{}({})", __FILE__, __LINE__);
     auto marked = mark();
-std::println("{}({})", __FILE__, __LINE__);
     sweep(marked);
-std::println("{}({})", __FILE__, __LINE__);
     cleanup_registry();
-std::println("{}({})", __FILE__, __LINE__);
     NOEVAL_DEBUG(gc, "After collection : Undestructed environments: {}", environment::get_constructed_count());
     NOEVAL_DEBUG(gc, "After collection : Registered environments  : {}", environment::get_registered_count());
     if (NOEVAL_DEBUG_ENABLED(gc_roots)) dump_roots();
@@ -2175,8 +2163,14 @@ env_root_ptr reload_top_level_environment(bool test_the_library)
 
 int main(const int argc, const char** argv)
 {
-    get_debug().enable_all();
     std::vector<std::string> args(argv + 1, argv + argc);
+
+    // Run only the garbage collection tests.
+    if ((not args.empty()) and ("--gc-tests" == args[0])) {
+        auto failures = run_gc_tests();
+        environment::collect();
+        return (0 == failures)? EXIT_SUCCESS: EXIT_FAILURE;
+    }
 
     if (!run_tests()) {
         std::print("Tests failed. Do you want to continue anyway? (y/N): ");
