@@ -56,7 +56,7 @@ struct source_location {
     std::uint32_t line{0};
     std::uint32_t column{0};
 
-    explicit operator bool() const { return file != nullptr; }
+    explicit operator bool() const { return nullptr != file; }
     std::string to_string() const;
 };
 
@@ -69,8 +69,8 @@ struct cons_cell {
     value_ptr cdr;
     // Not part of the cell's value, so operator== ignores it.
     source_location location;
-    cons_cell(value_ptr a, value_ptr d, source_location loc = {})
-        : car(std::move(a)), cdr(std::move(d)), location(loc) {}
+    cons_cell(value_ptr a, value_ptr d, source_location loc = {}):
+        car(std::move(a)), cdr(std::move(d)), location(loc) {}
     std::string to_string() const;
     bool operator==(const cons_cell& that) const;
 };
@@ -260,12 +260,12 @@ public:
         const std::string& msg,
         const std::string& ctx = "",
         const std::string& stack = "",
-        const std::string& loc = current_source_location())
-        : std::runtime_error(format_message(msg, ctx, stack, loc)),
-          message(msg),
-          context(ctx),
-          stack_trace(stack),
-          location(loc) {}
+        const std::string& loc = current_source_location()):
+        std::runtime_error(format_message(msg, ctx, stack, loc)),
+        message(msg),
+        context(ctx),
+        stack_trace(stack),
+        location(loc) {}
 
 private:
     static std::string format_message(

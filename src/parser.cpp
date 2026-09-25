@@ -566,20 +566,20 @@ value_ptr parser::parse_list()
         std::get<cons_cell>(result->data).location = {
             file_,
             static_cast<std::uint32_t>(open_paren_position.line()),
-            static_cast<std::uint32_t>(open_paren_position.column())
+            static_cast<std::uint32_t>(open_paren_position.column()),
         };
     }
     
     return result;
 }
 
-parser::parser(std::string input, std::string_view file)
-    : lex(std::move(input)),
-      file_(file.empty()? nullptr: intern_file_name(file)) {}
+parser::parser(std::string input, std::string_view file):
+    lex(std::move(input)),
+    file_(file.empty()? nullptr: intern_file_name(file)) {}
 
-parser::parser(std::istream& in, std::string_view file)
-    : lex(in),
-      file_(file.empty()? nullptr: intern_file_name(file)) {}
+parser::parser(std::istream& in, std::string_view file):
+    lex(in),
+    file_(file.empty()? nullptr: intern_file_name(file)) {}
 
 bignum parse_number_string(const std::string& num_str)
 {

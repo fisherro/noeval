@@ -183,7 +183,7 @@ const std::string* intern_file_name(std::string_view name)
     // Set nodes don't move, so the pointers stay valid.
     static std::set<std::string, std::less<>> names;
     auto it = names.find(name);
-    if (it == names.end()) it = names.emplace(name).first;
+    if (names.end() == it) it = names.emplace(name).first;
     return &*it;
 }
 
@@ -474,7 +474,7 @@ public:
     struct guard {
         guard(value_ptr expr)
         {
-            stack.push_back({std::move(expr), nullptr});
+            stack.push_back({std::move(expr), nullptr,});
             if (depth() > max_depth) max_depth = depth();
         }
         ~guard()
@@ -494,7 +494,7 @@ public:
     static std::string format()
     {
         std::string result;
-        for (const auto& [index, f] : stack | std::views::enumerate) {
+        for (const auto& [index, f]: stack | std::views::enumerate) {
             result += std::format("{}: {}\n", index, describe(f.expr));
             if (f.tail_expr) {
                 result += std::format("   tail call: {}\n", describe(f.tail_expr));
@@ -2065,7 +2065,7 @@ value_ptr load_file(const std::string& filename, env_ptr env)
         path = loading_files.back().parent_path() / path;
     }
 
-    std::string content = read_file_content(path.string());
+    auto content = read_file_content(path.string());
     parser p(content, path.string());
     auto expressions = p.parse_all();
 
@@ -2074,7 +2074,7 @@ value_ptr load_file(const std::string& filename, env_ptr env)
         ~pop_guard() { loading_files.pop_back(); }
     } pop;
 
-    value_ptr result = value::make(nullptr);
+    auto result = value::make(nullptr);
     for (const auto& expr: expressions) {
         result = top_level_eval(expr, env);
     }
@@ -2125,8 +2125,8 @@ int run_library_tests(env_ptr outer_env)
     }
 
     // The last expression should be the test result
-    std::string result_str = value_to_string(result);
-    if (result_str == "\"All library tests passed!\"") {
+    auto result_str = value_to_string(result);
+    if ("\"All library tests passed!\"" == result_str) {
         std::println("\n✓ {}", result_str.substr(1, result_str.length() - 2)); // Remove quotes
         return 0;
     }

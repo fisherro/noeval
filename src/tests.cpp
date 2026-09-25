@@ -718,8 +718,8 @@ int test_source_locations()
         for (const auto& expr: p3.parse_all()) eval(expr, env);
     });
     check(error.starts_with("file.noeval:1:35: "), "Evaluation error has its location");
-    check(error.find("(f 1) at file.noeval:2:1") != std::string::npos
-          and error.find("tail call: (+ x \"a\") at file.noeval:1:35") != std::string::npos,
+    check(std::string::npos != error.find("(f 1) at file.noeval:2:1")
+          and std::string::npos != error.find("tail call: (+ x \"a\") at file.noeval:1:35"),
           "Stack trace includes locations and tail calls");
 
     // load resolves relative paths against the directory of the file loading
@@ -734,7 +734,7 @@ int test_source_locations()
           "load resolves relative paths against the loading file's directory");
     std::filesystem::remove_all(dir);
 
-    if (failures != 0) {
+    if (0 != failures) {
         println_red("✗ {} source location test(s) failed", failures);
     }
     return failures;
