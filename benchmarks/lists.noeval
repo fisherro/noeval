@@ -1,0 +1,5 @@
+; Common list operations on a longer list
+(define numbers (iota 2000))
+
+(foldl + 0 (map (lambda (x) (* x x))
+                (filter even? (reverse (append numbers numbers)))))

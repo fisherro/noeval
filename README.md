@@ -53,12 +53,23 @@ Run it from the top of the repository, since it loads `src/lib.noeval` and
 * `bin/noeval --tests` runs the C++ tests and the library tests, then exits
   with a status reflecting the results.
 * `bin/noeval --gc-tests` runs only the garbage collection tests.
+* `bin/noeval --skip-tests` (optionally followed by a script) skips the C++
+  tests at startup.
 
 The library tests take a while, so they don't run at startup. Use `--tests`, or
 `:reload` in the REPL to reload the library and run them.
 
 If the C++ tests fail at startup, noeval asks whether to continue. It only asks
 when stdin is a terminal. Otherwise it exits with a failure status.
+
+`make bench` times the programs in `benchmarks/`. To measure a change, save
+the results from before it and compare against them afterward:
+
+    benchmarks/run.bash > before.txt
+    # make the change and rebuild
+    benchmarks/run.bash -c before.txt
+
+See `benchmarks/run.bash` for its other options.
 
 Setting `NOEVAL_GC_STRESS=n` makes the garbage collector run every `n`
 environment creations, which is useful for finding GC bugs. See

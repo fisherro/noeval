@@ -1,0 +1,10 @@
+; Indexing each character of a string. string-length and string-nth convert
+; the whole string to a list on every call, so this is quadratic.
+(load "common.noeval")
+
+(define sentence "The quick brown fox jumps over the lazy dog. ")
+(define s (strings->string (list sentence sentence sentence sentence sentence
+                                 sentence sentence sentence sentence sentence)))
+(define len (string-length s))
+
+(repeat len (lambda (i) (string-nth s (- i 1))))

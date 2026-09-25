@@ -84,6 +84,11 @@ test-sanitize: sanitize
 	NOEVAL_GC_STRESS=1000 $(sanitize_TARGET) --tests
 	NOEVAL_GC_STRESS=1 $(sanitize_TARGET) --gc-tests
 
+# Time the benchmarks. (Run benchmarks/run.bash directly for its options,
+# such as comparing against earlier results.)
+bench: release
+	benchmarks/run.bash
+
 # Generate assembly files
 assembly: $(ASMFILES)
 
@@ -103,4 +108,4 @@ clean:
 	rm -rf $(BUILDDIR) $(BINDIR) $(ASMDIR)
 
 # Phony targets
-.PHONY: all $(VARIANTS) test test-sanitize clean assembly
+.PHONY: all $(VARIANTS) test test-sanitize bench clean assembly

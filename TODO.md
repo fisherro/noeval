@@ -148,6 +148,7 @@ takes about 7 s where the equivalent nested `if` takes about 1 s, and it
 accounts for nearly all of `codepoints->utf8`'s time. Expansion-time macros
 would fix this by transforming once. Short of that, a cheaper transformer, or
 evaluating clauses directly instead of building an `if` chain, would help.
+(Benchmarks: `cond`, `if-chain`, and `codepoints-utf8`.)
 
 Automate keeping `noeval-reference.md` in sync. Once `get-builtins` exists, a
 script could report global bindings the reference doesn't mention. (It is
@@ -155,12 +156,9 @@ currently missing `read`, `eof-object?`, `nth`, `any?`, `all?`, `take`,
 `drop`, `partiall`/`partialr`, `quotient`, `clamp`, `check`,
 `codepoints->utf8`, and `utf8->codepoints`, among others.)
 
-Add benchmarks (e.g. loading the library, the library tests, the dependency
-checker, string-heavy code) and a script to time them, so performance work
-like macros and RRB trees can be measured.
-
 `string-length`, `string-nth`, and `substring` convert the whole string to a
 list on every call, so indexing a string in a loop is quadratic.
+(Benchmarks: `string-index` and `substring`.)
 
 Consolidate the AI agent instructions. `.github/copilot-instructions.md` refers
 to VS Code tasks, but `.vscode/` is ignored, and there is no `CLAUDE.md`. One

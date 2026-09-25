@@ -2222,7 +2222,14 @@ int main(const int argc, const char** argv)
         return ok? EXIT_SUCCESS: EXIT_FAILURE;
     }
 
-    if (!run_tests()) {
+    // Skip the C++ tests, e.g. so they don't count toward a benchmark's time.
+    bool skip_tests{false};
+    if ((not args.empty()) and ("--skip-tests" == args[0])) {
+        skip_tests = true;
+        args.erase(args.begin());
+    }
+
+    if ((not skip_tests) and (not run_tests())) {
         if (not confirm_continue("Tests failed.")) {
             std::println("Exiting due to test failures.");
             return EXIT_FAILURE;

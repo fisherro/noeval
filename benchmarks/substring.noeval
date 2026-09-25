@@ -1,0 +1,6 @@
+; Taking substrings of a string
+(load "common.noeval")
+
+(define s "The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog.")
+
+(repeat 100 (lambda (i) (substring s 10 (+ 10 i))))

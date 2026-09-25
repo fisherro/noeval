@@ -1,0 +1,4 @@
+; The dependency checker, reading dependency-checker.stdin: a copy of the
+; start of src/lib.noeval, frozen so that timings stay comparable as the
+; library changes. (On all of the library, it takes about 30 s.)
+(load "../dependency-checker.noeval")

@@ -1,0 +1,2 @@
+; An empty script: the time to start noeval and load the library, which is
+; included in every other benchmark's time.

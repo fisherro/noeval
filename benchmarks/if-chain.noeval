@@ -1,0 +1,11 @@
+; The nested ifs equivalent to the cond in cond.noeval
+(load "common.noeval")
+
+(define classify
+  (lambda (n)
+    (if (< n 10) 1
+        (if (< n 100) 2
+            (if (< n 1000) 3
+                4)))))
+
+(repeat 500 (lambda (i) (classify i)))

@@ -30,6 +30,11 @@ jobs:
       - name: Run tests
         run: make test CXX=g++-14
 
+      # Once each, to catch a benchmark that no longer runs. The times on a
+      # shared runner aren't worth comparing.
+      - name: Check that the benchmarks run
+        run: benchmarks/run.bash -n 1
+
   sanitize:
     runs-on: ubuntu-24.04
     timeout-minutes: 30

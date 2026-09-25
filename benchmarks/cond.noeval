@@ -1,0 +1,12 @@
+; A four-clause cond, which runs cond-transformer every time it's evaluated.
+; Compare with if-chain.noeval.
+(load "common.noeval")
+
+(define classify
+  (lambda (n)
+    (cond ((< n 10) 1)
+          ((< n 100) 2)
+          ((< n 1000) 3)
+          (else 4))))
+
+(repeat 500 (lambda (i) (classify i)))

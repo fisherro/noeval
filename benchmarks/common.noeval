@@ -1,0 +1,9 @@
+; Helpers shared by the benchmarks
+
+; Call f with n, n-1, ..., 1. The recursive call is a tail call.
+(define repeat
+  (lambda (n f)
+    (if (= n 0)
+        ()
+        (do (f n)
+            (repeat (- n 1) f)))))

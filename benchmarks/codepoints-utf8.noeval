@@ -1,0 +1,6 @@
+; UTF-8 encoding, whose time is mostly cond
+(load "common.noeval")
+
+(define codepoints (list 65 233 8364 128512 97 98 99 1000 20000 70000))
+
+(repeat 20 (lambda (i) (codepoints->utf8 codepoints)))
