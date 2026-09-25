@@ -18,10 +18,10 @@ Update noeval-reference.md
 
 ## Planned
 
-Make the default build optimized.
-
 Concrete, scoped work that could be picked up without first deciding whether
 or how to do it.
+
+Make the default build optimized.
 
 `read` still pulls characters from `std::cin` one at a time. The lexer's
 `pushback_streambuf` reads its source in chunks only when `in_avail()` says
