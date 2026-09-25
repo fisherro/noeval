@@ -177,6 +177,30 @@ A smaller optimization, if collection is too slow: give each value a
 "may contain an environment" flag when it is constructed, and skip scanning
 code that can't contain one.
 
+Status: done, by making `eval-list` a builtin. `wrap` stays in the library:
+making it a primitive changes the language, and the README leaves that for a
+Noeval 2. The "may contain an environment" flag wasn't needed.
+
+* `eval-list` is now `eval_list_operative` in `src/noeval.cpp`, and the
+  library definition is gone. It evaluates its arguments in the same order
+  as before (the environment, then the list) and raises the same error for a
+  non-list.
+* A new GC test, "lambda call without cycles", calls a `lambda` with
+  collection held off and checks that reference counting alone frees every
+  environment. It fails with the old library `eval-list` (20 environments
+  left after 10 calls).
+* Library tests (`:reload`, after startup): environments collected went from
+  461,891 (in 3,269 collections) to 47,378 (in 827 collections).
+* With `-O2`, a full run (C++ tests plus `:reload`) went from 22 to 5.6
+  seconds. It takes 102 seconds with `NOEVAL_GC_STRESS=37` (the baseline
+  wasn't measured under stress mode on this machine). The output is the
+  same, except that fewer environments are live afterwards
+  (744 instead of 765 after `:reload`, 246 instead of 299 after
+  `:reload fast`), and that count stays flat across repeated reloads.
+* With the Makefile's default flags, a full run now takes 31 seconds (the
+  Phase 3 numbers were measured on a different machine, so they aren't
+  directly comparable).
+
 ## Done when
 
 * The C++ tests and library tests pass, including under stress mode.

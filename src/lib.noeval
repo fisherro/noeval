@@ -57,28 +57,9 @@
       true
       (eval (cons or (rest operands)) env)))))
 
-; Evaluates a list of items in the given env
-(define eval-list
-  (vau (lyst env-expr) current-env
-    (do
-      ; First, evaluate our arguments
-      (define target-env (eval env-expr current-env))
-      (define actual-list (eval lyst current-env))
-      ((or (nil? actual-list) (= (q cons-cell) (typeof actual-list)))
-       ()
-       (raise "eval-list's first argument must be a list"))
-      ; Then, make a helper to do the actual evaluation of lyst's elements
-      (define eval-list-helper
-        (vau (remaining) _
-          ((nil? remaining)
-           ()
-           (cons (eval (first remaining) target-env)
-                 ; Because `invoke` unpacks the argument list, we need to use
-                 ; `cons` to wrap our single argument so it becomes one
-                 ; argument when unpacked.
-                 (invoke eval-list-helper (cons (rest remaining) ()))))))
-      ; Again, use `cons` to wrap the argument
-      (invoke eval-list-helper (cons actual-list ())))))
+; eval-list is a builtin. Defining it here created a cycle (through its local
+; helper operative) on every call, and wrap calls it every time a wrapped
+; operative is called.
 
 ; wrap takes an operative and returns a new operative that evaluates its arguments
 (define wrap

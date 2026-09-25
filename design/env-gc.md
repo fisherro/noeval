@@ -46,6 +46,17 @@ extra reference count, which makes the object a root automatically.
 * `reload_top_level_environment`, the end of `main`, and the GC tests call
   `environment::collect()` directly.
 
+## Avoiding cycles in hot code
+
+Collection time grows with the amount of cyclic garbage, so code that runs
+on every call shouldn't create cycles. A local operative defined inside an
+operative's body (a helper function, for example) creates one on every call.
+`eval-list` used to be a library operative with a local helper, and `wrap`
+calls it every time a wrapped operative is called. That accounted for about
+90% of the environments collected while running the library tests, so it is
+now a builtin. The GC test "lambda call without cycles" checks that calling
+a `lambda` leaves nothing for the collector.
+
 ## Rules for C++ code
 
 1. **Hold environments and values by `shared_ptr`** (`env_ptr`, `value_ptr`)
