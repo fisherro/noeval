@@ -399,15 +399,17 @@
       (raise "list-index's first argument must be a predicate"))
     (unless (list? lyst)
       (raise "list-index's second argument must be a list"))
-    ; The accumulator is (index found?).
+    ; The accumulator is the count of elements seen so far until one matches.
+    ; Then it becomes a list holding the index, which stops the fold.
     (define result
-      (foldl-until (lambda (acc element)
-                     (list (+ (first acc) 1)
-                           (predicate element)))
-          (list 0 false)
+      (foldl-until (lambda (count element)
+                     ((predicate element)
+                      (list (+ count 1))
+                      (+ count 1)))
+          0
         lyst
-        second))
-    ((second result)
+        list?))
+    ((list? result)
      (first result)
      0)))
 
