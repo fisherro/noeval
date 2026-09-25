@@ -1,5 +1,8 @@
 # Accumulation
 
+The library now provides `foldl-until`, `foldr-until`, `unfoldl`, and
+`unfoldr`. See "What the library does" at the end.
+
 ## Scheme do
 
 ```scheme
@@ -239,3 +242,31 @@ Potentially provide both HOF and syntax transformation versions:
     ; This would transform the declarative syntax into function arguments
     ))
 ```
+
+## What the library does
+
+The library takes the fold/unfold route rather than a `do` loop.
+
+* `(foldl-until func init lyst stop?)` is `foldl` that calls `(stop? acc)`
+  before each step and returns `acc` once it's true.
+* `(foldr-until func lyst init stop?)` is the mirror image. Working from the
+  right, it returns `acc` once `(stop? acc)` is true, skipping the elements to
+  the left. (It still walks the whole list to build its continuation chain.)
+* `(unfoldl stop? mapper successor seed)` is the accumulator pattern. It's
+  SRFI-1's `unfold-right`: the first element generated ends up last.
+* `(unfoldr stop? mapper successor seed)` is the accumulate-then-reverse
+  pattern. It's SRFI-1's `unfold` (and Haskell's `unfoldr`): the first element
+  generated ends up first.
+
+The `l` and `r` match the folds each one inverts, as SRFI-1 pairs `unfold`
+with `fold-right` and `unfold-right` with `fold`.
+
+Library functions built on them:
+
+* `foldl`: `length`, `reverse`, `last`, `for-each`, `filter`, `append`
+* `foldl-until`: `any?`, `all?`, `list-index`
+* `unfoldl`: `iota`
+* `unfoldr`: `map`, `take`, `utf8->codepoints`
+
+`drop` and `nth` aren't accumulations. They walk down the list and return
+what's left, so they keep their own loops.

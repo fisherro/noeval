@@ -232,33 +232,6 @@
       (lambda remaining-args
         (apply func (append remaining-args (eval-list partial-args env)))))))
 
-(define for-each (lambda* (procedure lyst)
-                   (unless (operative? procedure)
-                     (raise "for-each's first argument must be callable"))
-                   (unless (list? lyst)
-                     (raise "for-each's second argument must be a list"))
-                   (define loop (lambda (loop-lyst)
-                                  ((nil? loop-lyst)
-                                   ()
-                                   (do (procedure (first loop-lyst))
-                                       (loop (rest loop-lyst))))))
-                   (loop lyst)))
-
-; Should optionally take a separator?
-(define displayln
-  (lambda* args
-    (for-each display args)
-    (newline)))
-
-(define lndisplayln
-  (lambda* args
-    (newline)
-    (apply displayln args)))
-
-(define second (lambda (lyst) (first (rest lyst))))
-(define third (lambda (lyst) (first (rest (rest lyst)))))
-(define fourth (lambda (lyst) (first (rest (rest (rest lyst))))))
-
 ; foldl applies a binary function to the elements of a list from left to right
 ; (foldl + 1 (list 2 3 4)) -> (+ (+ (+ 1 2) 3) 4)
 (define foldl
@@ -294,35 +267,151 @@
                  (cont (func (first lyst) acc)))))))
     (loop lyst (lambda (x) x))))
 
-(define last (lambda* (lyst)
-               (define loop (lambda (head tail)
-                              ((nil? tail)
-                                head
-                               (loop (first tail)
-                                     (rest tail)))))
-               ((nil? lyst)
-                ()
-                (loop (first lyst)
-                      (rest lyst)))))
+(define snoc (lambda (tail head) (cons head tail)))
+
+(define reverse (lambda (lyst)
+                  ((list? lyst)
+                   (foldl snoc () lyst)
+                   (raise "reverse's argument must be a list"))))
+
+; foldl-until is foldl with early termination.
+; Before each step, it calls (stop? acc). Once that's true, it returns acc
+; without looking at the rest of the list.
+; (foldl-until + 0 (list 1 2 3 4) (lambda (acc) (> acc 2))) -> 3
+(define foldl-until
+  (lambda* (func init lyst stop?)
+    (unless (operative? func)
+      (raise "foldl-until's first argument must be callable"))
+    (unless (list? lyst)
+      (raise "foldl-until's third argument must be a list"))
+    (unless (operative? stop?)
+      (raise "foldl-until's fourth argument must be callable"))
+    (define loop
+      (lambda (acc remaining)
+        ; Nested tests instead of or, which would cost an eval per step.
+        ((nil? remaining)
+         acc
+         ((stop? acc)
+          acc
+          (loop (func acc (first remaining))
+                (rest remaining))))))
+    (loop init lyst)))
+
+; foldr-until is foldr with early termination.
+; Working from the right, before each step it calls (stop? acc). Once that's
+; true, it returns acc without looking at the elements to its left.
+; (foldr-until + (list 1 2 3 4) 0 (lambda (acc) (> acc 2))) -> 4
+(define foldr-until
+  (lambda* (func lyst init stop?)
+    (unless (operative? func)
+      (raise "foldr-until's first argument must be callable"))
+    (unless (list? lyst)
+      (raise "foldr-until's second argument must be a list"))
+    (unless (operative? stop?)
+      (raise "foldr-until's fourth argument must be callable"))
+    ; Returning acc instead of calling cont skips the rest of the chain.
+    (define loop
+      (lambda (lyst cont)
+        ((nil? lyst)
+         (cont init)
+         (loop (rest lyst)
+               (lambda (acc)
+                 ((stop? acc)
+                  acc
+                  (cont (func (first lyst) acc))))))))
+    (loop lyst (lambda (x) x))))
+
+; unfoldl builds a list from a seed. It's the inverse of foldl.
+; Until (stop? seed) is true, it conses (mapper seed) onto an accumulator and
+; moves on to (successor seed). This is the accumulator pattern, so the first
+; element generated ends up last.
+; (unfoldl (lambda (n) (= n 0)) (lambda (n) n) (lambda (n) (- n 1)) 3)
+;   -> (1 2 3)
+(define unfoldl
+  (lambda* (stop? mapper successor seed)
+    (unless (operative? stop?)
+      (raise "unfoldl's first argument must be callable"))
+    (unless (operative? mapper)
+      (raise "unfoldl's second argument must be callable"))
+    (unless (operative? successor)
+      (raise "unfoldl's third argument must be callable"))
+    (define loop
+      (lambda (seed acc)
+        ((stop? seed)
+         acc
+         (loop (successor seed)
+               (cons (mapper seed) acc)))))
+    (loop seed ())))
+
+; unfoldr builds a list from a seed. It's the inverse of foldr.
+; It's like unfoldl, but the first element generated ends up first.
+; This is the accumulate-then-reverse pattern.
+; (unfoldr (lambda (n) (= n 0)) (lambda (n) n) (lambda (n) (- n 1)) 3)
+;   -> (3 2 1)
+(define unfoldr
+  (lambda* (stop? mapper successor seed)
+    (unless (operative? stop?)
+      (raise "unfoldr's first argument must be callable"))
+    (unless (operative? mapper)
+      (raise "unfoldr's second argument must be callable"))
+    (unless (operative? successor)
+      (raise "unfoldr's third argument must be callable"))
+    (reverse (unfoldl stop? mapper successor seed))))
+
+(define for-each (lambda* (procedure lyst)
+                   (unless (operative? procedure)
+                     (raise "for-each's first argument must be callable"))
+                   (unless (list? lyst)
+                     (raise "for-each's second argument must be a list"))
+                   (foldl (lambda (_ element) (procedure element))
+                       ()
+                     lyst)
+                   ()))
+
+; Should optionally take a separator?
+(define displayln
+  (lambda* args
+    (for-each display args)
+    (newline)))
+
+(define lndisplayln
+  (lambda* args
+    (newline)
+    (apply displayln args)))
+
+(define second (lambda (lyst) (first (rest lyst))))
+(define third (lambda (lyst) (first (rest (rest lyst)))))
+(define fourth (lambda (lyst) (first (rest (rest (rest lyst))))))
+
+(define last
+  (lambda* (lyst)
+    (unless (list? lyst)
+      (raise "last's argument must be a list"))
+    (foldl (lambda (_ element) element)
+        ()
+      lyst)))
 
 ; Returns 0 if not found.
 ; Otherwise, returns the 1-based index.
 (define list-index
   (lambda* (predicate lyst)
-    (define loop
-      (lambda (index head tail)
-        ((predicate head)
-         index
-         ((nil? tail)
+    (unless (operative? predicate)
+      (raise "list-index's first argument must be a predicate"))
+    (unless (list? lyst)
+      (raise "list-index's second argument must be a list"))
+    ; The accumulator is the count of elements seen so far until one matches.
+    ; Then it becomes a list holding the index, which stops the fold.
+    (define result
+      (foldl-until (lambda (count element)
+                     ((predicate element)
+                      (list (+ count 1))
+                      (+ count 1)))
           0
-          (loop (+ index 1)
-                (first tail)
-                (rest tail))))))
-    ((nil? lyst)
-     0
-     (loop 1
-           (first lyst)
-           (rest lyst)))))
+        lyst
+        list?))
+    ((list? result)
+     (first result)
+     0)))
 
 ; Example of how cond is transformed into a chain of Church Booleans:
 #skip
@@ -456,14 +545,10 @@
       (raise "map's first argument must be callable"))
     (unless (list? lyst)
       (raise "map's second argument must be a list"))
-    (define loop
-      (lambda (accumulator remaining)
-        ((nil? remaining)
-         (reverse accumulator)
-         (loop (cons (proc (first remaining))
-                     accumulator)
-               (rest remaining)))))
-    (loop () lyst)))
+    (unfoldr nil?
+             (lambda (remaining) (proc (first remaining)))
+             rest
+             lyst)))
 
 #skip
 ; Example let transformation:
@@ -526,27 +611,16 @@
                 (- n 1))))))
     (loop lyst n)))
 
-(define snoc (lambda (tail head) (cons head tail)))
-
-(define reverse (lambda (lyst)
-                  ((list? lyst)
-                   (foldl snoc () lyst)
-                   (raise "reverse's argument must be a list"))))
-
 (define any?
   (lambda* (predicate lyst)
     (unless (operative? predicate)
       (raise "The first argument to any? must be a predicate"))
     (unless (list? lyst)
       (raise "The second argument to any? must be a list"))
-    (define loop
-      (lambda (lyst)
-        ((nil? lyst)
-         false
-         ((predicate (first lyst))
-          true
-          (loop (rest lyst))))))
-    (loop lyst)))
+    (foldl-until (lambda (_ element) (predicate element))
+        false
+      lyst
+      (lambda (found?) found?))))
 
 (define all?
   (lambda* (predicate lyst)
@@ -554,14 +628,10 @@
       (raise "The first argument to all? must be a predicate"))
     (unless (list? lyst)
       (raise "The second argument to all? must be a list"))
-    (define loop
-      (lambda (lyst)
-        ((nil? lyst)
-         true
-         ((predicate (first lyst))
-          (loop (rest lyst))
-          false))))
-    (loop lyst)))
+    (foldl-until (lambda (_ element) (predicate element))
+        true
+      lyst
+      (lambda (all-so-far?) (not all-so-far?)))))
 
 (define append (lambda* lists
                  (unless (all? list? lists)
@@ -587,13 +657,11 @@
   (lambda* (count)
     (unless (number? count)
       (raise "iota's argument must be a number"))
-    (define loop
-      (lambda (n acc)
-        ((<= n 0)
-         acc
-         (loop (- n 1)
-               (cons (- n 1) acc)))))
-    (loop count ())))
+    (define predecessor (lambda (n) (- n 1)))
+    (unfoldl (lambda (n) (<= n 0))
+             predecessor
+             predecessor
+             count)))
 
 ; Q&D test of even?: (map even? (map (lambda (x) (- x 9)) (iota 19)))
 ; TODO: Fix this after we upgrade numbers from int to boost::cpp_rational.
@@ -643,16 +711,15 @@
       (raise "take's first argument must be a non-negative integer"))
     (unless (list? lyst)
       (raise "take's second argument must be a list"))
-    (define loop
-      (lambda (n lyst acc)
-        ((or (nil? lyst)
-             (<= n 0))
-         (reverse acc)
-         (loop (- n 1)
-               (rest lyst)
-               (cons (first lyst)
-                     acc)))))
-    (loop n lyst ())))
+    ; The seed is the count still to take consed onto the remaining list.
+    (unfoldr (lambda (seed)
+               (or (<= (first seed) 0)
+                   (nil? (rest seed))))
+             second
+             (lambda (seed)
+               (cons (- (first seed) 1)
+                     (rest (rest seed))))
+             (cons n lyst))))
 
 (define string-length (lambda (s) (length (string->list s))))
 
@@ -877,22 +944,15 @@
                         (else
                           (raise "Invalid UTF-8 leading byte"))))))))
 
-    ; Tail-recursive UTF-8 decoder with accumulator
-    (define utf8->codepoints-tail
-      (lambda* (bytes accumulator)
-        (cond ((nil? bytes)
-               (reverse accumulator))
-              (else
-                (do
-                  (define result (decode-one-utf8-sequence bytes))
-                  (define codepoint (first result))
-                  (define remaining-bytes (rest result))
-                  (utf8->codepoints-tail remaining-bytes
-                                         (cons codepoint accumulator)))))))
-
     (unless (list? bytes)
       (raise "utf8->codepoints's argument must be a list"))
-    (utf8->codepoints-tail bytes ())))
+    ; The seed is the result of decoding one sequence:
+    ; (codepoint . remaining-bytes)
+    ; Decoding no bytes gives a codepoint of (), which ends the unfold.
+    (unfoldr (lambda (decoded) (nil? (first decoded)))
+             first
+             (lambda (decoded) (decode-one-utf8-sequence (rest decoded)))
+             (decode-one-utf8-sequence bytes))))
 
 (define countdown
   (lambda (n)
