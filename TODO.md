@@ -153,3 +153,5 @@ Function overloading or multimethods? Some way to allow the list functions to wo
 User-defined types?
 
 Consider switching to intrusive reference counting
+
+The `(apply append (map encode-codepoint codepoints))` in `codepoints->utf8` is quadratic. What could we do to address that? (Consider interpreter optimizations as well.)
