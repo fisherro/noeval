@@ -49,8 +49,6 @@ Have the parser track the file path so that `load` can use its directory as the 
 
 Add max-garbage stat
 
-Ensure REPL tab completion works for REPL special commands
-
 Add validation of the bindings structures to let
 
 Provide something like `get-builtins` that the check dependencies program could use.
