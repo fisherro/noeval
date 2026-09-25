@@ -719,7 +719,6 @@
              count)))
 
 ; Q&D test of even?: (map even? (map (lambda (x) (- x 9)) (iota 19)))
-; TODO: Fix this after we upgrade numbers from int to boost::cpp_rational.
 (define even? (lambda* (x)
                 ((integer? x)
                  (= 0 (remainder x 2))
