@@ -23,6 +23,68 @@
 (define env-error-vau (vau (expr) _ (eval expr "not-an-env")))
 (test-error (env-error-vau (+ 1 2)) "invalid environment usage should throw")
 
+;------------------------------------------------------------------------------
+; Environment introspection tests
+(lndisplayln "environment introspection tests")
+
+(define builtins-names (environment-names (get-builtins-environment)))
+(define top-level-names (environment-names (get-top-level-environment)))
+(define names-include?
+  (lambda (names name)
+    (any? (lambda (n) (= n name)) names)))
+
+(test-assert
+    (and (names-include? builtins-names (q vau))
+         (names-include? builtins-names (q environment-names))
+         (not (names-include? builtins-names (q map))))
+  "the builtins environment should hold the builtins but not the library")
+
+(test-assert
+    (and (names-include? top-level-names (q map))
+         (not (names-include? top-level-names (q vau))))
+  "the top-level environment should hold the library but not the builtins")
+
+(test-assert
+    (nil? (environment-parent (get-builtins-environment)))
+  "the builtins environment should have no parent")
+
+(test-assert
+    (= (environment-names (environment-parent (get-top-level-environment)))
+       builtins-names)
+  "the top-level environment's parent should be the builtins environment")
+
+(test-assert
+    (= (environment-names (environment-parent (get-current-environment)))
+       top-level-names)
+  "the library tests' environment's parent should be the top-level environment")
+
+(test-assert
+    (= ((lambda* (b a)
+          (define c 3)
+          (environment-names (get-current-environment)))
+        1 2)
+       (list (q a) (q b) (q c)))
+  "environment-names should list an environment's own bindings, sorted")
+
+(test-assert
+    (environment? (environment-parent (get-current-environment)))
+  "environment-parent should return an environment")
+
+(test-assert
+    (= (try (environment-names 5) (lambda (e) (second e)))
+       "environment-names: argument must be an environment, got 5")
+  "environment-names should reject a non-environment")
+
+(test-assert
+    (= (try (environment-parent) (lambda (e) (second e)))
+       "environment-parent: expected 1 argument, got 0")
+  "environment-parent should require one argument")
+
+(test-assert
+    (= (try (get-builtins-environment 1) (lambda (e) (second e)))
+       "get-builtins-environment: expected 0 arguments, got 1")
+  "get-builtins-environment should take no arguments")
+
 
 ;------------------------------------------------------------------------------
 ; let tests

@@ -327,6 +327,13 @@ std::vector<std::string> environment::get_all_symbols() const
     return symbols;
 }
 
+std::vector<std::string> environment::get_own_symbols() const
+{
+    auto symbols = bindings | std::views::keys | std::ranges::to<std::vector>();
+    std::ranges::sort(symbols);
+    return symbols;
+}
+
 std::string environment::dump_chain() const
 {
     std::string chain = std::format("{}", static_cast<const void*>(this));
@@ -1555,6 +1562,76 @@ namespace builtins {
         }
     }
 
+    // Evaluate an operative's only argument, which must be an environment.
+    env_ptr environment_argument(std::string_view name,
+        const std::vector<value_ptr>& args, env_ptr env)
+    {
+        if (1 != args.size()) {
+            throw evaluation_error(
+                std::format("{}: expected 1 argument, got {}", name, args.size()),
+                std::string{name},
+                call_stack::format()
+            );
+        }
+        auto arg = unwrap_mutable_binding(eval(args[0], env));
+        auto target = std::get_if<env_ptr>(&arg->data);
+        if (not target) {
+            throw evaluation_error(
+                std::format("{}: argument must be an environment, got {}",
+                    name, value_to_string(arg)),
+                std::string{name},
+                call_stack::format()
+            );
+        }
+        return *target;
+    }
+
+    continuation_type environment_names_operative(const std::vector<value_ptr>& args, env_ptr env)
+    {
+        auto target = environment_argument("environment-names", args, env);
+        auto result = value::make(nullptr);
+        auto names = target->get_own_symbols();
+        for (const auto& name: names | std::views::reverse) {
+            result = value::make(cons_cell{value::make(symbol{name}), result});
+        }
+        return result;
+    }
+
+    continuation_type environment_parent_operative(const std::vector<value_ptr>& args, env_ptr env)
+    {
+        auto target = environment_argument("environment-parent", args, env);
+        auto parent = target->get_parent();
+        if (not parent) return value::make(nullptr);
+        return value::make(parent);
+    }
+
+    // An operative that takes no arguments and returns target. It holds a
+    // weak reference: the cycle collector can't see references inside a
+    // builtin, so a strong one would keep target alive forever.
+    auto make_environment_getter(std::string name, const env_ptr& target)
+    {
+        return [name, weak = std::weak_ptr<environment>{target}](
+            const std::vector<value_ptr>& args, env_ptr) -> continuation_type
+        {
+            if (not args.empty()) {
+                throw evaluation_error(
+                    std::format("{}: expected 0 arguments, got {}", name, args.size()),
+                    name,
+                    call_stack::format()
+                );
+            }
+            auto target = weak.lock();
+            if (not target) {
+                throw evaluation_error(
+                    std::format("{}: the environment no longer exists", name),
+                    name,
+                    call_stack::format()
+                );
+            }
+            return value::make(target);
+        };
+    }
+
 } // namespace builtins
 
 void add_church_boleans(env_ptr env)
@@ -1576,15 +1653,17 @@ void add_church_boleans(env_ptr env)
     env->define("false", false_value);
 }
 
-// Create a top-level environment with built-ins
+// Create a top-level environment, for the library and the code that uses it.
+// Its parent holds the builtins, so the library and user code can shadow a
+// builtin but can't replace it.
 env_ptr create_top_level_environment()
 {
-    auto env = environment::make();
+    auto builtins_env = environment::make();
 
-    auto define_builtin = [env](const std::string& name, 
+    auto define_builtin = [builtins_env](const std::string& name, 
                     std::function<continuation_type(const std::vector<value_ptr>&, env_ptr)> func)
     {
-        env->define(name, value::make(builtin_operative{name, std::move(func)}));
+        builtins_env->define(name, value::make(builtin_operative{name, std::move(func)}));
     };
 
     auto define_arithmetic = [define_builtin](const std::string& name, 
@@ -1636,9 +1715,18 @@ env_ptr create_top_level_environment()
     define_builtin("set!", builtins::set_operative);
     // Reflection
     define_builtin("typeof", builtins::typeof_operative);
+    // Environments
+    define_builtin("environment-names", builtins::environment_names_operative);
+    define_builtin("environment-parent", builtins::environment_parent_operative);
 
-    add_church_boleans(env);
-    return env;
+    add_church_boleans(builtins_env);
+
+    auto top_level = environment::make(builtins_env);
+    define_builtin("get-builtins-environment",
+        builtins::make_environment_getter("get-builtins-environment", builtins_env));
+    define_builtin("get-top-level-environment",
+        builtins::make_environment_getter("get-top-level-environment", top_level));
+    return top_level;
 }
 
 // Bind parameters to operands in target environment
@@ -1685,7 +1773,7 @@ continuation_type operate_operative(const operative& op, value_ptr operands, env
     try {
         bind_parameters(op.params, operands, new_env);
     } catch (const evaluation_error& e) {
-        throw evaluation_error(std::format("{} {}", op.to_string(), e.what()), e.context, call_stack::format());
+        throw evaluation_error(std::format("{} {}", op.to_string(), e.message), e.context, call_stack::format());
     }
 
     // Bind environment parameter
