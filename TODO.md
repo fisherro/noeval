@@ -44,10 +44,6 @@ Check in the definition of the `gcc-rlf:latest` container image, or stop
 using it. `test-dependency-checker.zsh` runs in it, but a fresh clone can't
 build it.
 
-Bring the code added in PRs #14 through #16 into line with `STYLE.md`. It was
-written without checking the style rules (for example, `it == names.end()` in
-`intern_file_name` isn't constant-first).
-
 ## Ideas
 
 Questions, things to consider, and open-ended design work.

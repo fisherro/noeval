@@ -17,8 +17,9 @@
 - **Constant first for equality checks**: write `0 == x` instead of `x == 0`,
   to prevent accidental assignment (`x = 0`). This applies only to `==` and
   `!=`, not to ordering comparisons (`<`, `>`, `<=`, `>=`).
-- **Trailing commas**: include a trailing comma in lists wherever it is
-  allowed, even after the last element
+- **Trailing commas**: in a list that spans multiple lines, include a
+  trailing comma after the last element wherever it is allowed. A list on a
+  single line, like `{a, b}`, doesn't get one.
 
 ## Noeval
 

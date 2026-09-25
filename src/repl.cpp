@@ -115,7 +115,7 @@ char** symbol_completion(const char* text, int start, int)
         | std::ranges::to<std::vector<std::string>>();
     bool first_word = words.empty();
     bool special_command = reading_first_line
-        and (first_word? text[0] == ':': words[0].starts_with(':'));
+        and (first_word? ':' == text[0]: words[0].starts_with(':'));
     if (special_command) {
         completion_candidates = special_command_candidates(words);
         return rl_completion_matches(text, completion_generator);
@@ -195,7 +195,7 @@ bool is_complete_expression(const std::string& input)
     bool in_string = false;
     bool escaped = false;
     
-    for (char ch : input) {
+    for (char ch: input) {
         if (escaped) {
             escaped = false;
             continue;
@@ -321,7 +321,7 @@ bool handle_debug_command(const std::string& input)
         if (enabled.empty()) {
             std::println("    (none)");
         } else {
-            for (const auto& cat : enabled) {
+            for (const auto& cat: enabled) {
                 std::println("    {}", cat);
             }
         }
@@ -415,7 +415,7 @@ bool handle_special_command(const std::string& input)
         std::string command, option;
         iss >> command >> option;
         
-        bool test_the_library = (option != "fast");
+        bool test_the_library = ("fast" != option);
         bool ok = static_cast<bool>(reload_top_level_environment(test_the_library));
         if (ok) {
             std::println("Environment reloaded successfully{}", 

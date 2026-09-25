@@ -22,7 +22,7 @@ std::string demangle(std::type_info const& type)
 std::string read_file_content(const std::string& filename)
 {
     std::ifstream file(filename);
-    if (!file.is_open()) {
+    if (not file.is_open()) {
         throw std::runtime_error("Could not open file: " + filename);
     }
 

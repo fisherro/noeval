@@ -53,7 +53,7 @@
   "lambda should evaluate its arguments")
 
 ; Test 7: Compare with vau - lambda evaluates args, vau doesn't
-(define vau-version (vau (x) env x))
+(define vau-version (vau (x) _ x))
 (define lambda-version (lambda (x) x))
 
 ; Create test expressions
@@ -317,7 +317,7 @@
 ; Test 1: Basic vau* with multiple expressions
 (define-mutable vau-side-effect 0)
 (define basic-vau*
-  (vau* (x) env
+  (vau* (x) _
     (set! vau-side-effect (+ vau-side-effect 1))
     (set! vau-side-effect (* vau-side-effect 2))
     x))  ; Return the unevaluated argument
@@ -339,14 +339,14 @@
   "vau* should be able to use environment parameter")
 
 ; Test 3: vau* with no expressions (empty body)
-(define empty-vau* (vau* (x) env))
+(define empty-vau* (vau* (x) _))
 (test-assert
     (nil? (empty-vau* hello))
   "vau* with empty body should return nil")
 
 ; Test 4: vau* with multiple parameters - test that it accepts them
 (define multi-param-vau*
-  (vau* (a b c) env
+  (vau* (a b c) _
     (define first-arg a)
     (define second-arg b)
     (define third-arg c)
@@ -366,12 +366,12 @@
 
 ; Test 6: Compare vau* vs regular vau behavior
 (define regular-vau-multi
-  (vau (x) env
+  (vau (x) _
     (do (define temp x)
         (* 2 2)
         temp)))
 (define equivalent-vau*
-  (vau* (x) env
+  (vau* (x) _
     (define temp x)
     (* 2 2)
     temp))
@@ -397,7 +397,7 @@
   "vau* should work with conditional logic - false case")
 
 ; Test 8: vau* with single expression (should work like regular vau)
-(define single-expr-vau* (vau* (x) env x))
+(define single-expr-vau* (vau* (x) _ x))
 (test-assert
     (= (single-expr-vau* 777) 777)
   "vau* with single expression should work like regular vau")
@@ -405,7 +405,7 @@
 ; Test 9: vau* with complex expression sequencing
 (define-mutable sequence-counter 0)
 (define sequence-test-vau*
-  (vau* (x) env
+  (vau* (x) _
     (set! sequence-counter (+ sequence-counter 1))  ; Side effect
     (set! sequence-counter (+ sequence-counter 10)) ; Side effect
     x))  ; Return unevaluated x
@@ -433,7 +433,7 @@
 
 ; Test 11: vau* with recursive pattern (simplified)
 (define recursive-vau*
-  (vau* (x) dyn-env
+  (vau* (x) _
     (define helper-result x)  ; Simplified - just pass through
     helper-result))
 (test-assert
@@ -443,7 +443,7 @@
 ; Test 12: Test that vau* creates proper operative (doesn't evaluate args)
 (define-mutable arg-eval-test 0)
 (define arg-test-vau*
-  (vau* (expr) env
+  (vau* (expr) _
     (set! arg-eval-test 999)
     expr))
 

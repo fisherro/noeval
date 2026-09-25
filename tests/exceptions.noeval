@@ -7,11 +7,11 @@
 (test-error (error-wrapper) "exceptions should propagate through function calls")
 
 ; Test exception in vau operative
-(define error-vau (vau (x) env (rest "invalid")))
+(define error-vau (vau (x) _ (rest "invalid")))
 (test-error (error-vau dummy) "exceptions should propagate from vau operatives")
 
 ; Test exception in wrapped operative
-(define error-op (vau (x) env (first x)))  ; Will fail if x is not a list
+(define error-op (vau (x) _ (first x)))  ; Will fail if x is not a list
 (define wrapped-error (wrap error-op))
 (test-error (wrapped-error 42) "exceptions should propagate from wrapped operatives")
 

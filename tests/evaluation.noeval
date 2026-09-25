@@ -109,7 +109,7 @@
 ; Wrap tests
 
 ; Test wrap functionality
-(define simple-op (vau (x y) env (cons x (cons y ()))))
+(define simple-op (vau (x y) _ (cons x (cons y ()))))
 (define wrapped-simple (wrap simple-op))
 
 ; Test that wrap evaluates arguments

@@ -22,8 +22,8 @@ std::string token_type_to_string(token_type type)
     }
 }
 
-token::token(token_type t, std::string v, position p)
-: type(t), value(std::move(v)), pos(p) {}
+token::token(token_type t, std::string v, position p):
+    type(t), value(std::move(v)), pos(p) {}
 
 std::string token::to_string() const
 {
@@ -33,7 +33,7 @@ std::string token::to_string() const
 #if 0
 void lexer::update_position(char ch)
 {
-    if (ch == '\n') {
+    if ('\n' == ch) {
         current_pos.line++;
         current_pos.column = 1;
     } else {
@@ -53,7 +53,7 @@ bool lexer::matches_keyword(std::string_view keyword)
     }
     
     char next_ch = peek(keyword.length());
-    return next_ch == '\0' or std::isspace(next_ch);
+    return '\0' == next_ch or std::isspace(next_ch);
 }
 
 void lexer::skip_disabled_block()
@@ -97,9 +97,9 @@ void lexer::skip_whitespace_and_comments()
         char ch = current_char();
         if (std::isspace(ch)) {
             advance();
-        } else if (ch == ';') {
+        } else if (';' == ch) {
             // Skip comment - everything until newline or end of input
-            while (not at_end() and current_char() != '\n') {
+            while (not at_end() and '\n' != current_char()) {
                 advance();
             }
             // Will advance past newline in next iteration if present
@@ -116,9 +116,9 @@ std::string lexer::read_symbol()
     std::string result;
     while (not at_end() and 
            not std::isspace(current_char()) and 
-           current_char() != '(' and 
-           current_char() != ')' and
-           current_char() != ';') {
+           '(' != current_char() and 
+           ')' != current_char() and
+           ';' != current_char()) {
         result += current_char();
         advance();
     }
@@ -130,8 +130,8 @@ std::string lexer::read_string()
     std::string result;
     advance(); // skip opening quote
     
-    while (not at_end() and current_char() != '"') {
-        if (current_char() == '\\' and not at_end()) {
+    while (not at_end() and '"' != current_char()) {
+        if ('\\' == current_char() and not at_end()) {
             advance(); // skip backslash
             if (at_end()) break; // Protect against malformed strings
             
@@ -158,12 +158,12 @@ std::string lexer::read_number()
     std::string result;
     
     // Check for base prefix
-    if (current_char() == '#') {
+    if ('#' == current_char()) {
         return read_based_number();
     }
     
     // Handle optional negative sign for decimal numbers
-    if (current_char() == '-') {
+    if ('-' == current_char()) {
         result += current_char();
         advance();
     }
@@ -175,12 +175,12 @@ std::string lexer::read_number()
     }
     
     // Check for fractional format (/)
-    if (not at_end() and current_char() == '/') {
+    if (not at_end() and '/' == current_char()) {
         result += current_char();
         advance();
         
         // Read denominator (must start with non-zero digit)
-        if (at_end() or not std::isdigit(current_char()) or current_char() == '0') {
+        if (at_end() or not std::isdigit(current_char()) or '0' == current_char()) {
             throw std::runtime_error("Invalid fraction: denominator must start with non-zero digit");
         }
         while (not at_end() and std::isdigit(current_char())) {
@@ -191,7 +191,7 @@ std::string lexer::read_number()
     }
     
     // Check for decimal format (.)
-    if (not at_end() and current_char() == '.') {
+    if (not at_end() and '.' == current_char()) {
         result += current_char();
         advance();
         
@@ -202,7 +202,7 @@ std::string lexer::read_number()
         }
         
         // Check for repeating part in parentheses
-        if (not at_end() and current_char() == '(') {
+        if (not at_end() and '(' == current_char()) {
             result += current_char();
             advance();
             
@@ -216,7 +216,7 @@ std::string lexer::read_number()
             if (not has_digits) {
                 throw std::runtime_error("Invalid repeating decimal: empty parentheses");
             }
-            if (at_end() or current_char() != ')') {
+            if (at_end() or ')' != current_char()) {
                 throw std::runtime_error("Invalid repeating decimal: missing closing parenthesis");
             }
             result += current_char();
@@ -240,26 +240,26 @@ std::string lexer::read_based_number()
     char base_char = current_char();
     
     // Handle predefined bases (case-insensitive)
-    if (base_char == 'x' or base_char == 'X') {
+    if ('x' == base_char or 'X' == base_char) {
         result += current_char();
         advance();
         return result + read_hex_digits();
     }
     
-    if (base_char == 'o' or base_char == 'O') {
+    if ('o' == base_char or 'O' == base_char) {
         result += current_char();
         advance();
         return result + read_octal_digits();
     }
     
-    if (base_char == 'b' or base_char == 'B') {
+    if ('b' == base_char or 'B' == base_char) {
         result += current_char();
         advance();
         return result + read_binary_digits();
     }
     
     // Handle arbitrary base (#NNr...)
-    if (std::isdigit(base_char) and base_char != '0') {
+    if (std::isdigit(base_char) and '0' != base_char) {
         std::string base_str;
         while (not at_end() and std::isdigit(current_char())) {
             base_str += current_char();
@@ -267,7 +267,7 @@ std::string lexer::read_based_number()
             advance();
         }
         
-        if (at_end() or (current_char() != 'r' and current_char() != 'R')) {
+        if (at_end() or ('r' != current_char() and 'R' != current_char())) {
             throw std::runtime_error("Invalid arbitrary base number: expected 'r' after base");
         }
         
@@ -301,7 +301,7 @@ std::string lexer::read_hex_digits()
     }
     
     // Check for invalid hex digits - anything that's alphanumeric but not hex
-    if (not at_end() and (std::isalnum(current_char()) or current_char() == '_')) {
+    if (not at_end() and (std::isalnum(current_char()) or '_' == current_char())) {
         throw std::runtime_error(std::format("Invalid hex digit '{}'", current_char()));
     }
     
@@ -324,7 +324,7 @@ std::string lexer::read_octal_digits()
     }
     
     // Check for invalid octal digits - any digit 8-9 or other alphanumeric
-    if (not at_end() and (std::isalnum(current_char()) or current_char() == '_')) {
+    if (not at_end() and (std::isalnum(current_char()) or '_' == current_char())) {
         throw std::runtime_error(std::format("Invalid octal digit '{}'", current_char()));
     }
     
@@ -336,7 +336,7 @@ std::string lexer::read_binary_digits()
     std::string result;
     bool has_digits = false;
     
-    while (not at_end() and (current_char() == '0' or current_char() == '1')) {
+    while (not at_end() and ('0' == current_char() or '1' == current_char())) {
         result += current_char();
         advance();
         has_digits = true;
@@ -347,7 +347,7 @@ std::string lexer::read_binary_digits()
     }
     
     // Check for invalid binary digits - any digit 2-9 or other alphanumeric
-    if (not at_end() and (std::isalnum(current_char()) or current_char() == '_')) {
+    if (not at_end() and (std::isalnum(current_char()) or '_' == current_char())) {
         throw std::runtime_error(std::format("Invalid binary digit '{}'", current_char()));
     }
     
@@ -387,22 +387,22 @@ std::string lexer::read_arbitrary_base_digits(int base)
     }
     
     // Check for invalid characters that would make this not a proper token boundary
-    if (not at_end() and (std::isalnum(current_char()) or current_char() == '_')) {
+    if (not at_end() and (std::isalnum(current_char()) or '_' == current_char())) {
         throw std::runtime_error(std::format("Invalid digit '{}' for base {}", current_char(), base));
     }
     
     return result;
 }
 
-lexer::lexer(std::string text)
-: owned_input_(std::make_unique<std::istringstream>(std::move(text))),
-  in_(*owned_input_), buf_(in_.rdbuf()), current_pos_(1, 1, 0)
+lexer::lexer(std::string text):
+    owned_input_(std::make_unique<std::istringstream>(std::move(text))),
+    in_(*owned_input_), buf_(in_.rdbuf()), current_pos_(1, 1, 0)
 {
     install_buffer();
 }
 
-lexer::lexer(std::istream& in)
-: in_(in), buf_(in.rdbuf()), current_pos_(1, 1, 0)
+lexer::lexer(std::istream& in):
+    in_(in), buf_(in.rdbuf()), current_pos_(1, 1, 0)
 {
     install_buffer();
 }
@@ -441,41 +441,41 @@ token lexer::next_token()
     position token_start = current_pos_;  // Remember where this token starts
     char ch = current_char();
     
-    if (ch == '(') {
+    if ('(' == ch) {
         advance();
         return token(token_type::left_paren, "", token_start);
     }
     
-    if (ch == ')') {
+    if (')' == ch) {
         advance();
         return token(token_type::right_paren, "", token_start);
     }
     
-    if (ch == '"') {
+    if ('"' == ch) {
         return token(token_type::string_literal, read_string(), token_start);
     }
 
     // Check for based numbers before checking for decimal numbers
-    if (ch == '#' and not at_end()) {
+    if ('#' == ch and not at_end()) {
         char next_ch = peek();
-        if (next_ch == 'x' or next_ch == 'X' or 
-            next_ch == 'o' or next_ch == 'O' or 
-            next_ch == 'b' or next_ch == 'B' or 
+        if ('x' == next_ch or 'X' == next_ch or 
+            'o' == next_ch or 'O' == next_ch or 
+            'b' == next_ch or 'B' == next_ch or 
             std::isdigit(next_ch)) {  // Include ALL digits, including '0'
             return token(token_type::number, read_based_number(), token_start);
         }
     }
 
-    if (std::isdigit(ch) or (ch == '-' and not at_end() and std::isdigit(peek()))) {
+    if (std::isdigit(ch) or ('-' == ch and not at_end() and std::isdigit(peek()))) {
         position start_position = current_pos_;
         std::string number_str = read_number();
         
         // Validate that we're at a proper token boundary after reading the number
         if (not at_end() and 
             not std::isspace(current_char()) and 
-            current_char() != '(' and 
-            current_char() != ')' and 
-            current_char() != ';') {
+            '(' != current_char() and 
+            ')' != current_char() and 
+            ';' != current_char()) {
             // Not at a valid boundary - this means we have something like "-123abc"
             // Push the characters back and treat the whole thing as a symbol
             for (auto it = number_str.rbegin(); it != number_str.rend(); ++it) {
@@ -522,26 +522,26 @@ void parser::advance()
 value_ptr parser::parse_list()
 {
     // Expect '('
-    if (current_token().type != token_type::left_paren) {
+    if (token_type::left_paren != current_token().type) {
         throw std::runtime_error("Expected '('");
     }
     auto open_paren_position = current_token().pos;  // Remember where this list started
     advance(); // consume '('
     
-    if (current_token().type == token_type::right_paren) {
+    if (token_type::right_paren == current_token().type) {
         advance(); // consume ')'
         return value::make(nullptr); // nil
     }
     
     // Parse elements
     std::vector<value_ptr> elements;
-    while (current_token().type != token_type::right_paren && 
-            current_token().type != token_type::eof) {
+    while (token_type::right_paren != current_token().type and 
+            token_type::eof != current_token().type) {
         elements.push_back(parse_expression());
     }
 
-    if (current_token().type != token_type::right_paren) {
-        if (current_token().type == token_type::eof) {
+    if (token_type::right_paren != current_token().type) {
+        if (token_type::eof == current_token().type) {
             throw error(open_paren_position,
                 "Expected ')' to close this list, but reached end of input");
         } else {
@@ -566,34 +566,34 @@ value_ptr parser::parse_list()
         std::get<cons_cell>(result->data).location = {
             file_,
             static_cast<std::uint32_t>(open_paren_position.line()),
-            static_cast<std::uint32_t>(open_paren_position.column())
+            static_cast<std::uint32_t>(open_paren_position.column()),
         };
     }
     
     return result;
 }
 
-parser::parser(std::string input, std::string_view file)
-    : lex(std::move(input)),
-      file_(file.empty()? nullptr: intern_file_name(file)) {}
+parser::parser(std::string input, std::string_view file):
+    lex(std::move(input)),
+    file_(file.empty()? nullptr: intern_file_name(file)) {}
 
-parser::parser(std::istream& in, std::string_view file)
-    : lex(in),
-      file_(file.empty()? nullptr: intern_file_name(file)) {}
+parser::parser(std::istream& in, std::string_view file):
+    lex(in),
+    file_(file.empty()? nullptr: intern_file_name(file)) {}
 
 bignum parse_number_string(const std::string& num_str)
 {
     using cpp_int = boost::multiprecision::cpp_int;
     
     // Check for based numbers
-    if (num_str.length() >= 2 and num_str[0] == '#') {
+    if (num_str.length() >= 2 and '#' == num_str[0]) {
         char base_char = num_str[1];
         
         // Handle predefined bases
-        if (base_char == 'x' or base_char == 'X') {
+        if ('x' == base_char or 'X' == base_char) {
             std::string hex_digits = num_str.substr(2);
             cpp_int result = 0;
-            for (char digit : hex_digits) {
+            for (char digit: hex_digits) {
                 result = result * 16;
                 if (digit >= '0' and digit <= '9') {
                     result += digit - '0';
@@ -606,39 +606,39 @@ bignum parse_number_string(const std::string& num_str)
             return bignum(result);
         }
         
-        if (base_char == 'o' or base_char == 'O') {
+        if ('o' == base_char or 'O' == base_char) {
             std::string octal_digits = num_str.substr(2);
             cpp_int result = 0;
-            for (char digit : octal_digits) {
+            for (char digit: octal_digits) {
                 result = result * 8 + (digit - '0');
             }
             return bignum(result);
         }
         
-        if (base_char == 'b' or base_char == 'B') {
+        if ('b' == base_char or 'B' == base_char) {
             std::string binary_digits = num_str.substr(2);
             cpp_int result = 0;
-            for (char digit : binary_digits) {
+            for (char digit: binary_digits) {
                 result = result * 2 + (digit - '0');
             }
             return bignum(result);
         }
         
         // Handle arbitrary base
-        if (std::isdigit(base_char) and base_char != '0') {
+        if (std::isdigit(base_char) and '0' != base_char) {
             size_t r_pos = num_str.find('r');
-            if (r_pos == std::string::npos) {
+            if (std::string::npos == r_pos) {
                 r_pos = num_str.find('R');
             }
             
-            if (r_pos != std::string::npos) {
+            if (std::string::npos != r_pos) {
                 std::string base_str = num_str.substr(1, r_pos - 1);
                 std::string digits_str = num_str.substr(r_pos + 1);
                 
                 int base = std::stoi(base_str);
                 cpp_int result = 0;
                 
-                for (char digit : digits_str) {
+                for (char digit: digits_str) {
                     result = result * base;
                     if (digit >= '0' and digit <= '9') {
                         result += digit - '0';
@@ -657,7 +657,7 @@ bignum parse_number_string(const std::string& num_str)
     
     // Check if it's a fractional format (contains '/')
     size_t slash_pos = num_str.find('/');
-    if (slash_pos != std::string::npos) {
+    if (std::string::npos != slash_pos) {
         // Parse as fraction: numerator/denominator
         std::string num_part = num_str.substr(0, slash_pos);
         std::string den_part = num_str.substr(slash_pos + 1);
@@ -670,7 +670,7 @@ bignum parse_number_string(const std::string& num_str)
     
     // Check if it's a repeating decimal (contains parentheses)
     size_t paren_pos = num_str.find('(');
-    if (paren_pos != std::string::npos) {
+    if (std::string::npos != paren_pos) {
         // Parse repeating decimal: x.y(z) = x.y + 0.000...z / (10^k - 1)
         // where k is the number of repeating digits
         
@@ -680,14 +680,14 @@ bignum parse_number_string(const std::string& num_str)
         
         // Parse non-repeating part
         bignum base_value;
-        if (non_repeating.find('.') != std::string::npos) {
+        if (std::string::npos != non_repeating.find('.')) {
             // Convert decimal to fraction
             size_t dot_pos = non_repeating.find('.');
             std::string integer_part = non_repeating.substr(0, dot_pos);
             std::string fractional_part = non_repeating.substr(dot_pos + 1);
             
             // Handle negative numbers properly
-            bool is_negative = (non_repeating[0] == '-');
+            bool is_negative = ('-' == non_repeating[0]);
             
             // Parse absolute values
             cpp_int integer_val(integer_part);
@@ -710,7 +710,7 @@ bignum parse_number_string(const std::string& num_str)
         cpp_int rep_numerator(repeating_part);
         size_t fractional_digits = 0;
         size_t dot_pos = non_repeating.find('.');
-        if (dot_pos != std::string::npos) {
+        if (std::string::npos != dot_pos) {
             fractional_digits = non_repeating.length() - dot_pos - 1;
         }
         
@@ -720,7 +720,7 @@ bignum parse_number_string(const std::string& num_str)
         bignum repeating_value(rep_numerator, rep_denominator);
         
         // Handle negative numbers for repeating part
-        if (non_repeating[0] == '-' and base_value == 0) {
+        if ('-' == non_repeating[0] and 0 == base_value) {
             repeating_value = -repeating_value;
         }
         
@@ -728,13 +728,13 @@ bignum parse_number_string(const std::string& num_str)
     }
     
     // Check if it's a regular decimal
-    if (num_str.find('.') != std::string::npos) {
+    if (std::string::npos != num_str.find('.')) {
         size_t dot_pos = num_str.find('.');
         std::string integer_part = num_str.substr(0, dot_pos);
         std::string fractional_part = num_str.substr(dot_pos + 1);
         
         // Handle negative numbers properly
-        bool is_negative = (num_str[0] == '-');
+        bool is_negative = ('-' == num_str[0]);
         
         // Parse absolute values
         cpp_int integer_val(integer_part);
@@ -806,7 +806,7 @@ std::vector<value_ptr> parser::parse_all()
 {
     std::vector<value_ptr> expressions;
     
-    while (current_token().type != token_type::eof) {
+    while (token_type::eof != current_token().type) {
         expressions.push_back(parse_expression());
     }
     

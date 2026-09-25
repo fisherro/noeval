@@ -84,7 +84,7 @@
   "raise should work from within vau operatives")
 
 ; Test 8: raise with wrapped operative
-(define wrapped-raiser (wrap (vau (msg) env (raise msg))))
+(define wrapped-raiser (wrap (vau (msg) _ (raise msg))))
 
 (define-mutable wrapped-error-result "")
 (try (wrapped-raiser "wrapped error")
