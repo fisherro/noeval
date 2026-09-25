@@ -44,7 +44,7 @@
 (define if (vau operands env (eval operands env)))
 
 ; Construct a list from the arguments without evaluating them
-(define unevaluated-list (vau args env args))
+(define unevaluated-list (vau args _ args))
 
 ; or operative - short-circuiting logical or
 ; Returns the first truthy value, or the last value if all are falsy

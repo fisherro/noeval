@@ -52,7 +52,7 @@
   "typeof should return 'cons-cell for cons pairs")
 
 ; Test 6: typeof with operatives
-(define test-vau (vau (x) env x))
+(define test-vau (vau (x) _ x))
 (test-assert
     (= (typeof test-vau) (q operative))
   "typeof should return 'operative for user-defined operatives")
@@ -514,7 +514,7 @@
     (= (operative? cons) true)
   "operative? should return true for built-in list operatives")
 
-(define test-vau-op (vau (x) env x))
+(define test-vau-op (vau (x) _ x))
 (test-assert
     (= (operative? test-vau-op) true)
   "operative? should return true for user-defined vau operatives")
@@ -616,7 +616,7 @@
   "operative? should work with filter to find operatives")
 
 ; Test 13: operative? with various operative types
-(define vau*-test (vau* (x) env x))
+(define vau*-test (vau* (x) _ x))
 (test-assert
     (= (operative? vau*-test) true)
   "operative? should return true for vau* operatives")

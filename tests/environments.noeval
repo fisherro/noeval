@@ -20,7 +20,7 @@
 #end
 
 ; Test exception in environment parameter usage
-(define env-error-vau (vau (expr) env (eval expr "not-an-env")))
+(define env-error-vau (vau (expr) _ (eval expr "not-an-env")))
 (test-error (env-error-vau (+ 1 2)) "invalid environment usage should throw")
 
 

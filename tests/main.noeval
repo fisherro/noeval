@@ -74,7 +74,7 @@
 
 ; Helper operative to create unevaluated expressions for testing
 (define make-expr
-  (vau args env args))
+  (vau args _ args))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Load and run tests
