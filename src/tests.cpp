@@ -7,6 +7,7 @@
 
 #include "noeval.hpp"
 #include "parser.hpp"
+#include "pushback_streambuf.hpp"
 #include "tests.hpp"
 #include "unicode.hpp"
 #include "utils.hpp"
@@ -605,15 +606,28 @@ int test_stream_parsing()
     };
 
     // Pushback works on top of lookahead
-    string_source source("abc");
+    std::istringstream in0("abc");
+    pushback_streambuf buf(in0.rdbuf());
+    using traits = std::char_traits<char>;
     std::string chars;
-    chars += static_cast<char>(source.get());
-    source.unget("xy");
-    check('x' == source.peek() and 'b' == source.peek(2), "Peek sees pushed back characters");
-    for (int ch = source.get(); ch != char_source::eof; ch = source.get()) {
-        chars += static_cast<char>(ch);
+    chars += traits::to_char_type(buf.sbumpc());
+    buf.sputbackc('y');
+    buf.sputbackc('x');
+    check('x' == buf.sgetc() and 'b' == buf.peek(2), "Peek sees pushed back characters");
+    for (int ch = buf.sbumpc(); not traits::eq_int_type(ch, traits::eof()); ch = buf.sbumpc()) {
+        chars += traits::to_char_type(ch);
     }
-    check("axybc" == chars and char_source::eof == source.peek(5), "Pushback returns characters in order");
+    check("axybc" == chars and traits::eq_int_type(traits::eof(), buf.peek(5)),
+          "Pushback returns characters in order");
+
+    // Pushback is unlimited, even after the buffer has been refilled
+    std::string long_number = "-" + std::string(10000, '7');
+    std::istringstream in4(long_number + "x y");
+    lexer lex4(in4);
+    auto long_tok = lex4.next_token();
+    check(token_type::symbol == long_tok.type and long_number + "x" == long_tok.value
+          and "y" == lex4.next_token().value,
+          "Long number-like symbol is relexed from pushed back characters");
 
     // Parsing an expression doesn't consume input beyond it
     std::istringstream in1("(a b) rest\nmore");

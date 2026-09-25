@@ -3,11 +3,13 @@
 #include <istream>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
-#include "char_source.hpp"
 #include "noeval.hpp"
+#include "pushback_streambuf.hpp"
 
 // Token types for lexical analysis
 enum class token_type {
@@ -64,35 +66,47 @@ struct token {
 class lexer {
 public:
     explicit lexer(std::string text);
+    // The lexer reads through `in`'s stream buffer, putting its own pushback
+    // buffer in its place until the lexer is destroyed. `in` must outlive the
+    // lexer.
     explicit lexer(std::istream& in);
-    explicit lexer(std::unique_ptr<char_source> source);
+    ~lexer();
     token next_token();
     position get_position() const { return current_pos_; }
 
 private:
-    std::unique_ptr<char_source> source_;
+    using traits = std::char_traits<char>;
+
+    // Holds the text when lexing a string
+    std::unique_ptr<std::istringstream> owned_input_;
+    std::istream& in_;
+    pushback_streambuf buf_;
     position current_pos_;
     
+    void install_buffer();
+
     // Get current character (or '\0' if at end)
-    char current_char() const { return peek(0); }
+    char current_char() { return to_char(buf_.sgetc()); }
     
     // Check if at end of input
-    bool at_end() const { return char_source::eof == source_->peek(); }
+    bool at_end() { return traits::eq_int_type(buf_.sgetc(), traits::eof()); }
     
     // Advance position by one character
     void advance() {
-        if (not at_end()) {
-            current_pos_.advance(static_cast<char>(source_->get()));
+        int ch = buf_.sbumpc();
+        if (not traits::eq_int_type(ch, traits::eof())) {
+            current_pos_.advance(traits::to_char_type(ch));
         }
     }
     
     // Peek at next character without advancing
-    char peek(size_t ahead = 1) const {
-        int ch = source_->peek(ahead);
-        return char_source::eof == ch ? '\0' : static_cast<char>(ch);
+    char peek(size_t ahead = 1) { return to_char(buf_.peek(ahead)); }
+
+    static char to_char(int ch) {
+        return traits::eq_int_type(ch, traits::eof()) ? '\0' : traits::to_char_type(ch);
     }
     
-    bool matches_keyword(const std::string& keyword);
+    bool matches_keyword(std::string_view keyword);
     void skip_disabled_block();
     void skip_whitespace_and_comments();
     std::string read_symbol();

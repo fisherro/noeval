@@ -46,7 +46,7 @@ void lexer::update_position(char ch)
 // Check for a keyword followed by whitespace or end of input.
 // Characters are compared one at a time so that we never look further ahead
 // than needed.
-bool lexer::matches_keyword(const std::string& keyword)
+bool lexer::matches_keyword(std::string_view keyword)
 {
     for (size_t i = 0; i < keyword.length(); ++i) {
         if (peek(i) != keyword[i]) return false;
@@ -395,16 +395,43 @@ std::string lexer::read_arbitrary_base_digits(int base)
 }
 
 lexer::lexer(std::string text)
-: lexer(std::make_unique<string_source>(std::move(text))) {}
+: owned_input_(std::make_unique<std::istringstream>(std::move(text))),
+  in_(*owned_input_), buf_(in_.rdbuf()), current_pos_(1, 1, 0)
+{
+    install_buffer();
+}
 
 lexer::lexer(std::istream& in)
-: lexer(std::make_unique<istream_source>(in)) {}
+: in_(in), buf_(in.rdbuf()), current_pos_(1, 1, 0)
+{
+    install_buffer();
+}
 
-lexer::lexer(std::unique_ptr<char_source> source)
-: source_(std::move(source)), current_pos_(1, 1, 0) {}
+// Reads from the stream go through our buffer while the lexer exists, so
+// anything else reading the stream sees the characters the lexer read ahead
+// or pushed back.
+void lexer::install_buffer()
+{
+    auto state = in_.rdstate();
+    in_.rdbuf(&buf_);
+    in_.clear(state);
+}
+
+lexer::~lexer()
+{
+    if (in_.rdbuf() != &buf_) return;
+    buf_.return_unread();
+    auto state = in_.rdstate();
+    in_.rdbuf(buf_.source());
+    in_.clear(state);
+}
 
 token lexer::next_token()
 {
+    // We bypass the stream's sentry, so flush any tied output ourselves in
+    // case we're about to wait for input.
+    if (in_.tie()) in_.tie()->flush();
+
     skip_whitespace_and_comments();
 
     if (at_end()) {
@@ -451,7 +478,9 @@ token lexer::next_token()
             current_char() != ';') {
             // Not at a valid boundary - this means we have something like "-123abc"
             // Push the characters back and treat the whole thing as a symbol
-            source_->unget(number_str);
+            for (auto it = number_str.rbegin(); it != number_str.rend(); ++it) {
+                buf_.sputbackc(*it);
+            }
             current_pos_ = start_position;
             return token(token_type::symbol, read_symbol(), token_start);
         }
