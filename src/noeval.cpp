@@ -6,11 +6,13 @@
 #include <algorithm>
 #include <cstdlib>
 #include <chrono>
+#include <filesystem>
 #include <format>
 #include <functional>
 #include <memory>
 #include <print>
 #include <ranges>
+#include <set>
 #include <stacktrace>
 #include <string_view>
 #include <string>
@@ -168,6 +170,21 @@ std::string value_type_string(const value_ptr& val)
     return std::visit([](const auto& v) -> std::string {
         return demangle<decltype(v)>();
     }, val->data);
+}
+
+std::string source_location::to_string() const
+{
+    if (not file) return "";
+    return std::format("{}:{}:{}", *file, line, column);
+}
+
+const std::string* intern_file_name(std::string_view name)
+{
+    // Set nodes don't move, so the pointers stay valid.
+    static std::set<std::string, std::less<>> names;
+    auto it = names.find(name);
+    if (it == names.end()) it = names.emplace(name).first;
+    return &*it;
 }
 
 std::string cons_cell::to_string() const
@@ -419,18 +436,45 @@ continuation_type operate_builtin(const builtin_operative& op, value_ptr operand
 
 struct call_stack {
 private:
-    // These were thread_local, but we aren't using threads (yet).
     // We store the expressions rather than their string forms. Converting
     // every expression to a string as it is evaluated is expensive, and we
     // only need the strings when formatting a stack trace. (Expressions are
     // immutable, so the strings will be the same.)
-    inline static std::vector<value_ptr> stack;
+    struct frame {
+        // The expression eval was called with
+        value_ptr expr;
+        // A tail call reuses the frame, which would otherwise hide where
+        // evaluation had got to. So this is the latest expression reached by
+        // tail call that has a source location, or null if there isn't one.
+        value_ptr tail_expr;
+    };
+
+    // These were thread_local, but we aren't using threads (yet).
+    inline static std::vector<frame> stack;
     inline static size_t max_depth{0};
+
+    static source_location location_of(const value_ptr& expr)
+    {
+        if (not expr) return {};
+        if (auto cell = std::get_if<cons_cell>(&expr->data)) {
+            return cell->location;
+        }
+        return {};
+    }
+
+    static std::string describe(const value_ptr& expr)
+    {
+        if (auto loc = location_of(expr)) {
+            return std::format("{} at {}", value_to_string(expr), loc.to_string());
+        }
+        return value_to_string(expr);
+    }
+
 public:
     struct guard {
         guard(value_ptr expr)
         {
-            stack.push_back(std::move(expr));
+            stack.push_back({std::move(expr), nullptr});
             if (depth() > max_depth) max_depth = depth();
         }
         ~guard()
@@ -439,15 +483,34 @@ public:
                 stack.pop_back();
             }
         }
+        // Record a tail call. Any frames pushed since this guard's have been
+        // popped, so its frame is the top one.
+        void tail_call(const value_ptr& expr)
+        {
+            if (location_of(expr)) stack.back().tail_expr = expr;
+        }
     };
 
     static std::string format()
     {
         std::string result;
-        for (const auto& [index, expr] : stack | std::views::enumerate) {
-            result += std::format("{}: {}\n", index, value_to_string(expr));
+        for (const auto& [index, f] : stack | std::views::enumerate) {
+            result += std::format("{}: {}\n", index, describe(f.expr));
+            if (f.tail_expr) {
+                result += std::format("   tail call: {}\n", describe(f.tail_expr));
+            }
         }
         return result;
+    }
+
+    // The location of the innermost frame that has one
+    static source_location location()
+    {
+        for (const auto& f: stack | std::views::reverse) {
+            if (auto loc = location_of(f.tail_expr)) return loc;
+            if (auto loc = location_of(f.expr)) return loc;
+        }
+        return {};
     }
 
     static size_t depth() { return stack.size(); }
@@ -456,6 +519,8 @@ public:
     static void  reset_max_depth() { max_depth = 0; }
     static size_t get_max_depth()  { return max_depth; }
 };
+
+std::string current_source_location() { return call_stack::location().to_string(); }
 
 void   call_stack_reset_max_depth() { call_stack::reset_max_depth(); }
 size_t call_stack_get_max_depth()   { return call_stack::get_max_depth(); }
@@ -1449,29 +1514,12 @@ namespace builtins {
         auto filename = std::get<std::string>(filename_val->data);
         
         try {
-            std::string content = read_file_content(filename);
-            
-            if (content.empty()) {
-                return value::make(nullptr); // Return nil for empty files
-            }
-            
-            parser p(content);
-            auto expressions = p.parse_all();
-            
-            value_ptr result = value::make(nullptr); // Default to nil
-            
-            // Evaluate each expression in sequence using top_level_eval
-            for (const auto& expr : expressions) {
-                result = top_level_eval(expr, env);  // This is the key change
-            }
-            
-            return result; // Return result of last expression
-            
+            return load_file(filename, env);
         } catch (const evaluation_error&) {
             throw; // Re-throw evaluation errors unchanged
         } catch (const std::exception& e) {
             throw evaluation_error(
-                std::format("include: {}", e.what()),
+                std::format("load: {}", e.what()),
                 std::format("(load \"{}\")", filename),
                 call_stack::format()
             );
@@ -1977,6 +2025,7 @@ value_ptr eval(value_ptr expr, env_ptr env)
             if (auto tc{std::get_if<tail_call>(&k)}) {
                 expr = tc->expr;
                 env = tc->env;
+                g.tail_call(expr);
                 NOEVAL_DEBUG(tco, "Tail call!");
                 continue;
             }
@@ -2006,135 +2055,83 @@ value_ptr top_level_eval(value_ptr expr, env_ptr env)
     return eval(expr, env);
 }
 
-//TODO: Refactor this, load_library_file, and run_library_tests to share code.
+// The files being loaded, innermost last
+static std::vector<std::filesystem::path> loading_files;
+
+value_ptr load_file(const std::string& filename, env_ptr env)
+{
+    std::filesystem::path path{filename};
+    if (path.is_relative() and not loading_files.empty()) {
+        path = loading_files.back().parent_path() / path;
+    }
+
+    std::string content = read_file_content(path.string());
+    parser p(content, path.string());
+    auto expressions = p.parse_all();
+
+    loading_files.push_back(path);
+    struct pop_guard {
+        ~pop_guard() { loading_files.pop_back(); }
+    } pop;
+
+    value_ptr result = value::make(nullptr);
+    for (const auto& expr: expressions) {
+        result = top_level_eval(expr, env);
+    }
+    return result;
+}
+
 bool execute_script(const std::string& filename, env_ptr env)
 {
     try {
-        std::string content = read_file_content(filename);
-        
-        if (content.empty()) {
-            std::println("Script file is empty or not found");
-            return false;
-        }
-        
-        parser p(content);
-        auto expressions = p.parse_all();
-        
-        for (const auto& expr: expressions) {
-            try {
-                //TODO: Should our result code be determined by the result of
-                //      the last expression?
-                top_level_eval(expr, env);
-            } catch (const std::exception& e) {
-                std::println("  Error executing expression '{}': {}", value_to_string(expr), e.what());
-                return false;
-            }
-        }
-        
-        return true;        
+        //TODO: Should our result code be determined by the result of the
+        //      last expression?
+        load_file(filename, env);
+        return true;
     } catch (const std::exception& e) {
-        std::println("Error: Could not execute script {}: {}", filename, e.what());
+        std::println("Error: {}", e.what());
         return false;
     }
 }
 
 bool load_library_file(const std::string& filename, env_ptr env)
 {
-    bool ok{true};
+    std::println("Loading library: {}", filename);
     try {
-        std::string content = read_file_content(filename);
-        
-        if (content.empty()) {
-            return ok;
-        }
-        
-        std::println("Loading library: {}", filename);
-        
-        parser p(content);
-        auto expressions = p.parse_all();
-        
-        for (const auto& expr: expressions) {
-            try {
-                auto result = top_level_eval(expr, env);
-                NOEVAL_DEBUG(library, "Loaded: {} => {}", value_to_string(expr), value_to_string(result));
-            } catch (const std::exception& e) {
-                ok = false;
-                std::println("  Error loading expression '{}': {}", value_to_string(expr), e.what());
-            }
-        }
-        
-        if (ok) std::println("Library loaded successfully.\n");
-        
+        load_file(filename, env);
     } catch (const std::exception& e) {
-        std::println("Warning: Could not load library {}: {}", filename, e.what());
-        ok = false;
+        std::println("Error loading library: {}", e.what());
+        return false;
     }
-    return ok;
+    std::println("Library loaded successfully.\n");
+    return true;
 }
 
 // Function to run library tests from file
 int run_library_tests(env_ptr outer_env)
 {
     std::println("Running library tests from file...");
-    
+
+    // Make an isolated test environment
+    auto env = environment::make(outer_env);
+
+    value_ptr result;
     try {
-        // Load and run the test file
-        std::string content = read_file_content("tests/main.noeval");
-        
-        if (content.empty()) {
-            std::println("Test file is empty or not found");
-            return 1;
-        }
-        
-        parser p(content);
-        auto expressions = p.parse_all();
-        
-        // Make an isolated test environment
-        auto env = environment::make(outer_env);
-
-        value_ptr result;
-        size_t exception_count{0};
-        for (const auto& expr: expressions) {
-            try {
-                result = top_level_eval(expr, env);
-            } catch (const std::exception& e) {
-                std::println("\nError in test: {}", value_to_string(expr));
-                std::println("Error: {}", e.what());
-                ++exception_count;
-#define BREAK_ON_LIBRARY_TEST_FAILURE 1
-#ifdef BREAK_ON_LIBRARY_TEST_FAILURE
-                break;
-#endif
-            }
-        }
-
-        if (exception_count > 0) {
-            println_red(
-                "\n✗ {} exception{} caught",
-                exception_count,
-                exception_count == 1? "": "s");
-            return 1;
-        }
-
-        // The last expression should be the test result
-        if (result) {
-            std::string result_str = value_to_string(result);
-            if (result_str == "\"All library tests passed!\"") {
-                std::println("\n✓ {}", result_str.substr(1, result_str.length() - 2)); // Remove quotes
-                return 0;
-            } else {
-                println_red("\n✗ Library tests failed with result: {}", result_str);
-                return 1;
-            }
-        }
-        
-        println_red("✗ No test result returned");
-        return 1;
-        
+        result = load_file("tests/main.noeval", env);
     } catch (const std::exception& e) {
-        println_red("✗ Failed to run library tests: {}", e.what());
+        std::println("\nError: {}", e.what());
+        println_red("\n✗ Exception caught");
         return 1;
     }
+
+    // The last expression should be the test result
+    std::string result_str = value_to_string(result);
+    if (result_str == "\"All library tests passed!\"") {
+        std::println("\n✓ {}", result_str.substr(1, result_str.length() - 2)); // Remove quotes
+        return 0;
+    }
+    println_red("\n✗ Library tests failed with result: {}", result_str);
+    return 1;
 }
 
 // Ask whether to continue despite test failures. Only ask when stdin is a

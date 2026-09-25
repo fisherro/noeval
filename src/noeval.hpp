@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
@@ -45,10 +46,31 @@ struct symbol {
     bool operator==(const symbol& that) const { return name == that.name; }
 };
 
+// Where in a source file an expression came from. The parser records one for
+// each list it reads, so that errors can report where the failing expression
+// is. Lists built at runtime have none.
+struct source_location {
+    // An interned file name (see intern_file_name), or null if there is no
+    // location.
+    const std::string* file{nullptr};
+    std::uint32_t line{0};
+    std::uint32_t column{0};
+
+    explicit operator bool() const { return file != nullptr; }
+    std::string to_string() const;
+};
+
+// File names live for the life of the program, so a source_location can
+// point to one without owning it.
+const std::string* intern_file_name(std::string_view name);
+
 struct cons_cell {
     value_ptr car;
     value_ptr cdr;
-    cons_cell(value_ptr a, value_ptr d) : car(std::move(a)), cdr(std::move(d)) {}
+    // Not part of the cell's value, so operator== ignores it.
+    source_location location;
+    cons_cell(value_ptr a, value_ptr d, source_location loc = {})
+        : car(std::move(a)), cdr(std::move(d)), location(loc) {}
     std::string to_string() const;
     bool operator==(const cons_cell& that) const;
 };
@@ -221,29 +243,38 @@ public:
     std::string dump_chain() const;
 };
 
+// The location of the innermost expression being evaluated that has one, as
+// "file:line:column", or empty if none does.
+std::string current_source_location();
+
 // Custom exception class with context
 class evaluation_error: public std::runtime_error {
 public:
     std::string message;
     std::string context;
     std::string stack_trace;
+    std::string location;
     
+    // The location defaults to where evaluation is when the error is thrown.
     evaluation_error(
         const std::string& msg,
         const std::string& ctx = "",
-        const std::string& stack = "")
-        : std::runtime_error(format_message(msg, ctx, stack)),
+        const std::string& stack = "",
+        const std::string& loc = current_source_location())
+        : std::runtime_error(format_message(msg, ctx, stack, loc)),
           message(msg),
           context(ctx),
-          stack_trace(stack) {}
+          stack_trace(stack),
+          location(loc) {}
 
 private:
     static std::string format_message(
         const std::string& msg,
         const std::string& ctx,
-        const std::string& stack)
+        const std::string& stack,
+        const std::string& loc)
     {
-        std::string message = msg;
+        std::string message = loc.empty()? msg: loc + ": " + msg;
         if (!ctx.empty()) message += "\n while evaluating: " + ctx;
         if (!stack.empty()) message += "\n stack trace:\n" + stack;
         return message;
@@ -269,6 +300,10 @@ env_ptr create_top_level_environment();
 // This creates a new top-level environment, loads the library, and runs the
 // library tests if specified.
 env_ptr reload_top_level_environment(bool test_the_library = true);
+// Parse and evaluate each expression in a file, returning the value of the
+// last one. A relative filename is resolved against the directory of the file
+// currently being loaded, if there is one.
+value_ptr load_file(const std::string& filename, env_ptr env);
 
 // String conversion functions
 std::string to_string(const bignum& value);

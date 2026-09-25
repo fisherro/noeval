@@ -27,10 +27,22 @@ jobs:
       - name: Build
         run: make -j"$(nproc)" CXX=g++-14
 
-      - name: Run C++ and library tests
-        run: bin/noeval --tests
+      - name: Run tests
+        run: make test CXX=g++-14
 
-      - name: Run GC tests under stress
-        env:
-          NOEVAL_GC_STRESS: 1
-        run: bin/noeval --gc-tests
+  sanitize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libboost-dev libreadline-dev
+
+      - name: Build
+        run: make -j"$(nproc)" sanitize CXX=g++-14
+
+      - name: Run tests under ASan, UBSan, and GC stress
+        run: make test-sanitize CXX=g++-14
