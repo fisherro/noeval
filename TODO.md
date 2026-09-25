@@ -58,6 +58,8 @@ Ensure REPL tab completion works for REPL special commands
 
 Add validation of the bindings structures to let
 
+Provide something like `get-builtins` that the check dependencies program could use.
+
 ## Ideas
 
 Questions, things to consider, and open-ended design work.
