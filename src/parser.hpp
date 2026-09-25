@@ -1,8 +1,12 @@
 #pragma once
 
+#include <istream>
+#include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "char_source.hpp"
 #include "noeval.hpp"
 
 // Token types for lexical analysis
@@ -60,32 +64,32 @@ struct token {
 class lexer {
 public:
     explicit lexer(std::string text);
+    explicit lexer(std::istream& in);
+    explicit lexer(std::unique_ptr<char_source> source);
     token next_token();
     position get_position() const { return current_pos_; }
 
 private:
-    std::string input_;
+    std::unique_ptr<char_source> source_;
     position current_pos_;
     
     // Get current character (or '\0' if at end)
-    char current_char() const {
-        return current_pos_.offset() < input_.size() ? input_[current_pos_.offset()] : '\0';
-    }
+    char current_char() const { return peek(0); }
     
     // Check if at end of input
-    bool at_end() const { return current_pos_.offset() >= input_.size(); }
+    bool at_end() const { return char_source::eof == source_->peek(); }
     
     // Advance position by one character
     void advance() {
         if (not at_end()) {
-            current_pos_.advance(input_[current_pos_.offset()]);
+            current_pos_.advance(static_cast<char>(source_->get()));
         }
     }
     
     // Peek at next character without advancing
     char peek(size_t ahead = 1) const {
-        size_t pos = current_pos_.offset() + ahead;
-        return pos < input_.size() ? input_[pos] : '\0';
+        int ch = source_->peek(ahead);
+        return char_source::eof == ch ? '\0' : static_cast<char>(ch);
     }
     
     bool matches_keyword(const std::string& keyword);
@@ -104,14 +108,18 @@ private:
 class parser {
 public:
     explicit parser(std::string input);
+    explicit parser(std::istream& in);
     value_ptr parse_expression();
     value_ptr parse();
     std::vector<value_ptr> parse_all();
 
 private:
     lexer lex;
-    token current_token{token_type::eof};
+    // The lookahead token. It is fetched only when needed so that parsing an
+    // expression doesn't read input beyond the end of that expression.
+    std::optional<token> current_token_;
     
+    const token& current_token();
     void advance();
     value_ptr parse_list();
 };

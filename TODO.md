@@ -22,10 +22,25 @@ Implement transducers (See Clojure and SRFI-171)
 
 Should use of `read` be prevented from the REPL?
 
-Change parser to use a "stream" "adaptor" that can wrap stdin or std::cin and
-provide arbitrary pushback.
+`read` and the REPL can steal each other's input when stdin isn't a terminal.
+`read` parses `std::cin`, while the REPL reads through readline. When stdin is
+a pipe or file, stdio fills its buffer with a whole block, so after
+`(read)`, lines meant for the REPL may be sitting in `std::cin`'s buffer
+where readline never sees them. (On a terminal, input arrives a line at a
+time, so it works.) Fixing this would mean having the REPL and `read` share
+one `char_source`, or disallowing `read` from the REPL.
 
-Fix the read builtin so that it doesn't read everything up-front
+Speed up the lexer's `char_source`. Switching the lexer from indexing a string
+to pulling characters through a `char_source` made parsing slower (a 6.9 MB
+file took 28% longer at `-O2` and 87% longer at `-O0`). Every character now
+goes through a virtual `fetch()` and a `std::deque`, and the lexer peeks
+several times per character through a `unique_ptr`. Possible fixes:
+
+* Have `string_source` index its string directly and only use the pushback
+  buffer when something has been pushed back.
+* Have `istream_source` read in chunks rather than one `get()` per character.
+  (Take care that `read` on an interactive stream still doesn't block waiting
+  for more input than the current expression needs.)
 
 Have the parser track the file path so that `load` can use its directory as the "current directory" for relative paths.
 
