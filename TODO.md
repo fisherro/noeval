@@ -133,3 +133,10 @@ Function overloading or multimethods? Some way to allow the list functions to wo
 User-defined types?
 
 Consider switching to intrusive reference counting
+
+`cond` re-runs `cond-transformer` (a `foldr` plus `length` and validation for
+each clause) every time it's evaluated. For 2,000 calls, a four-clause `cond`
+takes about 7 s where the equivalent nested `if` takes about 1 s, and it
+accounts for nearly all of `codepoints->utf8`'s time. Expansion-time macros
+would fix this by transforming once. Short of that, a cheaper transformer, or
+evaluating clauses directly instead of building an `if` chain, would help.
