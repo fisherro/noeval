@@ -436,13 +436,17 @@ continuation_type operate_builtin(const builtin_operative& op, value_ptr operand
 struct call_stack {
 private:
     // These were thread_local, but we aren't using threads (yet).
-    inline static std::vector<std::string> stack;
+    // We store the expressions rather than their string forms. Converting
+    // every expression to a string as it is evaluated is expensive, and we
+    // only need the strings when formatting a stack trace. (Expressions are
+    // immutable, so the strings will be the same.)
+    inline static std::vector<value_ptr> stack;
     inline static size_t max_depth{0};
 public:
     struct guard {
         guard(value_ptr expr)
         {
-            stack.push_back(value_to_string(expr));
+            stack.push_back(std::move(expr));
             if (depth() > max_depth) max_depth = depth();
         }
         ~guard()
@@ -456,8 +460,8 @@ public:
     static std::string format()
     {
         std::string result;
-        for (const auto& [index, line] : stack | std::views::enumerate) {
-            result += std::format("{}: {}\n", index, line);
+        for (const auto& [index, expr] : stack | std::views::enumerate) {
+            result += std::format("{}: {}\n", index, value_to_string(expr));
         }
         return result;
     }

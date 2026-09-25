@@ -121,6 +121,12 @@ Status: done (before Phase 2, as suggested above).
     evaluates its arguments even when its category is off, and
     `call_stack::guard` converts every expression to a string. That, not the
     collector, is now the bigger cost.
+  * Follow-up: `NOEVAL_DEBUG` now only evaluates its arguments when its
+    category is enabled, and the call stack stores expressions and only
+    converts them to strings when formatting a stack trace. The full run
+    went from 107 to 29 seconds with `-O2` (164 seconds with the Makefile's
+    default flags), with identical output. The collector is now about half
+    of the remaining time.
 * The Makefile doesn't enable optimization, so the default build is several
   times slower than the numbers above.
 
