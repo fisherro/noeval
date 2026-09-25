@@ -22,6 +22,14 @@ Implement transducers (See Clojure and SRFI-171)
 
 Should use of `read` be prevented from the REPL?
 
+`read` and the REPL can steal each other's input when stdin isn't a terminal.
+`read` parses `std::cin`, while the REPL reads through readline. When stdin is
+a pipe or file, stdio fills its buffer with a whole block, so after
+`(read)`, lines meant for the REPL may be sitting in `std::cin`'s buffer
+where readline never sees them. (On a terminal, input arrives a line at a
+time, so it works.) Fixing this would mean having the REPL and `read` share
+one `char_source`, or disallowing `read` from the REPL.
+
 Have the parser track the file path so that `load` can use its directory as the "current directory" for relative paths.
 
 Capture the accumulator and the accumulate-reverse patterns in library forms.
