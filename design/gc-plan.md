@@ -95,6 +95,18 @@ probably come before Phase 2.
   compiler will flag the `.get()` calls and the `value::make(env_root_ptr)`
   overload.
 
+Status: done (after Phase 3).
+
+* The root machinery is gone, along with the `gc_roots` debug category and
+  the `#<environment-root:...>` string form.
+* REPL tab completion used `get_root_symbols()`. It now uses the symbols
+  visible from the REPL's own environment.
+* An empty `NOEVAL_GC_STRESS` (or `0`) now means stress mode is off. Before,
+  any value turned it on, and an empty one collected on every allocation.
+* All C++ and library tests pass, with the same output as before, also under
+  `NOEVAL_GC_STRESS=37`. A full run takes 24 seconds with `-O2` and 123
+  seconds with the Makefile's default flags.
+
 ## Phase 3: Collection scheduling
 
 * Stop collecting on every eval step (`if (++count > 0)` in `eval`). That is

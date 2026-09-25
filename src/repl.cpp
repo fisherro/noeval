@@ -33,6 +33,9 @@ std::string read_with_readline(const std::string& prompt)
     return line.get();
 }
 
+// The environment the REPL is evaluating in, used for tab completion
+static std::weak_ptr<environment> completion_env;
+
 // Completion generator function
 char* symbol_generator(const char* prefix, int state)
 {
@@ -44,8 +47,9 @@ char* symbol_generator(const char* prefix, int state)
         matches.clear();
         match_index = 0;
         
-        // Get all symbols from the root environments
-        auto symbols = environment::get_root_symbols();
+        // Get all symbols visible from the REPL's environment
+        std::vector<std::string> symbols;
+        if (auto env = completion_env.lock()) symbols = env->get_all_symbols();
         // So annoying that we have std::bind_back, but it doesn't work
         // with overload sets.
         auto string_starts_with = [](const std::string& str, const char* prefix) {
@@ -332,7 +336,7 @@ bool handle_special_command(const std::string& input)
         iss >> command >> option;
         
         bool test_the_library = (option != "fast");
-        bool ok = reload_top_level_environment(test_the_library);
+        bool ok = static_cast<bool>(reload_top_level_environment(test_the_library));
         if (ok) {
             std::println("Environment reloaded successfully{}", 
                         test_the_library? " (with tests)": " (skipping tests)");
@@ -346,7 +350,7 @@ bool handle_special_command(const std::string& input)
 }
 
 // Evaluate an expression string in the given environment
-value_ptr eval_expression(const std::string& expr_str, env_root_ptr env)
+value_ptr eval_expression(const std::string& expr_str, env_ptr env)
 {
     parser p(expr_str);
     auto expr = p.parse();
@@ -366,8 +370,9 @@ void print_error(const std::exception& e)
 }
 
 // Simple REPL with multi-line support
-void repl(env_root_ptr env)
+void repl(env_ptr env)
 {
+    completion_env = env;
 #if 0
     // I'm not ready to enable saving the history yet.
     auto history_file = get_history_file();

@@ -12,10 +12,10 @@
 
 // Helper function for running tests
 struct test_runner {
-    env_root_ptr env;
+    env_ptr env;
     int failures = 0;
 
-    test_runner(env_root_ptr e): env(e) {}
+    test_runner(env_ptr e): env(e) {}
     bool test_eval(const std::string& input, const std::string& expected_output);
     bool test_error(const std::string& input, const std::string& expected_error_substring);
 };
@@ -1288,7 +1288,7 @@ namespace {
         ~gc_stress_mode() { environment::set_stress_interval(previous); }
     };
 
-    value_ptr parse_and_eval(const std::string& input, env_root_ptr env)
+    value_ptr parse_and_eval(const std::string& input, env_ptr env)
     {
         parser p(input);
         return top_level_eval(p.parse(), env);
@@ -1296,7 +1296,7 @@ namespace {
 
     // Returns 0 on success and 1 on failure, like the other test functions.
     int test_gc_no_leak(
-        env_root_ptr top_env,
+        env_ptr top_env,
         const std::string& name,
         const std::string& setup,
         const std::string& expr,
