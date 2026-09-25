@@ -18,6 +18,8 @@ Update noeval-reference.md
 
 ## Planned
 
+Make the default build optimized.
+
 Concrete, scoped work that could be picked up without first deciding whether
 or how to do it.
 
