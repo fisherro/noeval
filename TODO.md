@@ -123,3 +123,5 @@ Add validation of the bindings structures to let
 Function overloading or multimethods? Some way to allow the list functions to work on any sequence.
 
 User-defined types?
+
+Consider switching to intrusive reference counting
