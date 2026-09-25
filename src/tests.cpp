@@ -1334,6 +1334,46 @@ namespace {
         }
     }
 
+    // Evaluating expr shouldn't create any cycles, so reference counting alone
+    // should free every environment it creates. The number of iterations is
+    // kept small enough that no collection is triggered.
+    int test_gc_no_cycles(
+        env_ptr top_env,
+        const std::string& name,
+        const std::string& setup,
+        const std::string& expr,
+        const std::string& expected_output,
+        int iterations = 10)
+    {
+        try {
+            auto env = environment::make(top_env);
+            if (not setup.empty()) parse_and_eval(setup, env);
+            environment::collect();
+            auto before = environment::get_constructed_count();
+
+            for (int i = 0; i < iterations; ++i) {
+                auto actual_output = value_to_string(parse_and_eval(expr, env));
+                if (actual_output != expected_output) {
+                    println_red("✗ gc: {}: {} (iteration {}): expected {}, got {}",
+                        name, expr, i, expected_output, actual_output);
+                    return 1;
+                }
+            }
+
+            auto after = environment::get_constructed_count();
+            if (after != before) {
+                println_red("✗ gc: {}: {} environments left for the collector "
+                    "after {} evaluations of {}", name, after - before, iterations, expr);
+                return 1;
+            }
+            std::println("✓ gc: {}", name);
+            return 0;
+        } catch (const std::exception& e) {
+            println_red("✗ gc: {}: threw exception: {}", name, e.what());
+            return 1;
+        }
+    }
+
     // All environments should be destroyed once the top-level environment is
     // no longer referenced.
     int test_gc_teardown()
@@ -1407,6 +1447,12 @@ int run_gc_tests()
             failures += test_gc_no_leak(library_env, "temporary lambda",
                 "",
                 "((lambda (x) (+ x 1)) 41)", "42");
+
+            // Calling a wrapped operative shouldn't leave any cycles behind.
+            // (eval-list used to create one on every call.)
+            failures += test_gc_no_cycles(library_env, "lambda call without cycles",
+                "(define f (lambda (x) (+ x 1)))",
+                "(f 41)", "42");
         }
     }
     failures += test_gc_teardown();

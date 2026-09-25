@@ -4,7 +4,7 @@ Summary to use as Github Copilot context so that it doesn't have to reference la
 
 ## Built-in Operatives (C++)
 
-**Control**: `vau`, `eval`, `define`, `invoke`, `do`, `try`, `raise`, `load`
+**Control**: `vau`, `eval`, `eval-list`, `define`, `invoke`, `do`, `try`, `raise`, `load`
 **Arithmetic**: `+`, `-`, `*`, `/` (evaluate all arguments)
 **Numeric operations**: `numerator`, `denominator`, `remainder`
 **Numeric comparisons**: `<=>` (evaluate all arguments)
@@ -39,7 +39,7 @@ Summary to use as Github Copilot context so that it doesn't have to reference la
 **Control**: `when`, `unless`, `and`, `or`, `not`
 **Predicates**: `odd?`, `even?`, `number?`, `integer?`, `string?`, `symbol?`, `list?`, `operative?`, `environment?`
 **I/O**: `newline`, `displayln`, `lndisplayln`, `for-each`
-**Meta**: `q`, `get-current-environment`, `unevaluated-list`, `eval-list`
+**Meta**: `q`, `get-current-environment`, `unevaluated-list`
 **Examples**: `countdown`, `factorial`
 **Comparisons**: `!=`, `<>` (alias for `!=`)
 **Numeric comparisons**: `<`, `>`, `<=`, `>=` (with Unicode aliases `≤`, `≥`)

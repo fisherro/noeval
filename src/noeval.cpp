@@ -830,6 +830,52 @@ namespace builtins {
         return eval(call_expr, env);
     }
 
+    // Evaluates both arguments, then evaluates each element of the list in the
+    // environment and returns a list of the results.
+    // This used to be in the library, but its helper operative created a
+    // cycle (environment → binding → operative → closure environment) on every
+    // call, and nearly every call to a wrapped operative goes through it.
+    continuation_type eval_list_operative(const std::vector<value_ptr>& args, env_ptr env)
+    {
+        if (args.size() != 2) {
+            throw evaluation_error(
+                std::format("eval-list: expected 2 arguments (list env), got {}", args.size()),
+                "eval-list",
+                call_stack::format()
+            );
+        }
+
+        auto env_val = eval(args[1], env);
+        auto list = eval(args[0], env);
+        if (not is_nil(list) and not is_cons(list)) {
+            throw evaluation_error(
+                "eval-list's first argument must be a list",
+                std::format("(eval-list {} {})", expr_context(args[0]), expr_context(args[1])),
+                call_stack::format()
+            );
+        }
+        if (not std::holds_alternative<env_ptr>(env_val->data)) {
+            throw evaluation_error(
+                std::format("eval-list: second argument must evaluate to an environment, got {}",
+                        value_to_string(env_val)),
+                std::format("(eval-list {} {})", expr_context(args[0]), expr_context(args[1])),
+                call_stack::format()
+            );
+        }
+        auto target_env = std::get<env_ptr>(env_val->data);
+
+        std::vector<value_ptr> results;
+        for (const auto& expr: list_to_vector(list)) {
+            results.push_back(eval(expr, target_env));
+        }
+
+        value_ptr result = value::make(nullptr);
+        for (auto it = results.rbegin(); it != results.rend(); ++it) {
+            result = value::make(cons_cell{*it, result});
+        }
+        return result;
+    }
+
     // Evaluates each argument
     continuation_type do_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
@@ -1509,6 +1555,7 @@ env_ptr create_top_level_environment()
     // Control
     define_builtin("vau", builtins::vau_operative);
     define_builtin("eval", builtins::eval_operative);
+    define_builtin("eval-list", builtins::eval_list_operative);
     define_builtin("define", builtins::define_operative);
     define_builtin("invoke", builtins::invoke_operative);
     define_builtin("try", builtins::try_operative);
