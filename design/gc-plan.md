@@ -155,6 +155,16 @@ Status: done (before Phase 2, as suggested above).
   environments so that garbage collection may be done during top-level
   evaluations".
 
+Status: done.
+
+* `env-gc.md` now describes the current collector, when it runs, the rules for
+  C++ code, and how to test and debug it.
+* `gc.md` has a pointer to `env-gc.md`, and its claims about `set!` and
+  `env_root_ptr` are corrected.
+* `TODO.md` no longer lists the GC items that are done (collection points,
+  child tracking, `environment::unregister`).
+* `noeval-reference.md` describes the current collector.
+
 ## Phase 5 (optional, needs a decision): Stop creating a cycle on every call
 
 Make `wrap` a primitive, implemented as an "applicative" flag on `operative`
