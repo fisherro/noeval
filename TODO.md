@@ -42,9 +42,18 @@ Check in the definition of the `gcc-rlf:latest` container image, or stop
 using it. `test-dependency-checker.zsh` runs in it, but a fresh clone can't
 build it.
 
+`prepend`'s `recurse` helper is bound in the top-level environment, because
+it's defined inside a `do`, which doesn't create an environment. Define it
+somewhere that does, such as a `let` or `lambda*`.
+
 ## Ideas
 
 Questions, things to consider, and open-ended design work.
+
+`cond`'s helpers (`cond-clauses`, `cond-clause`, `cond-test`, and
+`cond-body`) are global names. Should they be hidden? Defining them inside
+`cond` would rebuild them on every call, which would give back some of the
+speed `cond` gained by evaluating its clauses directly.
 
 Implement transducers (See Clojure and SRFI-171)
 
