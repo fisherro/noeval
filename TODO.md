@@ -40,9 +40,13 @@ Add validation of the bindings structures to let
 
 Provide something like `get-builtins` that the check dependencies program could use.
 
-Check in the definition of the `gcc-rlf:latest` container image. The
-devcontainer and `test-dependency-checker.zsh` use it, but a fresh clone can't
+Check in the definition of the `gcc-rlf:latest` container image, or stop
+using it. `test-dependency-checker.zsh` runs in it, but a fresh clone can't
 build it.
+
+Bring the code added in PRs #14 through #16 into line with `STYLE.md`. It was
+written without checking the style rules (for example, `it == names.end()` in
+`intern_file_name` isn't constant-first).
 
 ## Ideas
 
@@ -153,8 +157,3 @@ currently missing `read`, `eof-object?`, `nth`, `any?`, `all?`, `take`,
 `string-length`, `string-nth`, and `substring` convert the whole string to a
 list on every call, so indexing a string in a loop is quadratic.
 (Benchmarks: `string-index` and `substring`.)
-
-Consolidate the AI agent instructions. `.github/copilot-instructions.md` refers
-to VS Code tasks, but `.vscode/` is ignored, and there is no `CLAUDE.md`. One
-shared file (or a `CLAUDE.md` that points to it) would keep agents working
-from the same style rules.

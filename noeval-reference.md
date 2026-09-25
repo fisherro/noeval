@@ -1,6 +1,6 @@
 # Noeval Language Reference
 
-Summary to use as Github Copilot context so that it doesn't have to reference large amounts of interpreter code when working on code in the Noeval language itself.
+A summary of the language, for working on Noeval code (for example, as context for an AI agent) without reading large amounts of interpreter code.
 
 ## Built-in Operatives (C++)
 
