@@ -3,10 +3,13 @@
 #include <exception>
 #include <filesystem>
 #include <iostream>
+#include <optional>
 #include <print>
 #include <ranges>
 #include <sstream>
 #include <string>
+
+#include <unistd.h>
 
 #include <readline/history.h>
 #include <readline/readline.h>
@@ -25,11 +28,12 @@ std::string get_history_file()
     return std::format("{}/.noeval_history", home);
 }
 
-std::string read_with_readline(const std::string& prompt)
+// Returns std::nullopt at EOF
+std::optional<std::string> read_with_readline(const std::string& prompt)
 {
     std::unique_ptr<char, decltype([](char* p){ std::free(p); })>
         line(readline(prompt.c_str()));
-    if (not line) return ""; // Handle EOF
+    if (not line) return std::nullopt;
     return line.get();
 }
 
@@ -154,24 +158,23 @@ bool is_complete_expression(const std::string& input)
 }
 
 // Read a complete expression from the user, handling multi-line input
-std::string read_expression()
+// Returns std::nullopt at EOF, discarding any incomplete expression
+std::optional<std::string> read_expression()
 {
-    std::string input;
     std::string accumulated_input;
     
     while (true) {
         // Show different prompt for continuation lines
-        input = read_with_readline(
+        auto input = read_with_readline(
             accumulated_input.empty()? "noeval> ": "...> ");
 
-        // Check for EOF
-        if (input.empty() and accumulated_input.empty()) return "";
+        if (not input) return std::nullopt;
         
         // Add the new line to accumulated input
         if (not accumulated_input.empty()) {
             accumulated_input += " ";  // Add space between lines
         }
-        accumulated_input += input;
+        accumulated_input += *input;
         
         // Trim whitespace
         std::string trimmed = accumulated_input;
@@ -383,10 +386,16 @@ void repl(env_ptr env)
     print_welcome();
     
     while (true) {
-        std::string input = read_expression();
+        auto maybe_input = read_expression();
         
-        // Check for EOF or quit commands
-        if (input.empty()) continue;
+        // Treat EOF like a quit command
+        if (not maybe_input) {
+            // Readline ends the prompt line itself only on a terminal
+            if (not isatty(STDIN_FILENO)) std::println("");
+            std::println("Goodbye!");
+            break;
+        }
+        std::string input = *maybe_input;
         
         // Handle special commands first
         if (is_special_command(input)) {
