@@ -6,6 +6,9 @@ DEPFLAGS := -MMD -MP
 # Libraries to link
 LDLIBS := -lreadline -lstdc++exp
 
+# Optional untracked per-machine overrides (e.g. CXX, include paths)
+-include local.mk
+
 # Directories
 SRCDIR := src
 BUILDDIR := build

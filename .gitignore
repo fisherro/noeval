@@ -5,3 +5,4 @@ build/
 reference/
 asm/
 .DS_Store
+local.mk
