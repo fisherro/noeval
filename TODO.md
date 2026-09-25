@@ -28,19 +28,23 @@ a pipe or file, stdio fills its buffer with a whole block, so after
 `(read)`, lines meant for the REPL may be sitting in `std::cin`'s buffer
 where readline never sees them. (On a terminal, input arrives a line at a
 time, so it works.) Fixing this would mean having the REPL and `read` share
-one `char_source`, or disallowing `read` from the REPL.
+one input buffer, or disallowing `read` from the REPL. The lexer's
+`pushback_streambuf` could be that buffer: it wraps `std::cin`'s stream buffer
+(which, while synced with stdio, reads the C `stdin` `FILE*`), and readline
+can be pointed at it with `rl_getc_function`, so both would consume the same
+characters in order.
 
-Speed up the lexer's `char_source`. Switching the lexer from indexing a string
-to pulling characters through a `char_source` made parsing slower (a 6.9 MB
-file took 28% longer at `-O2` and 87% longer at `-O0`). Every character now
-goes through a virtual `fetch()` and a `std::deque`, and the lexer peeks
-several times per character through a `unique_ptr`. Possible fixes:
-
-* Have `string_source` index its string directly and only use the pushback
-  buffer when something has been pushed back.
-* Have `istream_source` read in chunks rather than one `get()` per character.
-  (Take care that `read` on an interactive stream still doesn't block waiting
-  for more input than the current expression needs.)
+`read` still pulls characters from `std::cin` one at a time. The lexer's
+`pushback_streambuf` reads its source in chunks only when `in_avail()` says
+characters are ready, and `std::cin`'s buffer, while synced with stdio, always
+reports none, so every character costs a couple of virtual calls and a
+`getc()`. (Loading files is unaffected: `istringstream` reports its whole
+contents as ready, and parsing a 7.4 MB file is back to the speed it had
+before the lexer read from streams.) So far `read`'s time is dominated by
+evaluation, so this hasn't mattered. If it does, give `pushback_streambuf` a
+source that reads the file descriptor directly (`read(2)` returns what's
+available without waiting for more), which could also be shared with the REPL
+as described above.
 
 Have the parser track the file path so that `load` can use its directory as the "current directory" for relative paths.
 
