@@ -438,6 +438,59 @@
 (false 0 (true 1 ()))
 #end
 
+; cond evaluates its clauses in order, stopping at the first whose test is
+; true.
+; (cond) returns ()
+; Each clause must have a test.
+; An empty body returns ().
+; Multiple expressions are allowed in clause bodies.
+; An else clause must be the last clause.
+; A clause is only checked when evaluation reaches it, so a malformed clause
+; after the one chosen isn't reported.
+(define cond
+  (vau clauses env
+    (cond-clauses clauses env)))
+
+(define cond-clauses
+  (lambda (clauses env)
+    ((nil? clauses)
+     ()
+     (cond-clause (first clauses) (rest clauses) env))))
+
+(define cond-clause
+  (lambda (clause more env)
+    ((nil? clause)
+     (raise "cond clauses must have a test")
+     ((= (q cons-cell) (typeof clause))
+      ((symbol? (first clause))
+       ((= (q else) (first clause))
+        ((nil? more)
+         (cond-body (rest clause) env)
+         (raise "else clause must be the last clause"))
+        (cond-test clause more env))
+       (cond-test clause more env))
+      (raise "cond clause must be a list")))))
+
+(define cond-test
+  (lambda (clause more env)
+    ((eval (first clause) env)
+     (cond-body (rest clause) env)
+     (cond-clauses more env))))
+
+(define cond-body
+  (lambda (body env)
+    ((nil? body)
+     ()
+     ((nil? (rest body))
+      (eval (first body) env)
+      (eval (cons do body) env)))))
+
+; The previous cond, which transformed its clauses into an if chain and then
+; evaluated that. It ran the transformation every time the cond was
+; evaluated, which made it much slower than the if chain alone. Once we have
+; expansion-time macros, the transformation could be done once, so we'll want
+; to try this again.
+#skip
 ; A macro-like transformer for cond clauses
 (define cond-transformer
   (lambda* (clauses)
@@ -475,6 +528,7 @@
   (vau cond-clauses cond-dyn-env
     (do (define transformed (cond-transformer cond-clauses))
         (eval transformed cond-dyn-env))))
+#end
 
 ; and operative - short-circuiting logical and
 ; Returns the first falsy value, or the last value if all are truthy

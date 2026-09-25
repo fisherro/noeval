@@ -131,6 +131,46 @@
     (= (classify-number 99) "other")
   "cond classifier should work for default case")
 
+; The message of the error expr raises
+(define error-message
+  (vau (expr) env
+    (try (eval expr env)
+         (lambda (e) (second e)))))
+
+(test-assert
+    (= (cond ((= 1 1) 1 2 3)) 3)
+  "cond should return the last of multiple body expressions")
+
+(test-assert
+    (nil? (cond ((= 1 1))))
+  "cond clause with an empty body should return nil")
+
+(test-assert
+    (= (error-message (cond 42)) "cond clause must be a list")
+  "cond should reject a clause that isn't a list")
+
+(test-assert
+    (= (error-message (cond ())) "cond clauses must have a test")
+  "cond should reject a clause without a test")
+
+(test-assert
+    (= (error-message (cond ((= 1 2) 1) (else 2) ((= 1 1) 3)))
+       "else clause must be the last clause")
+  "cond should reject an else clause that isn't last")
+
+(test-assert
+    (= (cond ((= 1 1) "first") 42) "first")
+  "cond should not check clauses after the one chosen")
+
+; The chosen body is in tail position, so this doesn't grow the stack.
+(define cond-countdown
+  (lambda (n)
+    (cond ((= n 0) "done")
+          (else (cond-countdown (- n 1))))))
+(test-assert
+    (= (cond-countdown 5000) "done")
+  "cond bodies should be in tail position")
+
 
 ;------------------------------------------------------------------------------
 ; when/unless tests

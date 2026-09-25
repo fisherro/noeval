@@ -1,5 +1,4 @@
-; A four-clause cond, which runs cond-transformer every time it's evaluated.
-; Compare with if-chain.noeval.
+; A four-clause cond. Compare with if-chain.noeval.
 (load "common.noeval")
 
 (define classify
