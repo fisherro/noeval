@@ -17,6 +17,7 @@
 #include <unordered_map>
 #include <variant>
 #include <vector>
+#include <unistd.h>
 
 #include "debug.hpp"
 #include "noeval.hpp"
@@ -2136,6 +2137,23 @@ int run_library_tests(env_ptr outer_env)
     }
 }
 
+// Ask whether to continue despite test failures. Only ask when stdin is a
+// terminal. Otherwise the prompt would consume a line of piped input, so
+// don't continue.
+bool confirm_continue(std::string_view message)
+{
+    if (not isatty(STDIN_FILENO)) return false;
+
+    std::print("{} Do you want to continue anyway? (y/N): ", message);
+    std::string response;
+    std::getline(std::cin, response);
+
+    // Convert to lowercase for comparison
+    std::ranges::transform(response, response.begin(), ::tolower);
+
+    return (response == "y") or (response == "yes");
+}
+
 env_ptr reload_top_level_environment(bool test_the_library)
 {
     // Create environment and load library
@@ -2160,14 +2178,7 @@ env_ptr reload_top_level_environment(bool test_the_library)
         if (0 != failures) {
             println_red("\n✗ library tests failed!");
             
-            std::print("Library tests failed. Do you want to continue anyway? (y/N): ");
-            std::string response;
-            std::getline(std::cin, response);
-            
-            // Convert to lowercase for comparison
-            std::ranges::transform(response, response.begin(), ::tolower);
-            
-            if (response != "y" and response != "yes") {
+            if (not confirm_continue("Library tests failed.")) {
                 std::println("Aborting due to library test failures.");
                 return env_ptr{nullptr};
             }
@@ -2198,21 +2209,32 @@ int main(const int argc, const char** argv)
         return (0 == failures)? EXIT_SUCCESS: EXIT_FAILURE;
     }
 
+    // Run the C++ tests and the library tests, then exit.
+    if ((not args.empty()) and ("--tests" == args[0])) {
+        bool ok = run_tests();
+        {
+            auto env = reload_top_level_environment(false);
+            ok = env and (0 == run_library_tests(env)) and ok;
+        }
+        environment::collect();
+        if (ok) {
+            std::println("\n✓ All tests passed!");
+        } else {
+            println_red("\n✗ Tests failed!");
+        }
+        return ok? EXIT_SUCCESS: EXIT_FAILURE;
+    }
+
     if (!run_tests()) {
-        std::print("Tests failed. Do you want to continue anyway? (y/N): ");
-        std::string response;
-        std::getline(std::cin, response);
-        
-        // Convert to lowercase for comparison
-        std::ranges::transform(response, response.begin(), ::tolower);
-        
-        if (response != "y" && response != "yes") {
+        if (not confirm_continue("Tests failed.")) {
             std::println("Exiting due to test failures.");
             return EXIT_FAILURE;
         }
         
         std::println("Continuing despite test failures...");
     }
+
+    int exit_status{EXIT_SUCCESS};
 
     // A scope for the environment to ensure it is destructed before our final
     // environment::collect() call.
@@ -2227,7 +2249,7 @@ int main(const int argc, const char** argv)
             std::println("Starting REPL...");
             repl(env);
         } else {
-            execute_script(args[0], env);
+            if (not execute_script(args[0], env)) exit_status = EXIT_FAILURE;
         }
     }
 
@@ -2242,5 +2264,5 @@ int main(const int argc, const char** argv)
     std::println("function_ref support: {}", 
                   __cpp_lib_function_ref >= 202306L ? "available" : "not available");
 #endif
-    return EXIT_SUCCESS;
+    return exit_status;
 }
