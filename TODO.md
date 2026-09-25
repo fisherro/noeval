@@ -48,8 +48,6 @@ Questions, things to consider, and open-ended design work.
 
 Implement transducers (See Clojure and SRFI-171)
 
-Should use of `read` be prevented from the REPL?
-
 Prioritize macros and RRB trees in order to improve performance.
 
 Member functions to extract values from the value type.
