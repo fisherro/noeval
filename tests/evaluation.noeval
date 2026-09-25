@@ -2,20 +2,6 @@
 ; eval-list tests
 (lndisplayln "wrap/eval-list/lambda/lambda*/vau* tests")
 
-#skip
-; TODO: The definition of `result-list` assumes `env` exists
-; Test eval-list function with unevaluated expressions
-(define unevaluated-exprs (make-expr (+ 1 2) (* 3 4)))
-(define result-list (eval-list unevaluated-exprs env))
-(test-assert
-    (= (first result-list) 3)
-  "eval-list should evaluate first element")
-
-(test-assert
-    (= (first (rest result-list)) 12)
-  "eval-list should evaluate second element")
-#end
-
 (test-assert
     (= (first (list 42)) 42)
   "single element list should work")
@@ -118,25 +104,6 @@
 (test-assert
     (= (first (first (rest lib-results))) 5)
   "eval-list should work with library functions - rest result")
-
-#skip
-; Skipping this test because it uses displayln.
-; Test 10: Error case that demonstrates the invoke issue
-; This might fail due to the incorrect invoke usage in eval-list-helper
-(define error-prone-exprs (list (q (+ 1 2)) (q (display "TEST")) (q (* 3 4))))
-
-; This test might reveal issues if the invoke problem causes expressions to be
-; evaluated incorrectly or multiple times
-(define complex-results (eval-list error-prone-exprs (get-current-environment)))
-(test-assert
-    (= (first complex-results) 3)
-  "eval-list should handle complex expression list - first")
-
-(test-assert
-    (= (first (rest (rest complex-results))) 12)
-  "eval-list should handle complex expression list - third")
-#end
-
 
 ;------------------------------------------------------------------------------
 ; Wrap tests
