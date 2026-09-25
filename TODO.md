@@ -42,23 +42,10 @@ Add validation of the bindings structures to let
 
 Provide something like `get-builtins` that the check dependencies program could use.
 
-Make script mode's exit status reflect failure. `main` ignores the result of
-`execute_script` and always returns `EXIT_SUCCESS`, so a script that raises an
-error looks successful to the shell. (`execute_script` also has a TODO asking
-whether the last expression's result should determine the exit status.)
-
-Only ask "continue anyway?" after C++ test failures when stdin is a terminal.
-Otherwise the prompt consumes a line of piped input. (e.g.
-`run-dependency-checker.bash` pipes `src/lib.noeval` to stdin.) When stdin
-isn't a terminal, exit with a failure instead.
-
-Add a command-line flag, like `--gc-tests`, that runs the C++ and library tests
-and exits with a status reflecting the results. Currently the library tests can
-only be run with `:reload` in the REPL.
-
-Add CI (GitHub Actions) that builds, runs the tests via the flag above, and
+Add CI (GitHub Actions) that builds, runs the tests via `--tests`, and
 runs `--gc-tests` with `NOEVAL_GC_STRESS` set. Note that the stock Ubuntu
-runner's g++ is older than the GCC 14 we need.
+runner's default g++ is older than the GCC 14 we need, but `g++-14` is
+installed alongside it (`make CXX=g++-14`).
 
 Add Makefile targets: `test`, `release` (the `-O2` build the README describes),
 and `sanitize` (ASan/UBSan). The cycle collector clears the bindings of

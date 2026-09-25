@@ -40,11 +40,17 @@ Run it from the top of the repository, since it loads `src/lib.noeval` and
 * `bin/noeval` runs the C++ tests, loads the library, and starts the REPL.
   (Type `:help` in the REPL for its commands.)
 * `bin/noeval script.noeval` runs the tests, loads the library, and then runs
-  the script instead of starting the REPL.
+  the script instead of starting the REPL. It exits with a failure status if
+  the script raises an error.
+* `bin/noeval --tests` runs the C++ tests and the library tests, then exits
+  with a status reflecting the results.
 * `bin/noeval --gc-tests` runs only the garbage collection tests.
 
-The library tests take a while, so they don't run at startup. Use `:reload` in
-the REPL to reload the library and run them.
+The library tests take a while, so they don't run at startup. Use `--tests`, or
+`:reload` in the REPL to reload the library and run them.
+
+If the C++ tests fail at startup, noeval asks whether to continue. It only asks
+when stdin is a terminal. Otherwise it exits with a failure status.
 
 Setting `NOEVAL_GC_STRESS=n` makes the garbage collector run every `n`
 environment creations, which is useful for finding GC bugs. See
