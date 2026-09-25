@@ -142,12 +142,12 @@ User-defined types?
 
 Consider switching to intrusive reference counting
 
-`cond` re-runs `cond-transformer` (a `foldr` plus `length` and validation for
-each clause) every time it's evaluated. For 2,000 calls, a four-clause `cond`
-takes about 7 s where the equivalent nested `if` takes about 1 s, and it
-accounts for nearly all of `codepoints->utf8`'s time. Expansion-time macros
-would fix this by transforming once. Short of that, a cheaper transformer, or
-evaluating clauses directly instead of building an `if` chain, would help.
+Once there are expansion-time macros, try the old `cond` again. It's kept in
+a `#skip` block in `src/lib.noeval`. It transformed its clauses into an `if`
+chain and evaluated that, but it redid the transformation every time, which
+made it about 14 times slower than the `if` chain alone. The current `cond`
+evaluates its clauses directly, which is about 1.7 times slower than the `if`
+chain. A macro could transform once and also check every clause up front.
 (Benchmarks: `cond`, `if-chain`, and `codepoints-utf8`.)
 
 Automate keeping `noeval-reference.md` in sync. Once `get-builtins` exists, a
