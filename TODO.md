@@ -42,6 +42,46 @@ Add validation of the bindings structures to let
 
 Provide something like `get-builtins` that the check dependencies program could use.
 
+Make script mode's exit status reflect failure. `main` ignores the result of
+`execute_script` and always returns `EXIT_SUCCESS`, so a script that raises an
+error looks successful to the shell. (`execute_script` also has a TODO asking
+whether the last expression's result should determine the exit status.)
+
+Only ask "continue anyway?" after C++ test failures when stdin is a terminal.
+Otherwise the prompt consumes a line of piped input. (e.g.
+`run-dependency-checker.bash` pipes `src/lib.noeval` to stdin.) When stdin
+isn't a terminal, exit with a failure instead.
+
+Add a command-line flag, like `--gc-tests`, that runs the C++ and library tests
+and exits with a status reflecting the results. Currently the library tests can
+only be run with `:reload` in the REPL.
+
+Add CI (GitHub Actions) that builds, runs the tests via the flag above, and
+runs `--gc-tests` with `NOEVAL_GC_STRESS` set. Note that the stock Ubuntu
+runner's g++ is older than the GCC 14 we need.
+
+Add Makefile targets: `test`, `release` (the `-O2` build the README describes),
+and `sanitize` (ASan/UBSan). The cycle collector clears the bindings of
+environments it considers garbage, so a sanitizer build run with
+`NOEVAL_GC_STRESS` would be a cheap check for use-after-free bugs.
+
+Check in the definition of the `gcc-rlf:latest` container image. The
+devcontainer and `test-dependency-checker.zsh` use it, but a fresh clone can't
+build it.
+
+Include the file and line in evaluation errors. The parser tracks positions
+but only uses them in parse errors. (Goes with tracking the file path for
+`load`.)
+
+Refactor `execute_script`, `load_library_file`, and `run_library_tests` to
+share code. (From a TODO in `src/noeval.cpp`.)
+
+Remove the stale TODO above `even?` in `src/lib.noeval`. Numbers are already
+`cpp_rational`.
+
+Fix or remove the `#skip`ped `eval-list` test in `tests/evaluation.noeval` that
+assumes `env` exists.
+
 ## Ideas
 
 Questions, things to consider, and open-ended design work.
@@ -135,3 +175,21 @@ User-defined types?
 Consider switching to intrusive reference counting
 
 The `(apply append (map encode-codepoint codepoints))` in `codepoints->utf8` is quadratic. What could we do to address that? (Consider interpreter optimizations as well.)
+
+Automate keeping `noeval-reference.md` in sync. Once `get-builtins` exists, a
+script could report global bindings the reference doesn't mention. (It is
+currently missing `read`, `eof-object?`, `nth`, `any?`, `all?`, `take`,
+`drop`, `partiall`/`partialr`, `quotient`, `clamp`, `check`,
+`codepoints->utf8`, and `utf8->codepoints`, among others.)
+
+Add benchmarks (e.g. loading the library, the library tests, the dependency
+checker, string-heavy code) and a script to time them, so performance work
+like macros and RRB trees can be measured.
+
+`string-length`, `string-nth`, and `substring` convert the whole string to a
+list on every call, so indexing a string in a loop is quadratic.
+
+Consolidate the AI agent instructions. `.github/copilot-instructions.md` refers
+to VS Code tasks, but `.vscode/` is ignored, and there is no `CLAUDE.md`. One
+shared file (or a `CLAUDE.md` that points to it) would keep agents working
+from the same style rules.
