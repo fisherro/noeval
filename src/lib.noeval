@@ -636,10 +636,11 @@
 (define append (lambda* lists
                  (unless (all? list? lists)
                    (raise "the arguments to append must all be lists"))
-                 (foldl (lambda (list1 list2)
-                          (foldr cons list1 list2))
-                     ()
-                   lists)))
+                 ; Fold from the right so each list is copied only once.
+                 (foldr (lambda (lyst appended)
+                          (foldr cons lyst appended))
+                     lists
+                   ())))
 
 (define filter (lambda* (predicate lyst)
                  (unless (operative? predicate)
