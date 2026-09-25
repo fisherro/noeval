@@ -163,3 +163,16 @@ few exceptions)
 ### Numbers
 
 All numbers are arbitrary precision rationals.
+
+### Garbage collection
+
+Values and environments are reference counted, with a cycle collector for
+environments. Cycles are common: a closure captures its whole environment, so
+defining a local function puts a closure into the environment it captures.
+
+Fexprs don't create most of these cycles, but they do make them harder to
+avoid. Techniques like flat closures and lambda lifting rely on knowing which
+variables a function body uses, and that can't be known when any code might be
+evaluated in any environment. See
+[design/gc-postmortem.md](design/gc-postmortem.md) for the analysis and
+[design/env-gc.md](design/env-gc.md) for how the collector works.
