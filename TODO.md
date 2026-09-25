@@ -21,8 +21,6 @@ Update noeval-reference.md
 Concrete, scoped work that could be picked up without first deciding whether
 or how to do it.
 
-Make the default build optimized.
-
 `read` still pulls characters from `std::cin` one at a time. The lexer's
 `pushback_streambuf` reads its source in chunks only when `in_avail()` says
 characters are ready, and `std::cin`'s buffer, while synced with stdio, always
@@ -43,11 +41,6 @@ Add max-garbage stat
 Add validation of the bindings structures to let
 
 Provide something like `get-builtins` that the check dependencies program could use.
-
-Add Makefile targets: `test`, `release` (the `-O2` build the README describes),
-and `sanitize` (ASan/UBSan). The cycle collector clears the bindings of
-environments it considers garbage, so a sanitizer build run with
-`NOEVAL_GC_STRESS` would be a cheap check for use-after-free bugs.
 
 Check in the definition of the `gcc-rlf:latest` container image. The
 devcontainer and `test-dependency-checker.zsh` use it, but a fresh clone can't

@@ -27,12 +27,19 @@ Noeval needs:
 * Boost (only the header-only Multiprecision library)
 * GNU Readline
 
-Build with `make`. The executable is `bin/noeval`.
+Build with `make`. The executable is `bin/noeval`. (If your default `g++` is
+older than 14, pass it explicitly, e.g. `make CXX=g++-14`.)
 
-The Makefile doesn't enable optimization. For a much faster interpreter:
+The Makefile has three build variants, each with its own executable:
 
-    make clean
-    make CXXFLAGS='-std=c++26 -O2'
+* `make` or `make release`: optimized, `bin/noeval`
+* `make debug`: unoptimized, for use with a debugger, `bin/noeval-debug`
+* `make sanitize`: built with AddressSanitizer and UndefinedBehaviorSanitizer,
+  `bin/noeval-sanitize`
+
+`make test` builds the release variant and runs all of its tests, including the
+garbage collection tests under stress. `make test-sanitize` does the same with
+the sanitize variant, running the library tests under GC stress too.
 
 Run it from the top of the repository, since it loads `src/lib.noeval` and
 `tests/main.noeval` by relative path.
