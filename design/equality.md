@@ -43,7 +43,7 @@ GitHub Copilot: In Scheme, there are four different equality predicates with inc
 - Use `eqv?` as the general-purpose equality test
 - Use `equal?` when comparing compound data structures
 
-Robert-Fisher_tmemu: What are the equality predicates in Common Lisp?
+Robert: What are the equality predicates in Common Lisp?
 
 GitHub Copilot: In Common Lisp, there are four main equality predicates, each with different levels of strictness:
 
@@ -102,7 +102,7 @@ GitHub Copilot: In Common Lisp, there are four main equality predicates, each wi
 
 The hierarchy is: `eq` ⊆ `eql` ⊆ `equal` ⊆ `equalp` (each successive predicate considers more things equal).
 
-Robert-Fisher_tmemu: What are the equality predicates in Kernel?
+Robert: What are the equality predicates in Kernel?
 
 GitHub Copilot: In Kernel (the theoretical foundation for Noeval), equality is handled more minimally than in Scheme or Common Lisp, reflecting Kernel's philosophy of having fewer built-in predicates.
 
@@ -153,7 +153,7 @@ In the Noeval interpreter, equality predicates would be implemented as built-in 
 
 The minimalist approach aligns with Kernel's principle of providing essential primitives while keeping the core language simple and composable.
 
-Robert-Fisher_tmemu: What are the equality predicates in Wat?
+Robert: What are the equality predicates in Wat?
 
 GitHub Copilot: Looking at the Wat virtual machine code, I can see that Wat doesn't define explicit equality predicates like Scheme's `eq?`, `eqv?`, and `equal?`. Instead, it relies on **JavaScript's native equality operators** through its JSNI (JavaScript Native Interface) system.
 
@@ -207,7 +207,7 @@ Wat's approach reflects its goal of being a **minimal fexpr layer over JavaScrip
 
 But it doesn't attempt to replicate traditional Lisp equality hierarchies, instead deferring to the host language (JavaScript) for basic operations.
 
-Robert-Fisher_tmemu: In Noeval, I was inclined to make `=` like Scheme's `equal?`. It appears Kernel went that route too. Why might I end up regretting that choice...if I do?
+Robert: In Noeval, I was inclined to make `=` like Scheme's `equal?`. It appears Kernel went that route too. Why might I end up regretting that choice...if I do?
 
 GitHub Copilot: You might regret making `=` like `equal?` in Noeval for several reasons:
 
@@ -294,7 +294,7 @@ You might not regret it if:
 
 But you **will** regret it if you later need high-performance code that does a lot of equality checking, or if you want to implement data structures that rely on identity-based equality for correctness.
 
-Robert-Fisher_tmemu: I feel like all of these are special cases, and I can add support for them as the need arises. Better, I think, to keep `=` the common case and easy to understand and have the special cases—like Clojure's `identical?`—stand out and be clearly a special case.
+Robert: I feel like all of these are special cases, and I can add support for them as the need arises. Better, I think, to keep `=` the common case and easy to understand and have the special cases—like Clojure's `identical?`—stand out and be clearly a special case.
 
 GitHub Copilot: You're absolutely right, and that's a very sound design philosophy. Making `=` the **intuitive default** and having special cases be explicitly special is much better UX than forcing users to remember which of 4 different equality predicates to use.
 
@@ -360,7 +360,7 @@ Much better than Scheme's situation where beginners have to memorize the differe
 
 Your instinct is spot on - optimize for the common case, make special cases explicit.
 
-Robert-Fisher_tmemu: I'm also inclined to make `=` always raise an error if the arguments are of different type. Even in the case of floating point and rational numbers, the programmer should be alerted to such a comparison so they can make their intentions explicit.
+Robert: I'm also inclined to make `=` always raise an error if the arguments are of different type. Even in the case of floating point and rational numbers, the programmer should be alerted to such a comparison so they can make their intentions explicit.
 
 GitHub Copilot: That's an excellent design decision that aligns perfectly with Noeval's philosophy of being explicit and intentional. Making `=` strict about types forces programmers to be clear about their intentions, which prevents subtle bugs.
 
