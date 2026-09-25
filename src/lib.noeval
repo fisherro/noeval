@@ -288,11 +288,13 @@
       (raise "foldl-until's fourth argument must be callable"))
     (define loop
       (lambda (acc remaining)
-        ((or (nil? remaining)
-             (stop? acc))
+        ; Nested tests instead of or, which would cost an eval per step.
+        ((nil? remaining)
          acc
-         (loop (func acc (first remaining))
-               (rest remaining)))))
+         ((stop? acc)
+          acc
+          (loop (func acc (first remaining))
+                (rest remaining))))))
     (loop init lyst)))
 
 ; foldr-until is foldr with early termination.
