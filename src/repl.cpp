@@ -40,8 +40,15 @@ std::optional<std::string> read_with_readline(const std::string& prompt)
 // The environment the REPL is evaluating in, used for tab completion
 static std::weak_ptr<environment> completion_env;
 
+// Whether readline is reading the first line of an expression, which is the
+// only place special commands are recognized
+static bool reading_first_line{true};
+
+// The candidates the completion generator filters by the text being completed
+static std::vector<std::string> completion_candidates;
+
 // Completion generator function
-char* symbol_generator(const char* prefix, int state)
+char* completion_generator(const char* prefix, int state)
 {
     static std::vector<std::string> matches;
     static size_t match_index{0};
@@ -51,16 +58,14 @@ char* symbol_generator(const char* prefix, int state)
         matches.clear();
         match_index = 0;
         
-        // Get all symbols visible from the REPL's environment
-        std::vector<std::string> symbols;
-        if (auto env = completion_env.lock()) symbols = env->get_all_symbols();
         // So annoying that we have std::bind_back, but it doesn't work
         // with overload sets.
         auto string_starts_with = [](const std::string& str, const char* prefix) {
             return std::string_view(str).starts_with(prefix);
         };
         std::ranges::copy(
-            symbols | std::views::filter(std::bind_back(string_starts_with, prefix)),
+            completion_candidates
+                | std::views::filter(std::bind_back(string_starts_with, prefix)),
             std::back_inserter(matches));
 
         std::ranges::sort(matches);
@@ -75,15 +80,57 @@ char* symbol_generator(const char* prefix, int state)
     return nullptr;
 }
 
+// Candidates for completing a word of a special command, given the words
+// that precede it
+std::vector<std::string> special_command_candidates(
+    const std::vector<std::string>& words)
+{
+    if (words.empty()) return {":help", ":reload", ":debug"};
+    if (std::vector<std::string>{":reload"} == words) return {"fast"};
+    if (std::vector<std::string>{":debug"} == words) {
+        return {"help", "status", "colors", "on", "off", "env-counts"};
+    }
+    if (2 == words.size() and ":debug" == words[0]) {
+        if ("colors" == words[1]) return {"on", "off"};
+        if ("on" == words[1] or "off" == words[1]) {
+            return debug_categories | std::views::keys | std::ranges::to<std::vector>();
+        }
+    }
+    return {};
+}
+
 // Completion function
 char** symbol_completion(const char* text, int start, int)
 {
     // Don't complete filenames
     rl_attempted_completion_over = 1;
+
+    // Special commands get their own completions
+    std::string_view before{rl_line_buffer, static_cast<size_t>(start)};
+    auto words = before
+        | std::views::split(' ')
+        | std::views::filter([](auto word){ return not std::ranges::empty(word); })
+        | std::ranges::to<std::vector<std::string>>();
+    bool first_word = words.empty();
+    bool special_command = reading_first_line
+        and (first_word? text[0] == ':': words[0].starts_with(':'));
+    if (special_command) {
+        completion_candidates = special_command_candidates(words);
+        return rl_completion_matches(text, completion_generator);
+    }
     
     // Only complete at word boundaries or after certain characters
     if (0 == start or strchr("( \t\n", rl_line_buffer[start - 1])) {
-        return rl_completion_matches(text, symbol_generator);
+        // Get all symbols visible from the REPL's environment
+        completion_candidates.clear();
+        if (auto env = completion_env.lock()) {
+            completion_candidates = env->get_all_symbols();
+        }
+        if (reading_first_line and first_word) {
+            completion_candidates.push_back("quit");
+            completion_candidates.push_back("exit");
+        }
+        return rl_completion_matches(text, completion_generator);
     }
     
     return nullptr;
@@ -165,6 +212,7 @@ std::optional<std::string> read_expression()
     
     while (true) {
         // Show different prompt for continuation lines
+        reading_first_line = accumulated_input.empty();
         auto input = read_with_readline(
             accumulated_input.empty()? "noeval> ": "...> ");
 
