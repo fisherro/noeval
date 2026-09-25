@@ -35,7 +35,7 @@ Summary to use as Github Copilot context so that it doesn't have to reference la
 ## Standard Library (lib.noeval)
 
 **Core**: `lambda` (single expression), `lambda*` (multiple expressions), `vau*` (multiple expressions), `wrap`, `apply`, `if`, `let`, `cond`
-**Lists**: `append`, `reverse`, `length`, `filter`, `map`, `foldl`, `foldr`, `list`, `snoc`, `iota`, `prepend`, `second`, `list-ref`, `list-index`
+**Lists**: `append`, `reverse`, `length`, `filter`, `map`, `foldl`, `foldr`, `foldl-until`, `foldr-until`, `unfoldl`, `unfoldr`, `last`, `list`, `snoc`, `iota`, `prepend`, `second`, `list-ref`, `list-index`
 **Control**: `when`, `unless`, `and`, `or`, `not`
 **Predicates**: `odd?`, `even?`, `number?`, `integer?`, `string?`, `symbol?`, `list?`, `operative?`, `environment?`
 **I/O**: `newline`, `displayln`, `lndisplayln`, `for-each`

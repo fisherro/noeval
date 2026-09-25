@@ -47,11 +47,6 @@ as described above.
 
 Have the parser track the file path so that `load` can use its directory as the "current directory" for relative paths.
 
-Capture the accumulator and the accumulate-reverse patterns in library forms.
-Or, more specifically, provide `unfoldl`, `unfoldr`, `foldl-until`, and
-`foldr-until`. Use these to implement all/most of the other list processing
-library functions.
-
 Add max-garbage stat
 
 Ensure REPL tab completion works for REPL special commands

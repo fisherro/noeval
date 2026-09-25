@@ -195,6 +195,105 @@
 
 
 ;------------------------------------------------------------------------------
+; foldl-until tests
+
+(define over-two? (lambda (acc) (> acc 2)))
+
+(test-assert
+    (= (foldl-until + 0 (list 1 2 3 4) over-two?) 3)
+  "foldl-until should stop once stop? is true")
+
+(test-assert
+    (= (foldl-until + 0 (list 1 1) over-two?) 2)
+  "foldl-until should fold the whole list if stop? is never true")
+
+(test-assert
+    (= (foldl-until + 5 (list 1 2) over-two?) 5)
+  "foldl-until should check stop? on the initial value")
+
+(test-assert
+    (= (foldl-until - 0 (list 1 2 3) (lambda (acc) false)) -6)
+  "foldl-until should be left-associative")
+
+(define-mutable foldl-until-calls 0)
+(foldl-until (lambda (acc x) (do (set! foldl-until-calls (+ foldl-until-calls 1))
+                                 (+ acc x)))
+    0
+  (list 1 2 3 4 5)
+  over-two?)
+(test-assert
+    (= foldl-until-calls 2)
+  "foldl-until should not call func after stopping")
+
+(test-error (foldl-until 1 0 () over-two?)
+  "foldl-until should reject a non-callable func")
+(test-error (foldl-until + 0 1 over-two?)
+  "foldl-until should reject a non-list")
+(test-error (foldl-until + 0 () 1)
+  "foldl-until should reject a non-callable stop?")
+
+
+;------------------------------------------------------------------------------
+; foldr-until tests
+
+(test-assert
+    (= (foldr-until + (list 1 2 3 4) 0 over-two?) 4)
+  "foldr-until should stop once stop? is true")
+
+(test-assert
+    (= (foldr-until cons (list 1 2 3 4) () (lambda (acc) (= 2 (length acc))))
+       (list 3 4))
+  "foldr-until should work from the right")
+
+(test-assert
+    (= (foldr-until - (list 1 2 3) 0 (lambda (acc) false)) 2)
+  "foldr-until should be right-associative")
+
+(test-assert
+    (= (foldr-until + (list 1 2) 5 over-two?) 5)
+  "foldr-until should check stop? on the initial value")
+
+(test-error (foldr-until 1 () 0 over-two?)
+  "foldr-until should reject a non-callable func")
+(test-error (foldr-until + 1 0 over-two?)
+  "foldr-until should reject a non-list")
+(test-error (foldr-until + () 0 1)
+  "foldr-until should reject a non-callable stop?")
+
+
+;------------------------------------------------------------------------------
+; unfoldl and unfoldr tests
+
+(define unfold-done? (lambda (n) (= n 0)))
+(define unfold-same (lambda (x) x))
+(define unfold-next (lambda (n) (- n 1)))
+
+(test-assert
+    (= (unfoldl unfold-done? unfold-same unfold-next 3) (list 1 2 3))
+  "unfoldl should put the first element generated last")
+
+(test-assert
+    (= (unfoldr unfold-done? unfold-same unfold-next 3) (list 3 2 1))
+  "unfoldr should put the first element generated first")
+
+(test-assert
+    (and (nil? (unfoldl unfold-done? unfold-same unfold-next 0))
+         (nil? (unfoldr unfold-done? unfold-same unfold-next 0)))
+  "unfolds should return () if stop? is true for the initial seed")
+
+(test-assert
+    (= (unfoldr unfold-done? (lambda (n) (* n n)) unfold-next 3) (list 9 4 1))
+  "unfoldr should apply mapper to each seed")
+
+(test-error (unfoldl 1 unfold-same unfold-next 3)
+  "unfoldl should reject a non-callable stop?")
+(test-error (unfoldr unfold-done? 1 unfold-next 3)
+  "unfoldr should reject a non-callable mapper")
+(test-error (unfoldr unfold-done? unfold-same 1 3)
+  "unfoldr should reject a non-callable successor")
+
+
+;------------------------------------------------------------------------------
 ; apply tests
 
 ; Test 1: Basic apply with simple function
