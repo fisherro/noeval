@@ -42,11 +42,6 @@ Add validation of the bindings structures to let
 
 Provide something like `get-builtins` that the check dependencies program could use.
 
-Add CI (GitHub Actions) that builds, runs the tests via `--tests`, and
-runs `--gc-tests` with `NOEVAL_GC_STRESS` set. Note that the stock Ubuntu
-runner's default g++ is older than the GCC 14 we need, but `g++-14` is
-installed alongside it (`make CXX=g++-14`).
-
 Add Makefile targets: `test`, `release` (the `-O2` build the README describes),
 and `sanitize` (ASan/UBSan). The cycle collector clears the bindings of
 environments it considers garbage, so a sanitizer build run with
