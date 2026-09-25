@@ -192,8 +192,9 @@ Noeval 2. The "may contain an environment" flag wasn't needed.
 * Library tests (`:reload`, after startup): environments collected went from
   461,891 (in 3,269 collections) to 47,378 (in 827 collections).
 * With `-O2`, a full run (C++ tests plus `:reload`) went from 22 to 5.6
-  seconds, and from 472 to 102 seconds with `NOEVAL_GC_STRESS=37`. The
-  output is the same, except that fewer environments are live afterwards
+  seconds. It takes 102 seconds with `NOEVAL_GC_STRESS=37` (the baseline
+  wasn't measured under stress mode on this machine). The output is the
+  same, except that fewer environments are live afterwards
   (744 instead of 765 after `:reload`, 246 instead of 299 after
   `:reload fast`), and that count stays flat across repeated reloads.
 * With the Makefile's default flags, a full run now takes 31 seconds (the
