@@ -220,8 +220,8 @@ bool handle_debug_command(const std::string& input)
         std::println("  :debug off [category]   - Disable debug output (all categories if none specified)");
         std::println("  :debug status           - Show current debug settings");
         std::println("  :debug colors on/off    - Enable/disable colored output");
-        std::println("  :debug stack-depth      - Show max stack depth after each evaluation");
-        std::println("  :debug gc               - Show garbage collection info");
+        std::println("  :debug on stack-depth   - Show max stack depth after each evaluation");
+        std::println("  :debug on gc            - Show garbage collection info");
         std::println("  :debug env-counts       - Show environment construction and registration counts");
         std::println("");
         auto categories{debug_categories | std::views::keys | std::ranges::to<std::vector>()};
