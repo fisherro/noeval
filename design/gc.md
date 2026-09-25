@@ -1,16 +1,17 @@
 # Garbage collection musings
 
+These are early notes. See [env-gc.md](env-gc.md) for how collection works now.
+
 The circular references possible in Noeval are limited:
 
 * While cons cells could potientially create cycles, the Noeval language does not provide a way to do it. (It could be done in the C++ code, but we can just not do that.)
-* While mutable bindings might also look like a way to produce cycles, the language does not allow it.
+* Mutable bindings can produce cycles: `(define-mutable m 0)` followed by `(set! m (vau () () m))` makes the environment refer to itself through the binding and the operative's closure environment. (Every such cycle still passes through an environment.)
 * An environment could contain a reference to itself. Likewise cycles of references between environments are possible.
 * Since operatives contain a closure environment, they can participate in such cycles as well.
 
-Ephemeral environments or operatives in the C++ code could be missed by the collector.
-To address this, we created `env_root_ptr`, which adds such environment pointers to the GC roots.
-It requires some discipline in writing the C++ code to guaranteed these are used where necessary.
-No provision is made for ephemeral operatives.
+Environments or operatives referenced only from the C++ code must not be collected.
+We originally tried registering such environments as GC roots (`env_root_ptr`), which was error-prone and never worked reliably (see [gc-postmortem.md](gc-postmortem.md)).
+The current collector finds these references itself: an object with more references than the heap accounts for is referenced from outside the heap, so it is a root.
 
 ## Values
 

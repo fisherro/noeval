@@ -50,6 +50,13 @@ has its bindings cleared.
   With the current collector these fail, either by leaking or with
   `Unbound variable`.
 
+Status: done. The GC tests are `run_gc_tests()` in `src/tests.cpp`. They run at
+the end of `run_tests()`, and on their own with `bin/noeval --gc-tests` (the
+existing C++ tests currently abort before reaching them). With the current
+collector, all of them fail with `Unbound variable`. With collection disabled
+(pure reference counting), a no-cycle control passes and each cycle test
+reports exactly the expected leak.
+
 ## Phase 1: New collector
 
 * Give `environment` `enable_shared_from_this` (`value` already has it). Read
@@ -63,6 +70,21 @@ has its bindings cleared.
   exactly once (keep a set of visited pointers) so that each `shared_ptr`
   member is subtracted exactly once.
 
+Status: done. The collector is `cycle_collector` in `src/noeval.cpp`. The root
+machinery is still present but no longer used for collection.
+
+* All C++ tests pass, including the GC tests. Before this phase the C++ tests
+  aborted with `Unbound variable`.
+* The library tests pass, and the number of live environments is the same
+  (705) after each of two consecutive `:reload`s.
+
+`eval` still collects on every evaluation step, and each collection scans all
+the library code, so anything that loads the library is very slow: the
+library-dependent GC tests didn't finish in 8 minutes. For verification, the
+library-dependent GC tests were run while collecting every 97 steps, and the
+library tests while collecting every 997 steps. Phase 3 (scheduling) should
+probably come before Phase 2.
+
 ## Phase 2: Delete the root machinery
 
 * Delete `env_root_ptr`, the `roots` map, `add_root`/`remove_root`,
@@ -73,6 +95,18 @@ has its bindings cleared.
   compiler will flag the `.get()` calls and the `value::make(env_root_ptr)`
   overload.
 
+Status: done (after Phase 3).
+
+* The root machinery is gone, along with the `gc_roots` debug category and
+  the `#<environment-root:...>` string form.
+* REPL tab completion used `get_root_symbols()`. It now uses the symbols
+  visible from the REPL's own environment.
+* An empty `NOEVAL_GC_STRESS` (or `0`) now means stress mode is off. Before,
+  any value turned it on, and an empty one collected on every allocation.
+* All C++ and library tests pass, with the same output as before, also under
+  `NOEVAL_GC_STRESS=37`. A full run takes 24 seconds with `-O2` and 123
+  seconds with the Makefile's default flags.
+
 ## Phase 3: Collection scheduling
 
 * Stop collecting on every eval step (`if (++count > 0)` in `eval`). That is
@@ -82,6 +116,31 @@ has its bindings cleared.
   `max(threshold, k × survivors)`.
 * Add a stress mode (a debug category or an environment variable) that
   collects on every `environment::make`.
+
+Status: done (before Phase 2, as suggested above).
+
+* `eval` and `top_level_eval` no longer collect. `environment::make` calls
+  `maybe_collect()`, which collects once the environments created since the
+  last collection reach `max(1000, survivors)`.
+* `NOEVAL_GC_STRESS=n` collects every `n` environment creations (`1` means
+  every one). The GC tests use stress mode with `n = 1` and 100 iterations.
+* Results, building with `-O2`:
+  * C++ tests (including the GC tests) and library tests pass. A full run of
+    both takes 95 seconds, and 765 environments are live afterwards.
+  * They also pass with `NOEVAL_GC_STRESS=37` (472 seconds).
+  * Sampling stacks during the library tests puts about 20% of the time in
+    the collector and about 33% in `value_to_string`: `NOEVAL_DEBUG`
+    evaluates its arguments even when its category is off, and
+    `call_stack::guard` converts every expression to a string. That, not the
+    collector, is now the bigger cost.
+  * Follow-up: `NOEVAL_DEBUG` now only evaluates its arguments when its
+    category is enabled, and the call stack stores expressions and only
+    converts them to strings when formatting a stack trace. The full run
+    went from 107 to 29 seconds with `-O2` (164 seconds with the Makefile's
+    default flags), with identical output. The collector is now about half
+    of the remaining time.
+* The Makefile doesn't enable optimization, so the default build is several
+  times slower than the numbers above.
 
 ## Phase 4: Documentation
 
@@ -95,6 +154,16 @@ has its bindings cleared.
 * Update `TODO.md`. Some items become unnecessary, e.g. "Add child tracking to
   environments so that garbage collection may be done during top-level
   evaluations".
+
+Status: done.
+
+* `env-gc.md` now describes the current collector, when it runs, the rules for
+  C++ code, and how to test and debug it.
+* `gc.md` has a pointer to `env-gc.md`, and its claims about `set!` and
+  `env_root_ptr` are corrected.
+* `TODO.md` no longer lists the GC items that are done (collection points,
+  child tracking, `environment::unregister`).
+* `noeval-reference.md` describes the current collector.
 
 ## Phase 5 (optional, needs a decision): Stop creating a cycle on every call
 
@@ -117,11 +186,11 @@ code that can't contain one.
 * All environments are destroyed at exit.
 * The library tests take about as long as the pure reference counting build
   did (around 19 seconds on the machine used for the postmortem), not many
-  minutes.
+  minutes. (The test suite has grown since then, and much of the current
+  cost is debug string building rather than collection. See Phase 3.)
 
 ## Build note
 
 The Makefile needs GCC 15 (`<print>`, range formatting in `std::format`).
-Building with GCC 14 needs the small patches described in the postmortem's
-"Reproducing" section. Either use GCC 15, or make those portability fixes as
-part of Phase 0.
+Phase 0 made the portability fixes, so it also builds with GCC 14
+(`make CXX=g++-14`).

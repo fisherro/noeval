@@ -6,8 +6,16 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#define NOEVAL_DEBUG(category, ...) get_debug().log(#category, __VA_ARGS__)
-#define NOEVAL_DEBUG_ENABLED(category) get_debug().is_enabled(#category)
+// The arguments are only evaluated if the category is enabled. (They often
+// convert values to strings, which is expensive.)
+#define NOEVAL_DEBUG(category, ...) \
+    do { \
+        if (NOEVAL_DEBUG_ENABLED(category)) get_debug().log(#category, __VA_ARGS__); \
+    } while (false)
+// Checking any_enabled first avoids constructing a string for the category in
+// the usual case of no categories being enabled.
+#define NOEVAL_DEBUG_ENABLED(category) \
+    (get_debug().any_enabled() and get_debug().is_enabled(#category))
 
 extern std::unordered_map<std::string, std::string> debug_categories;
 
@@ -24,6 +32,7 @@ public:
     void enable_all();
     void disable_all();
     bool is_enabled(const std::string& category) const;
+    bool any_enabled() const { return not enabled_categories.empty(); }
     void set_colors(bool enable);
     bool are_colors_enabled() const;
     

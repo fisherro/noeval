@@ -72,7 +72,7 @@ Summary to use as Github Copilot context so that it doesn't have to reference la
 ## Implementation Notes
 
 - **Tail call optimization**: Enabled with `USE_TAIL_CALL`
-- **Garbage collection**: Manual environment collection after top-level evaluation
+- **Garbage collection**: Reference counting plus a cycle collector for environments, which runs automatically as environments are created (see `design/env-gc.md`)
 - **Debug categories**: `eval`, `builtin`, `env_binding`, `tco`, `timer`, `library`
 - **Call stack tracking**: Maintains call stack for error reporting
 - **Environment chaining**: Environments form chains for lexical scoping

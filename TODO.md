@@ -20,8 +20,6 @@ Update noeval-reference.md
 
 Implement transducers (See Clojure and SRFI-171)
 
-Collect at top of eval loop (maybe not every time).
-
 Should use of `read` be prevented from the REPL?
 
 Change parser to use a "stream" "adaptor" that can wrap stdin or std::cin and
@@ -40,19 +38,9 @@ Prioritize macros and RRB trees in order to improve performance.
 
 Member functions to extract values from the value type.
 
-Add child tracking to environments so that garbarge collection may be done
-during top-level evaluations.
-
 A special form for "requires contracts" to standardize argument checking?
 
 File I/O
-
-environment::unregister:
-Does nothing when collection is in progress.
-Otherwise immediately removes.
-Then dtor will call unregister.
-That way the dtor removing from the registry can't mess up collection.
-And add max-constructed stat to measure this improvement.
 
 Add max-garbage stat
 
@@ -132,8 +120,8 @@ Consider `do` and `try` creating their own environment
 
 Add validation of the bindings structures to let
 
-Add GC collection points to more places.
-
 Function overloading or multimethods? Some way to allow the list functions to work on any sequence.
 
 User-defined types?
+
+Consider switching to intrusive reference counting

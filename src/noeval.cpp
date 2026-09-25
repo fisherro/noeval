@@ -4,6 +4,7 @@
 // NOTE THAT nil IS SPELT ()
 
 #include <algorithm>
+#include <cstdlib>
 #include <chrono>
 #include <format>
 #include <functional>
@@ -129,12 +130,6 @@ std::string to_string(const env_ptr& env)
         static_cast<const void*>(env.get())); 
 }
 
-std::string to_string(const env_root_ptr& env)
-{ 
-    return std::format("#<environment-root:{}>",
-        static_cast<const void*>(env.get().get()));
-}
-
 std::string to_string(std::nullptr_t) { return "()"; }
 
 // Helper function to print values for debugging
@@ -206,10 +201,11 @@ std::string operative::to_string() const
 {
     if (not tag.empty()) return tag;
     // It isn't easy (yet) to change the delimiter that format uses for ranges,
-    // so explicitly use std::views::join_with.
-    return std::format("(#<operative> {}{:s}{} {} {})",
+    // so explicitly use std::views::join_with. (Converting to a string, rather
+    // than formatting the range directly, also supports GCC 14.)
+    return std::format("(#<operative> {}{}{} {} {})",
         params.is_variadic? "": "(",
-        params.param_names | std::views::join_with(' '),
+        params.param_names | std::views::join_with(' ') | std::ranges::to<std::string>(),
         params.is_variadic? "": ")",
         env_param,
         value_to_string(body)
@@ -307,17 +303,6 @@ std::vector<std::string> environment::get_all_symbols() const
     auto symbols = bindings | std::views::keys | std::ranges::to<std::vector>();
     if (parent) {
         std::ranges::copy(parent->get_all_symbols(), std::back_inserter(symbols));
-    }
-    return symbols;
-}
-
-std::vector<std::string> environment::get_root_symbols()
-{
-    std::vector<std::string> symbols;
-    for (const auto& [env_weak, count]: roots) {
-        if (auto env = env_weak.lock(); env) {
-            std::ranges::copy(env->get_all_symbols(), std::back_inserter(symbols));
-        }
     }
     return symbols;
 }
@@ -428,19 +413,23 @@ param_pattern extract_param_pattern(value_ptr params)
 }
 
 // Forward declarations:
-continuation_type operate_operative(const operative& op, value_ptr operands, env_root_ptr env);
-continuation_type operate_builtin(const builtin_operative& op, value_ptr operands, env_root_ptr env);
+continuation_type operate_operative(const operative& op, value_ptr operands, env_ptr env);
+continuation_type operate_builtin(const builtin_operative& op, value_ptr operands, env_ptr env);
 
 struct call_stack {
 private:
     // These were thread_local, but we aren't using threads (yet).
-    inline static std::vector<std::string> stack;
+    // We store the expressions rather than their string forms. Converting
+    // every expression to a string as it is evaluated is expensive, and we
+    // only need the strings when formatting a stack trace. (Expressions are
+    // immutable, so the strings will be the same.)
+    inline static std::vector<value_ptr> stack;
     inline static size_t max_depth{0};
 public:
     struct guard {
         guard(value_ptr expr)
         {
-            stack.push_back(value_to_string(expr));
+            stack.push_back(std::move(expr));
             if (depth() > max_depth) max_depth = depth();
         }
         ~guard()
@@ -454,8 +443,8 @@ public:
     static std::string format()
     {
         std::string result;
-        for (const auto& [index, line] : stack | std::views::enumerate) {
-            result += std::format("{}: {}\n", index, line);
+        for (const auto& [index, expr] : stack | std::views::enumerate) {
+            result += std::format("{}: {}\n", index, value_to_string(expr));
         }
         return result;
     }
@@ -473,7 +462,7 @@ size_t call_stack_get_max_depth()   { return call_stack::get_max_depth(); }
 // Built-in operatives
 namespace builtins {
 
-    continuation_type vau_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type vau_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 3) {
             throw evaluation_error(
@@ -544,7 +533,7 @@ namespace builtins {
     }
 
     // Helper function to evaluate both arguments in current environment
-    std::pair<value_ptr, value_ptr> evaluate_eval_arguments(const std::vector<value_ptr>& args, env_root_ptr env)
+    std::pair<value_ptr, value_ptr> evaluate_eval_arguments(const std::vector<value_ptr>& args, env_ptr env)
     {
         auto expr = args[0];          // Expression to evaluate (unevaluated)
         auto env_expr = args[1];      // Environment expression (unevaluated)
@@ -564,7 +553,7 @@ namespace builtins {
     }
 
     // Helper function to extract environment from evaluated value
-    env_root_ptr extract_target_environment(value_ptr env_val, const std::vector<value_ptr>& args)
+    env_ptr extract_target_environment(value_ptr env_val, const std::vector<value_ptr>& args)
     {
         if (!std::holds_alternative<env_ptr>(env_val->data)) {
             throw evaluation_error(
@@ -575,7 +564,7 @@ namespace builtins {
             );
         }
         
-        auto target_env = env_root_ptr(std::get<env_ptr>(env_val->data));
+        auto target_env = std::get<env_ptr>(env_val->data);
         NOEVAL_DEBUG(operative, "Target environment for evaluation: {}", to_string(target_env));
 
         return target_env;
@@ -583,7 +572,7 @@ namespace builtins {
 
     // Evaluates both arguments, then evaluates the result of evaluating the
     // first argument in the environment evaluated from the second argument.
-    continuation_type eval_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type eval_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         try {
             validate_eval_arguments(args);
@@ -611,7 +600,7 @@ namespace builtins {
     }
 
     // Does not evaluate first argument, but evaluates the second
-    continuation_type define_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type define_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 2) {
             throw evaluation_error(
@@ -666,7 +655,7 @@ namespace builtins {
     }
 
     // Helper function to evaluate and validate the first argument
-    bignum evaluate_first_argument(const value_ptr& first_arg, const std::string& op_name, env_root_ptr env)
+    bignum evaluate_first_argument(const value_ptr& first_arg, const std::string& op_name, env_ptr env)
     {
         auto first_val = eval(first_arg, env);
         if (!std::holds_alternative<bignum>(first_val->data)) {
@@ -693,7 +682,7 @@ namespace builtins {
 
     auto make_arithmetic_operative(const std::string& op_name, std::function<bignum(bignum, bignum)> op)
     {
-        return [op_name, op](const std::vector<value_ptr>& args, env_root_ptr env) {
+        return [op_name, op](const std::vector<value_ptr>& args, env_ptr env) {
             if (args.empty()) {
                 throw evaluation_error(
                     std::format("{}: requires at least one argument", op_name),
@@ -728,7 +717,7 @@ namespace builtins {
     }
 
     // Evaluates both arguments
-    continuation_type cons_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type cons_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 2) {
             throw evaluation_error(
@@ -747,7 +736,7 @@ namespace builtins {
     }
 
     // Evaluates argument
-    continuation_type first_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type first_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 1) {
             throw evaluation_error(
@@ -762,7 +751,7 @@ namespace builtins {
     }
 
     // Evaluates argument
-    continuation_type rest_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type rest_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 1) {
             throw evaluation_error(
@@ -791,13 +780,13 @@ namespace builtins {
         });
     }
 
-    auto church_true(env_root_ptr env)
+    auto church_true(env_ptr env)
     {
         //Lookup true in the given environment.
         return env->lookup("true");
     }
 
-    auto church_false(env_root_ptr env)
+    auto church_false(env_ptr env)
     {
         //Lookup false in the given environment.
         return env->lookup("false");
@@ -805,7 +794,7 @@ namespace builtins {
 
     // Evaluates argument
     // Returns Church Booleans
-    continuation_type nil_p_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type nil_p_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 1) {
             throw evaluation_error(
@@ -819,7 +808,7 @@ namespace builtins {
         return is_nil(val)? church_true(env): church_false(env);
     }
 
-    continuation_type invoke_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type invoke_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 2) {
             throw evaluation_error(
@@ -842,7 +831,7 @@ namespace builtins {
     }
 
     // Evaluates each argument
-    continuation_type do_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type do_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.empty()) {
             // Empty do returns nil
@@ -887,7 +876,7 @@ namespace builtins {
     // In other cases, comparison against different types raises an error.
     // Comparison between true and true or false and false returns true.
     // All other comparisons between operatives always return false.
-    continuation_type equal_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type equal_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 2) {
             throw evaluation_error(
@@ -905,7 +894,7 @@ namespace builtins {
         return (*val1 == *val2) ? church_true(env) : church_false(env);
     }
 
-    continuation_type write_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type write_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 1) {
             throw evaluation_error(
@@ -930,7 +919,7 @@ namespace builtins {
         }
     }
 
-    continuation_type display_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type display_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 1) {
             throw evaluation_error(
@@ -963,7 +952,7 @@ namespace builtins {
         }
     }
 
-    continuation_type flush_operative(const std::vector<value_ptr>& args, env_root_ptr)
+    continuation_type flush_operative(const std::vector<value_ptr>& args, env_ptr)
     {
         if (!args.empty()) {
             throw evaluation_error(
@@ -978,7 +967,7 @@ namespace builtins {
         return value::make(nullptr);  // Return nil
     }
 
-    continuation_type define_mutable_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type define_mutable_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 2) {
             throw evaluation_error(
@@ -1018,7 +1007,7 @@ namespace builtins {
         }
     }
 
-    continuation_type set_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type set_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 2) {
             throw evaluation_error(
@@ -1081,7 +1070,7 @@ namespace builtins {
     //
     // This is a stop-gap measure. I plan to revisit error handling in the
     // future, but I need something quick and dirty for now.
-    continuation_type try_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type try_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if ((args.size() < 2) or (args.size() > 3)) {
             throw evaluation_error(
@@ -1144,7 +1133,7 @@ namespace builtins {
         return result;
     }
 
-    continuation_type raise_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type raise_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 1) {
             throw evaluation_error(
@@ -1166,7 +1155,7 @@ namespace builtins {
         throw evaluation_error(message, "", call_stack::format());
     }
 
-    continuation_type typeof_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type typeof_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 1) {
             throw evaluation_error(
@@ -1180,7 +1169,7 @@ namespace builtins {
         return value::make(symbol{type});
     }
 
-    continuation_type spaceship_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type spaceship_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 2) {
             throw evaluation_error(
@@ -1212,7 +1201,7 @@ namespace builtins {
         return value::make(result);
     }
 
-    continuation_type numerator_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type numerator_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 1) {
             throw evaluation_error(
@@ -1234,7 +1223,7 @@ namespace builtins {
         return value::make(numerator);
     }
 
-    continuation_type denominator_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type denominator_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 1) {
             throw evaluation_error(
@@ -1256,7 +1245,7 @@ namespace builtins {
         return value::make(denominator);
     }
 
-    continuation_type remainder_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type remainder_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 2) {
             throw evaluation_error(
@@ -1295,7 +1284,7 @@ namespace builtins {
         return value::make(result);
     }
 
-    continuation_type string_to_list_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type string_to_list_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 1) {
             throw evaluation_error(
@@ -1351,7 +1340,7 @@ namespace builtins {
         return codepoint;
     }
 
-    continuation_type list_to_string_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type list_to_string_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (args.size() != 1) {
             throw evaluation_error(
@@ -1399,7 +1388,7 @@ namespace builtins {
         return value::make(s);
     }
 
-    continuation_type load_operative(const std::vector<value_ptr>& args, env_root_ptr env)
+    continuation_type load_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         if (1 != args.size()) {
             throw evaluation_error("load: expected 1 argument (filename)", "load", call_stack::format());
@@ -1452,7 +1441,7 @@ namespace builtins {
         return parser{contents};
     }
 
-    continuation_type read_operative(const std::vector<value_ptr>& args, env_root_ptr)
+    continuation_type read_operative(const std::vector<value_ptr>& args, env_ptr)
     {
         if (args.size() != 0) {
             throw evaluation_error(
@@ -1481,7 +1470,7 @@ namespace builtins {
 
 } // namespace builtins
 
-void add_church_boleans(env_root_ptr env)
+void add_church_boleans(env_ptr env)
 {
     auto true_value = value::make(operative{
             param_pattern{false, {"x", "y"}},
@@ -1501,12 +1490,12 @@ void add_church_boleans(env_root_ptr env)
 }
 
 // Create a top-level environment with built-ins
-env_root_ptr create_top_level_environment()
+env_ptr create_top_level_environment()
 {
     auto env = environment::make();
 
     auto define_builtin = [env](const std::string& name, 
-                    std::function<continuation_type(const std::vector<value_ptr>&, env_root_ptr)> func)
+                    std::function<continuation_type(const std::vector<value_ptr>&, env_ptr)> func)
     {
         env->define(name, value::make(builtin_operative{name, std::move(func)}));
     };
@@ -1565,7 +1554,7 @@ env_root_ptr create_top_level_environment()
 }
 
 // Bind parameters to operands in target environment
-void bind_parameters(const param_pattern& params, value_ptr operands, env_root_ptr target_env)
+void bind_parameters(const param_pattern& params, value_ptr operands, env_ptr target_env)
 {
     NOEVAL_DEBUG(env_binding, "Binding parameters: {} to operands: {}", 
             params.is_variadic ? "variadic" : "fixed", value_to_string(operands));
@@ -1599,7 +1588,7 @@ void bind_parameters(const param_pattern& params, value_ptr operands, env_root_p
     }
 }
 
-continuation_type operate_operative(const operative& op, value_ptr operands, env_root_ptr env)
+continuation_type operate_operative(const operative& op, value_ptr operands, env_ptr env)
 {
     // Create new environment for the operative
     auto new_env = environment::make(op.closure_env);
@@ -1617,7 +1606,7 @@ continuation_type operate_operative(const operative& op, value_ptr operands, env
     // We use nil as the equivalent to Kernel's #ignore for vau's
     // environment parameter.
     if (not op.env_param.empty()) {
-        new_env->define(op.env_param, value::make(env.get()));
+        new_env->define(op.env_param, value::make(env));
     }
 
     // Evaluate body in new environment
@@ -1628,7 +1617,7 @@ continuation_type operate_operative(const operative& op, value_ptr operands, env
 #endif
 }
 
-continuation_type operate_builtin(const builtin_operative& op, value_ptr operands, env_root_ptr env)
+continuation_type operate_builtin(const builtin_operative& op, value_ptr operands, env_ptr env)
 {
     NOEVAL_DEBUG(builtin, "Invoking builtin '{}' with operands: {}", 
               op.name, value_to_string(operands));
@@ -1645,7 +1634,7 @@ continuation_type operate_builtin(const builtin_operative& op, value_ptr operand
     return result;
 }
 
-value_ptr eval_symbol(const symbol& sym, env_root_ptr env)
+value_ptr eval_symbol(const symbol& sym, env_ptr env)
 {
     // Look up the symbol in the environment
     try {
@@ -1662,7 +1651,7 @@ value_ptr eval_symbol(const symbol& sym, env_root_ptr env)
     }
 }
 
-continuation_type eval_operation(const cons_cell& cell, env_root_ptr env)
+continuation_type eval_operation(const cons_cell& cell, env_ptr env)
 {
     // Convert cons_cell back to value_ptr for easier handling
     auto expr = value::make(cell);
@@ -1704,201 +1693,194 @@ continuation_type eval_operation(const cons_cell& cell, env_root_ptr env)
 
 ///////////////////////////////////////////////////////////////////////////////
 
-env_root_ptr::env_root_ptr(env_ptr e): env(std::move(e))
-{
-    environment::add_root(env);
-}
+// Trial deletion cycle collector (see design/gc-plan.md)
+//
+// Every cycle in Noeval passes through an environment, so we scan everything
+// reachable from the registered environments. Each environment and value we
+// find starts with its reference count, and we subtract one for every reference
+// to it that we find inside the scanned heap. Anything left with a positive
+// count is also referenced from outside the heap (e.g. from the C++ stack), so
+// it is a root. Environments that aren't reachable from a root are garbage.
+//
+// If the scan misses a reference, the thing it refers to looks like it is
+// referenced from outside the heap, so it is kept. A mistake here causes a
+// leak, not a corrupted environment. Counting a reference twice, however, could
+// cause live environments to be collected, so each reference must be counted
+// exactly once.
+struct cycle_collector {
+    std::unordered_map<environment*, long> env_refs;
+    std::unordered_map<value*, long> value_refs;
 
-env_root_ptr::env_root_ptr(const env_root_ptr& that): env(that.env)
-{
-    environment::add_root(env);
-}
-
-env_root_ptr& env_root_ptr::operator=(const env_root_ptr& that)
-{
-    if (this != &that) {
-        environment::remove_root(env);
-        env = that.env;
-        environment::add_root(env);
-    }
-    return *this;
-}
-
-env_root_ptr::~env_root_ptr()
-{
-    environment::remove_root(env);
-}
-
-void environment::add_root(env_ptr env)
-{
-    if (not env) return;
-    std::weak_ptr<environment> weak_env{env};
-    auto iter{roots.find(weak_env)};
-    if (iter != roots.end()) {
-        NOEVAL_DEBUG(gc_roots, "Incrementing root count: {}:{} → {}", to_string(env), iter->second, iter->second + 1);
-        ++(iter->second);
-    } else {
-        NOEVAL_DEBUG(gc_roots, "Adding root: {}", to_string(env));
-        roots[weak_env] = 1;
-    }
-}
-
-void environment::remove_root(env_ptr env)
-{
-    if (not env) return;
-    std::weak_ptr<environment> weak_env{env};
-    auto iter{roots.find(weak_env)};
-    if (iter != roots.end()) {
-        NOEVAL_DEBUG(gc_roots, "Decrementing root count: {}:{} → {}", to_string(env), iter->second, iter->second - 1);
-        if (--(iter->second) == 0) {
-            NOEVAL_DEBUG(gc_roots, "Removing root: {}", to_string(env));
-#if 0
-            std::println("STACK TRACE:\n{}", std::stacktrace::current());
-#endif
-            roots.erase(iter);
+    // Call on_env or on_value for each environment or value that env holds a
+    // reference to.
+    static void for_each_reference(environment* env, auto on_env, auto on_value)
+    {
+        if (env->parent) on_env(env->parent.get());
+        for (const auto& binding: env->bindings) {
+            if (binding.second) on_value(binding.second.get());
         }
     }
-}
 
-std::set<std::weak_ptr<environment>, std::owner_less<std::weak_ptr<environment>>> marked_closure_envs;
-/*
- * We need to recursively check this values for env_ptrs:
- * `env_ptr`
- * `cons_cell::car`
- * `cons_cell::cdr`
- * `operative::closure_env`
- * `operative::body`?
- * `mutable_binding::value`
- */
-void environment::mark_value(std::unordered_set<environment*>& marked, value* v)
-{
-    if (not v) return;
-    if (std::holds_alternative<env_ptr>(v->data)) {
-        mark_environment(marked, std::get<env_ptr>(v->data).get());
-    } else if (std::holds_alternative<cons_cell>(v->data)) {
-        auto& cell = std::get<cons_cell>(v->data);
-        mark_value(marked, cell.car.get());
-        mark_value(marked, cell.cdr.get());
-    } else if (std::holds_alternative<operative>(v->data)) {
-        auto& op = std::get<operative>(v->data);
-        marked_closure_envs.insert(op.closure_env);
-        mark_environment(marked, op.closure_env.get());
-        mark_value(marked, op.body.get());
-    } else if (std::holds_alternative<mutable_binding>(v->data)) {
-        auto& mb = std::get<mutable_binding>(v->data);
-        mark_value(marked, mb.value.get());
-    }
-}
-
-void environment::mark_environment(std::unordered_set<environment*>& marked, environment* env)
-{
-    if (not env) return;
-    if (marked.contains(env)) return;
-    marked.insert(env);
-    mark_environment(marked, env->parent.get());
-    for (const auto& binding: env->bindings) {
-        mark_value(marked, binding.second.get());
-    }
-}
-
-std::unordered_set<environment*> environment::mark()
-{
-std::println("{}({})", __FILE__, __LINE__);
-    std::unordered_set<environment*> marked;
-std::println("{}({})", __FILE__, __LINE__);
-    for (const auto& [root, count]: roots) {
-std::println("{}({})", __FILE__, __LINE__);
-        if (count == 0) continue;
-std::println("{}({})", __FILE__, __LINE__);
-        if (auto p = root.lock()) {
-std::println("{}({})", __FILE__, __LINE__);
-            mark_environment(marked, p.get());
-std::println("{}({})", __FILE__, __LINE__);
-        }
-std::println("{}({})", __FILE__, __LINE__);
-    }
-std::println("{}({})", __FILE__, __LINE__);
-    return marked;
-}
-
-void environment::sweep(std::unordered_set<environment*>& marked)
-{
-    for (const auto& entry: registry) {
-        auto p = entry.lock();
-        if (not p) continue;
-        if (marked.contains(p.get())) continue;
-if (roots.contains(entry)) throw std::runtime_error("Root environment not marked");
-        NOEVAL_DEBUG(gc, "Collecting environment: {}", to_string(p));
-        p->bindings.clear();
-        p->parent.reset();
-    }
-}
-
-void environment::cleanup_registry()
-{
-    for (const auto& marked: marked_closure_envs) {
-        if (auto p = marked.lock()) {
-            environment::remove_root(p);
+    // Call on_env or on_value for each environment or value that v holds a
+    // reference to.
+    //
+    // Builtin operatives could hold references in their std::function, but we
+    // can't see those. That's OK. (It will cause a leak rather than a
+    // collection of something in use.)
+    static void for_each_reference(value* v, auto on_env, auto on_value)
+    {
+        if (auto env = std::get_if<env_ptr>(&v->data)) {
+            if (*env) on_env(env->get());
+        } else if (auto cell = std::get_if<cons_cell>(&v->data)) {
+            if (cell->car) on_value(cell->car.get());
+            if (cell->cdr) on_value(cell->cdr.get());
+        } else if (auto op = std::get_if<operative>(&v->data)) {
+            if (op->closure_env) on_env(op->closure_env.get());
+            if (op->body) on_value(op->body.get());
+        } else if (auto mb = std::get_if<mutable_binding>(&v->data)) {
+            if (mb->value) on_value(mb->value.get());
         }
     }
-    marked_closure_envs.clear();
-    std::erase_if(roots, [](const auto& entry) {
-        return entry.first.expired() or (entry.second == 0);
-    });
-    std::erase_if(registry, [](const auto& entry) {
-        return entry.expired();
-    });
+
+    // Find the reference count of each environment and value that isn't
+    // accounted for by references from inside the heap.
+    void count_external_references()
+    {
+        for (auto env: environment::registry) {
+            // An environment that isn't owned by a shared_ptr yet (or anymore)
+            // can't be referenced by anything, so we leave it out.
+            auto refs = env->weak_from_this().use_count();
+            if (refs > 0) env_refs[env] = refs;
+        }
+
+        std::vector<value*> pending;
+        auto on_env = [&](environment* env) {
+            auto iter = env_refs.find(env);
+            if (iter != env_refs.end()) --(iter->second);
+        };
+        auto on_value = [&](value* v) {
+            auto [iter, inserted] = value_refs.try_emplace(v, 0);
+            if (inserted) {
+                iter->second = v->weak_from_this().use_count();
+                pending.push_back(v);
+            }
+            --(iter->second);
+        };
+
+        for (const auto& entry: env_refs) {
+            for_each_reference(entry.first, on_env, on_value);
+        }
+        while (not pending.empty()) {
+            auto v = pending.back();
+            pending.pop_back();
+            for_each_reference(v, on_env, on_value);
+        }
+
+        auto negative = [](const auto& entry) { return entry.second < 0; };
+        if (std::ranges::any_of(env_refs, negative) or std::ranges::any_of(value_refs, negative)) {
+            throw std::logic_error("Garbage collector found more references than the reference count");
+        }
+    }
+
+    // Find the environments reachable from roots (the environments and values
+    // that are referenced from outside the heap).
+    std::unordered_set<environment*> find_live_environments() const
+    {
+        std::unordered_set<environment*> live_envs;
+        std::unordered_set<value*> live_values;
+        std::vector<environment*> env_work;
+        std::vector<value*> value_work;
+
+        auto on_env = [&](environment* env) {
+            if (not env_refs.contains(env)) return;
+            if (live_envs.insert(env).second) env_work.push_back(env);
+        };
+        auto on_value = [&](value* v) {
+            if (live_values.insert(v).second) value_work.push_back(v);
+        };
+
+        for (const auto& [env, refs]: env_refs) {
+            if (refs > 0) on_env(env);
+        }
+        for (const auto& [v, refs]: value_refs) {
+            if (refs > 0) on_value(v);
+        }
+
+        while (not (env_work.empty() and value_work.empty())) {
+            if (not env_work.empty()) {
+                auto env = env_work.back();
+                env_work.pop_back();
+                for_each_reference(env, on_env, on_value);
+            } else {
+                auto v = value_work.back();
+                value_work.pop_back();
+                for_each_reference(v, on_env, on_value);
+            }
+        }
+        return live_envs;
+    }
+
+    // Returns the number of environments collected
+    size_t collect()
+    {
+        count_external_references();
+        auto live_envs = find_live_environments();
+
+        // Hold on to the garbage while we break the cycles so that nothing gets
+        // destroyed until we're done.
+        std::vector<env_ptr> garbage;
+        for (const auto& entry: env_refs) {
+            if (not live_envs.contains(entry.first)) {
+                garbage.push_back(entry.first->shared_from_this());
+            }
+        }
+        env_refs.clear();
+        value_refs.clear();
+
+        for (auto& env: garbage) {
+            NOEVAL_DEBUG(gc, "Collecting environment: {}", to_string(env));
+            env->bindings.clear();
+            env->parent.reset();
+        }
+        return garbage.size();
+    }
+};
+
+// Collect if enough environments have been created since the last
+// collection. Collection can happen here, in the middle of an evaluation, so
+// C++ code must hold environments and values it is using by shared_ptr.
+void environment::maybe_collect()
+{
+    auto interval = (stress_interval > 0)?
+        stress_interval: std::max(min_collection_interval, survivors);
+    if (created_since_collection >= interval) {
+        collect();
+    }
+    ++created_since_collection;
 }
 
-env_root_ptr environment::make()
+env_ptr environment::make()
 {
-    auto env = std::shared_ptr<environment>(new environment);
-    registry.insert(env);
-    return env_root_ptr(env);
+    maybe_collect();
+    return env_ptr(new environment);
 }
 
-env_root_ptr environment::make(env_ptr parent)
+env_ptr environment::make(env_ptr parent)
 {
-    auto env = std::shared_ptr<environment>(new environment(std::move(parent)));
-    registry.insert(env);
-    return env_root_ptr(env);
-}
-
-env_root_ptr environment::make(env_root_ptr parent)
-{
-    return make(parent.get());
+    maybe_collect();
+    return env_ptr(new environment(std::move(parent)));
 }
 
 void environment::collect()
 {
     NOEVAL_DEBUG(gc, "Before collection: Undestructed environments: {}", environment::get_constructed_count());
     NOEVAL_DEBUG(gc, "Before collection: Registered environments  : {}", environment::get_registered_count());
-    if (NOEVAL_DEBUG_ENABLED(gc_roots)) dump_roots();
-std::println("{}({})", __FILE__, __LINE__);
-    cleanup_registry();
-std::println("{}({})", __FILE__, __LINE__);
-    auto marked = mark();
-std::println("{}({})", __FILE__, __LINE__);
-    sweep(marked);
-std::println("{}({})", __FILE__, __LINE__);
-    cleanup_registry();
-std::println("{}({})", __FILE__, __LINE__);
+    auto collected = cycle_collector{}.collect();
+    NOEVAL_DEBUG(gc, "Collected environments   : {}", collected);
+    created_since_collection = 0;
+    survivors = count;
     NOEVAL_DEBUG(gc, "After collection : Undestructed environments: {}", environment::get_constructed_count());
     NOEVAL_DEBUG(gc, "After collection : Registered environments  : {}", environment::get_registered_count());
-    if (NOEVAL_DEBUG_ENABLED(gc_roots)) dump_roots();
-}
-
-void environment::dump_roots()
-{
-    NOEVAL_DEBUG(gc_roots, "Roots:");
-    for (const auto& [entry, count]: roots) {
-        auto p = entry.lock();
-        if (p) {
-            NOEVAL_DEBUG(gc_roots, "\t{}:{}", to_string(p), count);
-        } else {
-            NOEVAL_DEBUG(gc_roots, "\t<expired>:{}", count);
-        }
-    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1925,7 +1907,7 @@ private:
     clock::time_point before;
 };
 
-value_ptr eval(value_ptr expr, env_root_ptr env)
+value_ptr eval(value_ptr expr, env_ptr env)
 {
     call_stack::guard g(expr);
     while (true) {
@@ -1935,12 +1917,6 @@ value_ptr eval(value_ptr expr, env_root_ptr env)
             value_type_string(expr),
             value_to_string(expr));
         try {
-            static size_t count{0};
-            if (++count > 0) {
-                environment::collect();
-                count = 0;
-            }
-
             continuation_type k = std::visit([&](const auto& v) -> continuation_type {
                 using T = std::decay_t<decltype(v)>;
                 
@@ -1983,22 +1959,17 @@ value_ptr eval(value_ptr expr, env_root_ptr env)
     return nullptr; // Unreachable
 }
 
-value_ptr top_level_eval(value_ptr expr, env_root_ptr env)
+value_ptr top_level_eval(value_ptr expr, env_ptr env)
 {
-    auto eval_and_collect = [&]() {
-        auto result{eval(expr, env)};
-        environment::collect();
-        return result;
-    };
     if (NOEVAL_DEBUG_ENABLED(timer)) {
         timer eval_timer{"eval"};
-        return eval_and_collect();
+        return eval(expr, env);
     }
-    return eval_and_collect();
+    return eval(expr, env);
 }
 
 //TODO: Refactor this, load_library_file, and run_library_tests to share code.
-bool execute_script(const std::string& filename, env_root_ptr env)
+bool execute_script(const std::string& filename, env_ptr env)
 {
     try {
         std::string content = read_file_content(filename);
@@ -2029,7 +2000,7 @@ bool execute_script(const std::string& filename, env_root_ptr env)
     }
 }
 
-bool load_library_file(const std::string& filename, env_root_ptr env)
+bool load_library_file(const std::string& filename, env_ptr env)
 {
     bool ok{true};
     try {
@@ -2064,7 +2035,7 @@ bool load_library_file(const std::string& filename, env_root_ptr env)
 }
 
 // Function to run library tests from file
-int run_library_tests(env_root_ptr outer_env)
+int run_library_tests(env_ptr outer_env)
 {
     std::println("Running library tests from file...");
     
@@ -2128,7 +2099,7 @@ int run_library_tests(env_root_ptr outer_env)
     }
 }
 
-env_root_ptr reload_top_level_environment(bool test_the_library)
+env_ptr reload_top_level_environment(bool test_the_library)
 {
     // Create environment and load library
     auto env = create_top_level_environment();
@@ -2139,7 +2110,7 @@ env_root_ptr reload_top_level_environment(bool test_the_library)
     bool library_ok = load_library_file("src/lib.noeval", env);
     if (not library_ok) {
         std::println("Loading the library failed!");
-        return env_root_ptr{nullptr};
+        return env_ptr{nullptr};
     }
 
     if (test_the_library) {
@@ -2161,7 +2132,7 @@ env_root_ptr reload_top_level_environment(bool test_the_library)
             
             if (response != "y" and response != "yes") {
                 std::println("Aborting due to library test failures.");
-                return env_root_ptr{nullptr};
+                return env_ptr{nullptr};
             }
             
             std::println("Continuing despite library test failures...");
@@ -2175,8 +2146,20 @@ env_root_ptr reload_top_level_environment(bool test_the_library)
 
 int main(const int argc, const char** argv)
 {
-    get_debug().enable_all();
     std::vector<std::string> args(argv + 1, argv + argc);
+
+    // Stress mode: NOEVAL_GC_STRESS=n collects every n environment creations.
+    // (Unset, empty, or 0 means stress mode is off.)
+    if (auto stress = std::getenv("NOEVAL_GC_STRESS")) {
+        environment::set_stress_interval(std::max(0, std::atoi(stress)));
+    }
+
+    // Run only the garbage collection tests.
+    if ((not args.empty()) and ("--gc-tests" == args[0])) {
+        auto failures = run_gc_tests();
+        environment::collect();
+        return (0 == failures)? EXIT_SUCCESS: EXIT_FAILURE;
+    }
 
     if (!run_tests()) {
         std::print("Tests failed. Do you want to continue anyway? (y/N): ");

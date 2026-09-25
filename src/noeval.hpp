@@ -1,7 +1,9 @@
 #pragma once
 
 #include <functional>
+#include <map>
 #include <memory>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -21,45 +23,11 @@ struct value;
 using value_ptr = std::shared_ptr<value>;
 using env_ptr = std::shared_ptr<environment>;
 
-// Used to ensure that environments referenced only by the C++ code do not get
-// collected.
-class env_root_ptr final {
-    env_ptr env;
-public:
-    explicit env_root_ptr(env_ptr e);
-    ~env_root_ptr();
-    env_ptr get() const { return env; }
-    env_ptr operator->() const { return env; }
-    operator bool() const { return static_cast<bool>(env); }
-
-    // Copy operations
-    env_root_ptr(const env_root_ptr& that);
-    env_root_ptr& operator=(const env_root_ptr& that);
-
-#if 0
-    // Add move constructor and assignment
-    env_root_ptr(env_root_ptr&& that) noexcept: env(std::move(that.env))
-    {
-        that.env = nullptr; // Prevent destructor from removing
-    }
-    
-    env_root_ptr& operator=(env_root_ptr&& that) noexcept
-    {
-        if (this != &that) {
-            if (env) environment::remove_root(env);
-            env = std::move(that.env);
-            that.env = nullptr;
-        }
-        return *this;
-    }
-#endif
-};
-
 // Tail call captures the eval arguments for the next iteration of eval when
 // a tail call happens.
 struct tail_call {
     value_ptr    expr;
-    env_root_ptr env;
+    env_ptr env;
 };
 
 // Functions that eval calls that could result in a tail call will use this
@@ -98,18 +66,12 @@ struct operative {
     env_ptr closure_env;
     std::string tag;
 
-#if 0
-    operative(param_pattern p, std::string e, value_ptr b, env_root_ptr env,
+    operative(param_pattern p, std::string e, value_ptr b, env_ptr env,
         std::string_view t = "")
         : params(std::move(p)), env_param(std::move(e)),
           body(std::move(b)),
-          closure_env(std::move(env.get())),
+          closure_env(std::move(env)),
           tag(t) {}
-#else
-    operative(param_pattern p, std::string e, value_ptr b, env_root_ptr env,
-        std::string_view t = "");
-    ~operative();
-#endif
 
     std::string to_string() const;
     bool operator==(const operative& that) const
@@ -122,9 +84,9 @@ struct operative {
 // Built-in operative type for primitives
 struct builtin_operative {
     std::string name;
-    std::function<continuation_type(const std::vector<value_ptr>&, env_root_ptr)> func;
+    std::function<continuation_type(const std::vector<value_ptr>&, env_ptr)> func;
 
-    builtin_operative(std::string n, std::function<continuation_type(const std::vector<value_ptr>&, env_root_ptr)> f)
+    builtin_operative(std::string n, std::function<continuation_type(const std::vector<value_ptr>&, env_ptr)> f)
         : name(std::move(n)), func(std::move(f)) {}
     std::string to_string() const { return "#<builtin-operative:" + name + ">"; }
     bool operator==(const builtin_operative&) const { return false; }
@@ -186,11 +148,6 @@ public:
         return std::shared_ptr<value>(new value(std::forward<T>(v)));
     }
 
-    static std::shared_ptr<value> make(env_root_ptr env)
-    {
-        return value::make(env.get());
-    }
-
     friend bool operator==(value& lhs, value& rhs);
 };
 
@@ -208,64 +165,61 @@ struct typeof_visitor {
 };
 
 // Environment for variable bindings
-struct environment final {
+struct environment final: std::enable_shared_from_this<environment> {
 private:
     // Keep a count of all constructed (& not destructed) environments for debugging
     static inline size_t count{0};
 
-    // Registry of all environments used for garbage collection
-    // weak_ptr can't be used with unordered_set until owner_hash is implemented
-    static inline std::set<std::weak_ptr<environment>, std::owner_less<std::weak_ptr<environment>>> registry;
-    // Roots with reference counts:
-    static inline std::map<std::weak_ptr<environment>, size_t, std::owner_less<std::weak_ptr<environment>>> roots;
+    // Collection scheduling: We collect when the number of environments created
+    // since the last collection reaches the number that survived the last
+    // collection (but no fewer than min_collection_interval). In stress mode,
+    // we instead collect every stress_interval environments (1 means every
+    // time an environment is created).
+    static constexpr size_t min_collection_interval{1000};
+    static inline size_t created_since_collection{0};
+    static inline size_t survivors{0};
+    static inline size_t stress_interval{0}; // 0 means stress mode is off
+    static void maybe_collect();
+
+    // Registry of all live environments used for garbage collection.
+    // Environments add and remove themselves.
+    static inline std::unordered_set<environment*> registry;
 
     std::unordered_map<std::string, value_ptr> bindings;
     env_ptr parent;
 
     // Private ctor; must use environment::make to create instances
-    environment(env_ptr p = nullptr) : parent(std::move(p)) { ++count; }
+    environment(env_ptr p = nullptr) : parent(std::move(p))
+    {
+        ++count;
+        registry.insert(this);
+    }
 
-    static void cleanup_registry();
-    static std::unordered_set<environment*> mark();
-    static void mark_value(std::unordered_set<environment*>& marked, value* v);
-    static void mark_environment(std::unordered_set<environment*>& marked, environment* env);
-    static void sweep(std::unordered_set<environment*>& marked);
+    // The garbage collector (in noeval.cpp) needs access to the bindings and
+    // parent.
+    friend struct cycle_collector;
 
 public:
     static void collect();
+    static void set_stress_interval(size_t interval) { stress_interval = interval; }
+    static size_t get_stress_interval() { return stress_interval; }
     static size_t get_constructed_count() { return count; }
     static size_t get_registered_count() { return registry.size(); }
-    static void dump_roots();
-    static void add_root(env_ptr env);
-    static void remove_root(env_ptr env);
-    static std::vector<std::string> get_root_symbols();
 
-    static env_root_ptr make();
-    static env_root_ptr make(env_ptr parent);
-    static env_root_ptr make(env_root_ptr parent);
+    static env_ptr make();
+    static env_ptr make(env_ptr parent);
 
-    ~environment() { --count; }
+    ~environment()
+    {
+        --count;
+        registry.erase(this);
+    }
 
     value_ptr lookup(const std::string& name) const;
     void define(const std::string& name, value_ptr val);
     std::vector<std::string> get_all_symbols() const;
     std::string dump_chain() const;
 };
-
-inline operative::operative(param_pattern p, std::string e, value_ptr b, env_root_ptr env,
-    std::string_view t)
-    : params(std::move(p)), env_param(std::move(e)),
-        body(std::move(b)),
-        closure_env(std::move(env.get())),
-        tag(t)
-{
-    environment::add_root(closure_env);
-}
-
-inline operative::~operative()
-{
-    environment::remove_root(closure_env);
-}
 
 // Custom exception class with context
 class evaluation_error: public std::runtime_error {
@@ -309,19 +263,18 @@ value_ptr cdr(const value_ptr& val);
 std::vector<value_ptr> list_to_vector(value_ptr list);
 
 // Core evaluation functions
-value_ptr eval(value_ptr expr, env_root_ptr env);
-value_ptr top_level_eval(value_ptr expr, env_root_ptr env);
-env_root_ptr create_top_level_environment();
+value_ptr eval(value_ptr expr, env_ptr env);
+value_ptr top_level_eval(value_ptr expr, env_ptr env);
+env_ptr create_top_level_environment();
 // This creates a new top-level environment, loads the library, and runs the
 // library tests if specified.
-env_root_ptr reload_top_level_environment(bool test_the_library = true);
+env_ptr reload_top_level_environment(bool test_the_library = true);
 
 // String conversion functions
 std::string to_string(const bignum& value);
 std::string to_string(const std::string& value);
 std::string to_string(std::nullptr_t);
 std::string to_string(const env_ptr& env);
-std::string to_string(const env_root_ptr& env);
 
 void   call_stack_reset_max_depth();
 size_t call_stack_get_max_depth();
