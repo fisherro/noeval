@@ -28,7 +28,11 @@ a pipe or file, stdio fills its buffer with a whole block, so after
 `(read)`, lines meant for the REPL may be sitting in `std::cin`'s buffer
 where readline never sees them. (On a terminal, input arrives a line at a
 time, so it works.) Fixing this would mean having the REPL and `read` share
-one `char_source`, or disallowing `read` from the REPL.
+one input buffer, or disallowing `read` from the REPL. The lexer's
+`pushback_streambuf` could be that buffer: it wraps `std::cin`'s stream buffer
+(which, while synced with stdio, reads the C `stdin` `FILE*`), and readline
+can be pointed at it with `rl_getc_function`, so both would consume the same
+characters in order.
 
 Speed up the lexer's `char_source`. Switching the lexer from indexing a string
 to pulling characters through a `char_source` made parsing slower (a 6.9 MB
