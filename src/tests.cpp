@@ -58,7 +58,7 @@ bool test_runner::test_error(const std::string& input, const std::string& expect
         return false;
     } catch (const std::exception& e) {
         std::string error_msg = e.what();
-        if (error_msg.find(expected_error_substring) != std::string::npos) {
+        if (std::string::npos != error_msg.find(expected_error_substring)) {
             std::println("✓ {}: correctly threw error containing '{}'", input, expected_error_substring);
             return true;
         } else {
@@ -74,7 +74,7 @@ void test_lexer()
 {
     lexer lex(R"RAW((begin (define x 42) (define y "Say, \"Hello\"")))RAW");
     token tok = lex.next_token();
-    while (tok.type != token_type::eof) {
+    while (token_type::eof != tok.type) {
         std::println("{}", tok.to_string());
         tok = lex.next_token();
     }
@@ -495,17 +495,17 @@ int test_parameter_binding()
     
     // Test fixed parameter binding
     std::println("\n--- Fixed parameters ---");
-    if (!test_eval("(define add-op (vau (x y) env (+ (eval x env) (eval y env))))", 
+    if (not test_eval("(define add-op (vau (x y) env (+ (eval x env) (eval y env))))", 
               "(#<operative> (x y) env (+ (eval x env) (eval y env)))")) failures++;
-    if (!test_eval("(add-op 3 4)", "7")) failures++;
-    if (!test_eval("(add-op (+ 1 1) (* 2 3))", "8")) failures++;
+    if (not test_eval("(add-op 3 4)", "7")) failures++;
+    if (not test_eval("(add-op (+ 1 1) (* 2 3))", "8")) failures++;
 
     // Test environment parameter access
     std::println("\n--- Environment parameter ---");
-    if (!test_eval("(define show-env (vau (var) e (eval var e)))", 
+    if (not test_eval("(define show-env (vau (var) e (eval var e)))", 
               "(#<operative> (var) e (eval var e))")) failures++;
-    if (!test_eval("(define test-var 999)", "999")) failures++;
-    if (!test_eval("(show-env test-var)", "999")) failures++;
+    if (not test_eval("(define test-var 999)", "999")) failures++;
+    if (not test_eval("(show-env test-var)", "999")) failures++;
     
     std::println("Parameter binding tests completed: {} failures", failures);
     return failures;
@@ -560,35 +560,35 @@ void test_lexer_comments()
     // Test that comments are properly skipped in tokenization
     lexer lex1("42 ; comment");
     auto tok1 = lex1.next_token();
-    assert(tok1.type == token_type::number && tok1.value == "42");
+    assert(token_type::number == tok1.type and "42" == tok1.value);
     auto tok2 = lex1.next_token();
-    assert(tok2.type == token_type::eof);
+    assert(token_type::eof == tok2.type);
     std::println("✓ Simple inline comment");
     
     // Test comment at start of line
     lexer lex2("; comment\n42");
     auto tok3 = lex2.next_token();
-    assert(tok3.type == token_type::number && tok3.value == "42");
+    assert(token_type::number == tok3.type and "42" == tok3.value);
     std::println("✓ Comment at start of line");
     
     // Test comment in expression
     lexer lex3("(+ 1 ; comment\n 2)");
     auto tok4 = lex3.next_token();
-    assert(tok4.type == token_type::left_paren);
+    assert(token_type::left_paren == tok4.type);
     auto tok5 = lex3.next_token();
-    assert(tok5.type == token_type::symbol && tok5.value == "+");
+    assert(token_type::symbol == tok5.type and "+" == tok5.value);
     auto tok6 = lex3.next_token();
-    assert(tok6.type == token_type::number && tok6.value == "1");
+    assert(token_type::number == tok6.type and "1" == tok6.value);
     auto tok7 = lex3.next_token();
-    assert(tok7.type == token_type::number && tok7.value == "2");
+    assert(token_type::number == tok7.type and "2" == tok7.value);
     auto tok8 = lex3.next_token();
-    assert(tok8.type == token_type::right_paren);
+    assert(token_type::right_paren == tok8.type);
     std::println("✓ Comment within expression");
     
     // Test that semicolon in string is preserved
     lexer lex4("\"string ; with semicolon\"");
     auto tok9 = lex4.next_token();
-    assert(tok9.type == token_type::string_literal && tok9.value == "string ; with semicolon");
+    assert(token_type::string_literal == tok9.type and "string ; with semicolon" == tok9.value);
     std::println("✓ Semicolon preserved in string literal");
     
     std::println("All lexer comment tests passed!");
@@ -662,7 +662,7 @@ int test_stream_parsing()
           and "y" == tok2.value and 6 == tok2.pos.column(),
           "Number-like symbol is relexed from pushed back characters");
 
-    if (failures != 0) {
+    if (0 != failures) {
         println_red("✗ {} stream parsing test(s) failed", failures);
     }
     return failures;
@@ -1061,7 +1061,7 @@ int test_based_number_lexer()
             return false;
         } catch (const std::exception& e) {
             std::string error_msg = e.what();
-            if (error_msg.find(expected_error) != std::string::npos) {
+            if (std::string::npos != error_msg.find(expected_error)) {
                 std::println("✓ Lexer error: '{}' correctly threw error containing '{}'", 
                            input, expected_error);
                 return true;
@@ -1095,15 +1095,15 @@ int test_based_number_lexer()
     // Test in expressions
     lexer expr_lex("(+ #xFF #x10)");
     auto tok1 = expr_lex.next_token();
-    assert(tok1.type == token_type::left_paren);
+    assert(token_type::left_paren == tok1.type);
     auto tok2 = expr_lex.next_token(); 
-    assert(tok2.type == token_type::symbol and tok2.value == "+");
+    assert(token_type::symbol == tok2.type and "+" == tok2.value);
     auto tok3 = expr_lex.next_token();
-    assert(tok3.type == token_type::number and tok3.value == "#xFF");
+    assert(token_type::number == tok3.type and "#xFF" == tok3.value);
     auto tok4 = expr_lex.next_token();
-    assert(tok4.type == token_type::number and tok4.value == "#x10");
+    assert(token_type::number == tok4.type and "#x10" == tok4.value);
     auto tok5 = expr_lex.next_token();
-    assert(tok5.type == token_type::right_paren);
+    assert(token_type::right_paren == tok5.type);
     std::println("✓ Based numbers work correctly in expressions");
     
     // Test error cases
@@ -1184,14 +1184,14 @@ int test_unicode_functions()
         try {
             auto result = utf32_to_utf8(input);
             std::string hex_result;
-            for (char8_t byte : result) {
+            for (char8_t byte: result) {
                 hex_result += std::format("{:02X}", static_cast<uint8_t>(byte));
             }
             if (hex_result == expected_hex) {
                 std::println("✓ UTF-32 to UTF-8: U+{} => {}", 
                            [&]() {
                                std::string codepoints;
-                               for (char32_t cp : input) {
+                               for (char32_t cp: input) {
                                    if (not codepoints.empty()) codepoints += " ";
                                    codepoints += std::format("{:04X}", static_cast<uint32_t>(cp));
                                }
@@ -1225,7 +1225,7 @@ int test_unicode_functions()
                 std::println("✓ UTF-8 to UTF-32: {} => U+{}", input_hex,
                            [&]() {
                                std::string codepoints;
-                               for (char32_t cp : result) {
+                               for (char32_t cp: result) {
                                    if (not codepoints.empty()) codepoints += " ";
                                    codepoints += std::format("{:04X}", static_cast<uint32_t>(cp));
                                }
@@ -1252,7 +1252,7 @@ int test_unicode_functions()
             return false;
         } catch (const std::exception& e) {
             std::string error_msg = e.what();
-            if (error_msg.find(expected_error) != std::string::npos) {
+            if (std::string::npos != error_msg.find(expected_error)) {
                 std::println("✓ UTF-32 error: correctly threw error containing '{}'", expected_error);
                 return true;
             } else {
@@ -1279,7 +1279,7 @@ int test_unicode_functions()
             return false;
         } catch (const std::exception& e) {
             std::string error_msg = e.what();
-            if (error_msg.find(expected_error) != std::string::npos) {
+            if (std::string::npos != error_msg.find(expected_error)) {
                 std::println("✓ UTF-8 error: correctly threw error containing '{}'", expected_error);
                 return true;
             } else {
@@ -1607,7 +1607,7 @@ int run_gc_tests()
     }
     failures += test_gc_teardown();
 
-    if (failures != 0) {
+    if (0 != failures) {
         println_red("✗ {} garbage collection test(s) failed", failures);
     } else {
         std::println("✓ All garbage collection tests passed");
@@ -1654,7 +1654,7 @@ bool run_tests()
     failures += run_gc_tests();
     std::println("{}", std::string(60, '='));
 
-    if (failures != 0) {
+    if (0 != failures) {
         std::println("\n✗ {} test(s) failed!", failures);
         return false;
     }

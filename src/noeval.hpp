@@ -89,11 +89,11 @@ struct operative {
     std::string tag;
 
     operative(param_pattern p, std::string e, value_ptr b, env_ptr env,
-        std::string_view t = "")
-        : params(std::move(p)), env_param(std::move(e)),
-          body(std::move(b)),
-          closure_env(std::move(env)),
-          tag(t) {}
+        std::string_view t = ""):
+        params(std::move(p)), env_param(std::move(e)),
+        body(std::move(b)),
+        closure_env(std::move(env)),
+        tag(t) {}
 
     std::string to_string() const;
     bool operator==(const operative& that) const
@@ -108,8 +108,8 @@ struct builtin_operative {
     std::string name;
     std::function<continuation_type(const std::vector<value_ptr>&, env_ptr)> func;
 
-    builtin_operative(std::string n, std::function<continuation_type(const std::vector<value_ptr>&, env_ptr)> f)
-        : name(std::move(n)), func(std::move(f)) {}
+    builtin_operative(std::string n, std::function<continuation_type(const std::vector<value_ptr>&, env_ptr)> f):
+        name(std::move(n)), func(std::move(f)) {}
     std::string to_string() const { return "#<builtin-operative:" + name + ">"; }
     bool operator==(const builtin_operative&) const { return false; }
 };
@@ -117,7 +117,7 @@ struct builtin_operative {
 // Add a mutable wrapper type
 struct mutable_binding {
     value_ptr value;
-    explicit mutable_binding(value_ptr v) : value(std::move(v)) {}
+    explicit mutable_binding(value_ptr v): value(std::move(v)) {}
     std::string to_string() const;
     bool operator==(const mutable_binding& that) const
     { return value == that.value; }
@@ -211,7 +211,7 @@ private:
     env_ptr parent;
 
     // Private ctor; must use environment::make to create instances
-    environment(env_ptr p = nullptr) : parent(std::move(p))
+    environment(env_ptr p = nullptr): parent(std::move(p))
     {
         ++count;
         registry.insert(this);
@@ -275,8 +275,8 @@ private:
         const std::string& loc)
     {
         std::string message = loc.empty()? msg: loc + ": " + msg;
-        if (!ctx.empty()) message += "\n while evaluating: " + ctx;
-        if (!stack.empty()) message += "\n stack trace:\n" + stack;
+        if (not ctx.empty()) message += "\n while evaluating: " + ctx;
+        if (not stack.empty()) message += "\n stack trace:\n" + stack;
         return message;
     }
 };

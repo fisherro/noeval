@@ -41,7 +41,7 @@ public:
     void log(const std::string& category,
         const std::string& format_str, Args&&... args)
     {
-        if (!is_enabled(category)) return;
+        if (not is_enabled(category)) return;
         
         std::string prefix = get_prefix(category);
         if (use_colors) {

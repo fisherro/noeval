@@ -18,7 +18,7 @@ enum class token_type {
     symbol,
     number,
     string_literal,
-    eof
+    eof,
 };
 
 std::string token_type_to_string(token_type type);
@@ -30,8 +30,8 @@ private:
     size_t offset_;
 
 public:
-    position(size_t line = 1, size_t column = 1, size_t offset = 0) 
-        : line_(line), column_(column), offset_(offset) {}
+    position(size_t line = 1, size_t column = 1, size_t offset = 0):
+        line_(line), column_(column), offset_(offset) {}
     
     // Accessors
     size_t line() const { return line_; }
@@ -39,8 +39,9 @@ public:
     size_t offset() const { return offset_; }
     
     // Advance position by one character
-    void advance(char ch) {
-        if (ch == '\n') {
+    void advance(char ch)
+    {
+        if ('\n' == ch) {
             line_++;
             column_ = 1;
         } else {
@@ -49,7 +50,8 @@ public:
         offset_++;
     }
     
-    std::string to_string() const { 
+    std::string to_string() const
+    {
         return std::format("{}:{}", line_, column_); 
     }
 };
@@ -92,7 +94,8 @@ private:
     bool at_end() { return traits::eq_int_type(buf_.sgetc(), traits::eof()); }
     
     // Advance position by one character
-    void advance() {
+    void advance()
+    {
         int ch = buf_.sbumpc();
         if (not traits::eq_int_type(ch, traits::eof())) {
             current_pos_.advance(traits::to_char_type(ch));
@@ -102,8 +105,9 @@ private:
     // Peek at next character without advancing
     char peek(size_t ahead = 1) { return to_char(buf_.peek(ahead)); }
 
-    static char to_char(int ch) {
-        return traits::eq_int_type(ch, traits::eof()) ? '\0' : traits::to_char_type(ch);
+    static char to_char(int ch)
+    {
+        return traits::eq_int_type(ch, traits::eof())? '\0': traits::to_char_type(ch);
     }
     
     bool matches_keyword(std::string_view keyword);
