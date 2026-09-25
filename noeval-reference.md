@@ -54,6 +54,12 @@ Summary to use as Github Copilot context so that it doesn't have to reference la
 - **try syntax**: `(try expr handler)` or `(try expr handler finally)`
 - **raise syntax**: `(raise message)` - creates evaluation_error with message
 - **Error propagation**: Evaluation errors are re-thrown unchanged; other exceptions are wrapped
+- **Source locations**: Errors are reported with the `file:line:column` of the innermost expression being evaluated that was read from a file. The stack trace shows each frame's location, and the expression most recently reached by a tail call from that frame. The `message` in the error list doesn't include the location.
+
+## Loading Files
+
+- **load syntax**: `(load filename)` - evaluates each expression in the file in the current environment and returns the value of the last one
+- **Relative paths**: While a file is being loaded, a relative `filename` is resolved against that file's directory. Otherwise, such as at the REPL, it is resolved against the current directory. Scripts given on the command line are loaded the same way, so a script can load the files next to it by name.
 
 ## Testing Framework
 

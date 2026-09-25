@@ -121,14 +121,18 @@ private:
 
 class parser {
 public:
-    explicit parser(std::string input);
-    explicit parser(std::istream& in);
+    // If a file name is given, the lists the parser reads record their
+    // locations in that file, and parse errors include it.
+    explicit parser(std::string input, std::string_view file = {});
+    explicit parser(std::istream& in, std::string_view file = {});
     value_ptr parse_expression();
     value_ptr parse();
     std::vector<value_ptr> parse_all();
 
 private:
     lexer lex;
+    // Interned, or null if there's no file name
+    const std::string* file_;
     // The lookahead token. It is fetched only when needed so that parsing an
     // expression doesn't read input beyond the end of that expression.
     std::optional<token> current_token_;
@@ -136,4 +140,6 @@ private:
     const token& current_token();
     void advance();
     value_ptr parse_list();
+    // An error at pos, with the file name (if any) and position prepended.
+    std::runtime_error error(const position& pos, std::string_view message) const;
 };

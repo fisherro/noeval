@@ -48,7 +48,8 @@ Run it from the top of the repository, since it loads `src/lib.noeval` and
   (Type `:help` in the REPL for its commands.)
 * `bin/noeval script.noeval` runs the tests, loads the library, and then runs
   the script instead of starting the REPL. It exits with a failure status if
-  the script raises an error.
+  the script raises an error. Within a file, `load` resolves relative paths
+  against that file's directory.
 * `bin/noeval --tests` runs the C++ tests and the library tests, then exits
   with a status reflecting the results.
 * `bin/noeval --gc-tests` runs only the garbage collection tests.

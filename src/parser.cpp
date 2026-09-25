@@ -495,9 +495,23 @@ token lexer::next_token()
 const token& parser::current_token()
 {
     if (not current_token_) {
-        current_token_ = lex.next_token();
+        // The lexer's errors don't say where they are, so add where the
+        // lexer stopped.
+        try {
+            current_token_ = lex.next_token();
+        } catch (const std::exception& e) {
+            throw error(lex.get_position(), e.what());
+        }
     }
     return *current_token_;
+}
+
+std::runtime_error parser::error(const position& pos, std::string_view message) const
+{
+    if (file_) {
+        return std::runtime_error(std::format("{}:{}: {}", *file_, pos.to_string(), message));
+    }
+    return std::runtime_error(std::format("{}: {}", pos.to_string(), message));
 }
 
 void parser::advance()
@@ -528,14 +542,14 @@ value_ptr parser::parse_list()
 
     if (current_token().type != token_type::right_paren) {
         if (current_token().type == token_type::eof) {
-            throw std::runtime_error(std::format("Expected ')' to close list opened at line {}, but reached end of input", 
-                                                open_paren_position.line()));
+            throw error(open_paren_position,
+                "Expected ')' to close this list, but reached end of input");
         } else {
-            throw std::runtime_error(std::format("Expected ')' to close list opened at {} but found {} ('{}') at {}", 
-                                                open_paren_position.to_string(),
-                                                token_type_to_string(current_token().type), 
-                                                current_token().value,
-                                                current_token().pos.to_string()));
+            throw error(current_token().pos,
+                std::format("Expected ')' to close list opened at {} but found {} ('{}')", 
+                            open_paren_position.to_string(),
+                            token_type_to_string(current_token().type), 
+                            current_token().value));
         }
     }
     advance(); // consume ')'
@@ -545,13 +559,27 @@ value_ptr parser::parse_list()
     for (auto it = elements.rbegin(); it != elements.rend(); ++it) {
         result = value::make(cons_cell{*it, result});
     }
+
+    // Only the list's first cell gets the location. The rest are its tails,
+    // which aren't evaluated as combinations.
+    if (file_) {
+        std::get<cons_cell>(result->data).location = {
+            file_,
+            static_cast<std::uint32_t>(open_paren_position.line()),
+            static_cast<std::uint32_t>(open_paren_position.column())
+        };
+    }
     
     return result;
 }
 
-parser::parser(std::string input) : lex(std::move(input)) {}
+parser::parser(std::string input, std::string_view file)
+    : lex(std::move(input)),
+      file_(file.empty()? nullptr: intern_file_name(file)) {}
 
-parser::parser(std::istream& in) : lex(in) {}
+parser::parser(std::istream& in, std::string_view file)
+    : lex(in),
+      file_(file.empty()? nullptr: intern_file_name(file)) {}
 
 bignum parse_number_string(const std::string& num_str)
 {
@@ -764,7 +792,7 @@ value_ptr parser::parse_expression()
             return value::make(eof_object{});
             
         default:
-            throw std::runtime_error("Unexpected token");
+            throw error(current_token().pos, "Unexpected token");
     }
 }
 

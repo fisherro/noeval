@@ -34,8 +34,6 @@ available without waiting for more). When stdin isn't a terminal, the REPL
 reads through `std::cin`'s stream buffer too (via `rl_getc_function`), so it
 would share that source.
 
-Have the parser track the file path so that `load` can use its directory as the "current directory" for relative paths.
-
 Add max-garbage stat
 
 Add validation of the bindings structures to let
@@ -45,13 +43,6 @@ Provide something like `get-builtins` that the check dependencies program could 
 Check in the definition of the `gcc-rlf:latest` container image. The
 devcontainer and `test-dependency-checker.zsh` use it, but a fresh clone can't
 build it.
-
-Include the file and line in evaluation errors. The parser tracks positions
-but only uses them in parse errors. (Goes with tracking the file path for
-`load`.)
-
-Refactor `execute_script`, `load_library_file`, and `run_library_tests` to
-share code. (From a TODO in `src/noeval.cpp`.)
 
 Remove the stale TODO above `even?` in `src/lib.noeval`. Numbers are already
 `cpp_rational`.

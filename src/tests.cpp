@@ -1,5 +1,7 @@
 #include <cassert>
 #include <exception>
+#include <filesystem>
+#include <fstream>
 #include <memory>
 #include <print>
 #include <sstream>
@@ -662,6 +664,78 @@ int test_stream_parsing()
 
     if (failures != 0) {
         println_red("✗ {} stream parsing test(s) failed", failures);
+    }
+    return failures;
+}
+
+int test_source_locations()
+{
+    std::println("\n--- Source locations ---");
+    int failures{0};
+    auto check = [&](bool ok, std::string_view description) {
+        if (ok) {
+            std::println("✓ {}", description);
+        } else {
+            println_red("✗ {}", description);
+            ++failures;
+        }
+    };
+    auto location_of = [](const value_ptr& expr) {
+        auto cell = std::get_if<cons_cell>(&expr->data);
+        return cell? cell->location.to_string(): std::string{"(not a list)"};
+    };
+    // The message of the exception thrown by f, or empty if none is
+    auto error_from = [](auto f) -> std::string {
+        try {
+            f();
+        } catch (const std::exception& e) {
+            return e.what();
+        }
+        return "";
+    };
+
+    // Lists record where they start, if the parser has a file name
+    parser p1("(a\n  (b c))", "file.noeval");
+    auto outer = p1.parse_expression();
+    auto inner = car(cdr(outer));
+    check("file.noeval:1:1" == location_of(outer) and "file.noeval:2:3" == location_of(inner),
+          "Parsed lists record their locations");
+    parser p2("(a b)");
+    check("" == location_of(p2.parse_expression()),
+          "Parsed lists have no location without a file name");
+
+    // Parse errors include the file name and position
+    auto unclosed = error_from([] { parser("(a)\n (b", "file.noeval").parse_all(); });
+    check(unclosed.starts_with("file.noeval:2:2: "), "Unclosed list error has its location");
+    auto bad_number = error_from([] { parser("  #xZZ", "file.noeval").parse_all(); });
+    check(bad_number.starts_with("file.noeval:1:5: "), "Lexer error has its location");
+
+    // Evaluation errors report the innermost expression with a location,
+    // including one reached by a tail call
+    auto env = create_top_level_environment();
+    parser p3("(define f (vau (x) () (do (+ 1 2) (+ x \"a\"))))\n(f 1)", "file.noeval");
+    auto error = error_from([&] {
+        for (const auto& expr: p3.parse_all()) eval(expr, env);
+    });
+    check(error.starts_with("file.noeval:1:35: "), "Evaluation error has its location");
+    check(error.find("(f 1) at file.noeval:2:1") != std::string::npos
+          and error.find("tail call: (+ x \"a\") at file.noeval:1:35") != std::string::npos,
+          "Stack trace includes locations and tail calls");
+
+    // load resolves relative paths against the directory of the file loading
+    auto dir = std::filesystem::temp_directory_path() / "noeval-load-test";
+    std::filesystem::create_directories(dir / "sub");
+    std::ofstream(dir / "main.noeval") << "(load \"sub/a.noeval\")\n";
+    std::ofstream(dir / "sub" / "a.noeval") << "(load \"b.noeval\")\n";
+    std::ofstream(dir / "sub" / "b.noeval") << "(define loaded 42)\n";
+    auto load_env = create_top_level_environment();
+    auto load_error = error_from([&] { load_file((dir / "main.noeval").string(), load_env); });
+    check(load_error.empty() and "42" == value_to_string(load_env->lookup("loaded")),
+          "load resolves relative paths against the loading file's directory");
+    std::filesystem::remove_all(dir);
+
+    if (failures != 0) {
+        println_red("✗ {} source location test(s) failed", failures);
     }
     return failures;
 }
@@ -1561,6 +1635,7 @@ bool run_tests()
     failures += test_eval_comprehensive();
     failures += test_inline_comments();
     failures += test_stream_parsing();
+    failures += test_source_locations();
     failures += test_operative_as_first_element();
     std::println("{}", std::string(60, '='));
     failures += test_parameter_binding();
