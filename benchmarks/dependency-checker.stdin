@@ -1,0 +1,150 @@
+; This is the "standard library" for my fexpr interpreter.
+; Note that, by convention, `_` indicates an ignored value.
+; NOTE THAT nil IS SPELT ()
+
+(define get-current-environment
+  (vau () env env))
+
+; quote
+; Use of this is not encouraged as it shouldn't be needed in a fexpr-based
+; language.
+(define q (vau (operand) _ operand))
+
+#skip
+; Library implementation of do
+; Using invoke is likely incorrect here because the recursive call should get
+; the same dynamic environment as the caller.
+(define do-helper
+  (vau (remaining last-result env) _
+    ((nil? remaining)
+     last-result
+     (invoke do-helper
+       (cons (rest remaining)
+             (cons (eval (first remaining) env)
+                   (cons env ())))))))
+
+; Currently using the primitive do instead of this one.
+; Using invoke is likely incorrect here because the recursive call should get
+; the same dynamic environment as the caller.
+(define do
+  (vau expressions env
+    ((nil? expressions)
+     ()
+     (invoke do-helper
+       (cons (rest expressions)
+             (cons (eval (first expressions) env)
+                   (cons env ())))))))
+#end
+
+; A convenience function.
+; Since we use Church Booleans, you can essentially just remove the if.
+; (if (nil? lyst) 0 1) -> ((nil? lyst) 0 1)
+; Which is what this implementation does.
+; Candidate for being replaced by a macro in the future.
+(define if (vau operands env (eval operands env)))
+
+; Construct a list from the arguments without evaluating them
+(define unevaluated-list (vau args env args))
+
+; or operative - short-circuiting logical or
+; Returns the first truthy value, or the last value if all are falsy
+; Uses Church Boolean evaluation for short-circuiting
+(define or
+  (vau operands env
+    ((nil? operands)
+     false  ; Empty or is false
+     ((eval (first operands) env)
+      true
+      (eval (cons or (rest operands)) env)))))
+
+; eval-list is a builtin. Defining it here created a cycle (through its local
+; helper operative) on every call, and wrap calls it every time a wrapped
+; operative is called.
+
+; wrap takes an operative and returns a new operative that evaluates its arguments
+(define wrap
+  ; Here, the implicit env is the env where `define` was evaluated
+  ; when loading the library.
+  ; i.e. The global env
+  (vau (operative) wrap-call-env
+    ; Here, the implicit env is still the global env (the closure env of this
+    ; vau).
+    ; When this outer vau is called, i.e. when `wrap` is called, it creates a
+    ; new env with the global env as its parent, `wrap-call-env` bound to the
+    ; env where `wrap` was called, and `operative` bound to the argument of
+    ; `wrap`. This new env becomes the implicit env.
+    (do
+      ; Evaluate the operative once when wrap is called
+      (define resolved-operative (eval operative wrap-call-env))
+      ((= (q operative) (typeof resolved-operative))
+       ()
+       (raise "wrap can only be applied to operatives"))
+      (vau unevaluated-args wrapped-call-env
+        ; Here, the implicit env is the closure environment of this inner vau.
+        ; This environment was created by the `do` block when the outer vau was
+        ; called, and contains `resolved-operative` as well as access to the
+        ; global environment. When this inner vau is called, it creates a new
+        ; environment extending this closure environment, with
+        ; `wrapped-call-env` bound to the calling environment and
+        ; `unevaluated-args` bound to the arguments.
+        (do
+          (define evaluated-args (eval-list unevaluated-args wrapped-call-env))
+          (eval (cons resolved-operative evaluated-args) wrapped-call-env))))))
+
+; This version of lambda, like primitive vau, only supports a single expression
+; body and doesn't support the (head . tail) style of variadic parameters.
+(define lambda
+  ; We don't support (head . tail) style of parameters.
+  ; But we also don't support multiple expressions in the body of a vau or lambda.
+  ; So, (formals body) for us is equivalent to (formals . body) for Kernel except
+  ; that our body won't be a list.
+  (vau (formals body) env
+    (wrap (eval
+              ; Kernel uses list* here and its last parameter is a list.
+            ; So, in Kernel, this part...
+            ;    (list* $vau formals #ignore body)
+            ; ...is equivalent to...
+            ;    (cons $vau (cons formals (cons #ignore body)))
+            ; We use () for #ignored and body is not a list, so our equivalent is:
+            (cons vau (cons formals (cons () (cons body ()))))
+            env))))
+
+; A version of lambda that supports multiple body expressions
+(define lambda*
+  (vau operands dyn-env
+    (do (define formals (first operands))
+        (define body (cons do (rest operands)))
+        (wrap (eval (list vau formals () body) dyn-env)))))
+
+; A version of vau that supports multiple body expressions
+(define vau*
+  (vau operands dyn-env
+    (do (define formals (first operands))
+        (define env-param (second operands))
+        (define body (cons do (rest (rest operands))))
+        (eval (list vau formals env-param body) dyn-env))))
+
+; Lambda makes implementing list trivial.
+(define list (lambda args args))
+
+; This is the equivalent of Kernel's list*.
+; It prepends its arguments to the list that is the final argument.
+; The $lambda-based implementation of list* given in the Kernel report doesn't
+; look to match the expected behavior in use. It would evaluate its arguments
+; multiple times during the recursion, but uses seem to expect that its
+; arguments would only be evaluated once. To achieve that, this implementation
+; uses an inner fexpr for the recursion.
+(define prepend
+  (do (define recurse
+        (vau operands _
+          ((nil? operands)
+           ()
+           (do (define head (first operands))
+               (define tail (rest operands))
+               ((nil? tail)
+                head
+                (cons head (invoke recurse tail)))))))
+      (lambda args (invoke recurse args))))
+
+(define newline (lambda () (display "\n")))
+

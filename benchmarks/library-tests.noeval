@@ -1,0 +1,2 @@
+; The library test suite
+(load "../tests/main.noeval")
