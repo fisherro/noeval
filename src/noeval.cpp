@@ -1477,16 +1477,6 @@ namespace builtins {
         }
     }
 
-    parser make_stdin_parser()
-    {
-        std::string contents;
-        std::string line;
-        while (std::getline(std::cin, line)) {
-            contents += line + "\n";
-        }
-        return parser{contents};
-    }
-
     continuation_type read_operative(const std::vector<value_ptr>& args, env_ptr)
     {
         if (args.size() != 0) {
@@ -1498,8 +1488,8 @@ namespace builtins {
         }
 
         try {
-            // We cheat and read all of stdin at once until we upgrade the parser.
-            static parser stdin_parser{make_stdin_parser()};
+            // The parser reads from stdin lazily, one expression at a time.
+            static parser stdin_parser{std::cin};
 
             auto expr = stdin_parser.parse_expression();
             return expr;

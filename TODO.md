@@ -22,11 +22,6 @@ Implement transducers (See Clojure and SRFI-171)
 
 Should use of `read` be prevented from the REPL?
 
-Change parser to use a "stream" "adaptor" that can wrap stdin or std::cin and
-provide arbitrary pushback.
-
-Fix the read builtin so that it doesn't read everything up-front
-
 Have the parser track the file path so that `load` can use its directory as the "current directory" for relative paths.
 
 Capture the accumulator and the accumulate-reverse patterns in library forms.

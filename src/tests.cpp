@@ -2,6 +2,7 @@
 #include <exception>
 #include <memory>
 #include <print>
+#include <sstream>
 #include <string>
 
 #include "noeval.hpp"
@@ -588,6 +589,67 @@ void test_lexer_comments()
     std::println("✓ Semicolon preserved in string literal");
     
     std::println("All lexer comment tests passed!");
+}
+
+int test_stream_parsing()
+{
+    std::println("\n--- Stream parsing ---");
+    int failures{0};
+    auto check = [&failures](bool ok, std::string_view description) {
+        if (ok) {
+            std::println("✓ {}", description);
+        } else {
+            println_red("✗ {}", description);
+            ++failures;
+        }
+    };
+
+    // Pushback works on top of lookahead
+    string_source source("abc");
+    std::string chars;
+    chars += static_cast<char>(source.get());
+    source.unget("xy");
+    check('x' == source.peek() and 'b' == source.peek(2), "Peek sees pushed back characters");
+    for (int ch = source.get(); ch != char_source::eof; ch = source.get()) {
+        chars += static_cast<char>(ch);
+    }
+    check("axybc" == chars and char_source::eof == source.peek(5), "Pushback returns characters in order");
+
+    // Parsing an expression doesn't consume input beyond it
+    std::istringstream in1("(a b) rest\nmore");
+    parser p1(in1);
+    auto expr = p1.parse_expression();
+    std::string rest;
+    std::getline(in1, rest);
+    check("(a b)" == value_to_string(expr) and " rest" == rest,
+          "Parser leaves input after the expression unread");
+
+    // Stream and string parsers agree
+    std::string text = "(define x 42) ; comment\n#skip (ignored) #end \"str\" -3/4 #xFF";
+    std::istringstream in2(text);
+    parser p2(in2);
+    parser p3(text);
+    auto from_stream = p2.parse_all();
+    auto from_string = p3.parse_all();
+    bool same = from_stream.size() == from_string.size() and 4 == from_stream.size();
+    for (size_t i = 0; same and i < from_stream.size(); ++i) {
+        same = value_to_string(from_stream[i]) == value_to_string(from_string[i]);
+    }
+    check(same, "Stream and string parsers produce the same expressions");
+
+    // A malformed number is pushed back and relexed as a symbol
+    std::istringstream in3("-12x y");
+    lexer lex(in3);
+    auto tok1 = lex.next_token();
+    auto tok2 = lex.next_token();
+    check(token_type::symbol == tok1.type and "-12x" == tok1.value and 1 == tok1.pos.column()
+          and "y" == tok2.value and 6 == tok2.pos.column(),
+          "Number-like symbol is relexed from pushed back characters");
+
+    if (failures != 0) {
+        println_red("✗ {} stream parsing test(s) failed", failures);
+    }
+    return failures;
 }
 
 int test_operative_as_first_element()
@@ -1484,6 +1546,7 @@ bool run_tests()
     std::println("\n{}", std::string(60, '='));
     failures += test_eval_comprehensive();
     failures += test_inline_comments();
+    failures += test_stream_parsing();
     failures += test_operative_as_first_element();
     std::println("{}", std::string(60, '='));
     failures += test_parameter_binding();

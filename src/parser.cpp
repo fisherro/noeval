@@ -43,20 +43,17 @@ void lexer::update_position(char ch)
 }
 #endif
 
+// Check for a keyword followed by whitespace or end of input.
+// Characters are compared one at a time so that we never look further ahead
+// than needed.
 bool lexer::matches_keyword(const std::string& keyword)
 {
-    if (current_pos_.offset() + keyword.length() > input_.size()) return false;
-    
-    // Check if the keyword matches
     for (size_t i = 0; i < keyword.length(); ++i) {
-        if (input_[current_pos_.offset() + i] != keyword[i]) return false;
+        if (peek(i) != keyword[i]) return false;
     }
     
-    // Ensure it's followed by whitespace, end of input, or newline
-    size_t next_pos = current_pos_.offset() + keyword.length();
-    return next_pos >= input_.size() or 
-            std::isspace(input_[next_pos]) or 
-            input_[next_pos] == '\n';
+    char next_ch = peek(keyword.length());
+    return next_ch == '\0' or std::isspace(next_ch);
 }
 
 void lexer::skip_disabled_block()
@@ -69,35 +66,23 @@ void lexer::skip_disabled_block()
     int nesting_depth = 1; // We're already inside one skip block
     
     while (not at_end() and nesting_depth > 0) {
-        // Check for nested #skip
-        if (current_pos_.offset() + 5 <= input_.size() and input_.substr(current_pos_.offset(), 5) == "#skip") {
-            // Verify it's a proper keyword (followed by whitespace or end of input)
-            if (current_pos_.offset() + 5 >= input_.size() or 
-                std::isspace(input_[current_pos_.offset() + 5]) or 
-                input_[current_pos_.offset() + 5] == '\n') {
-                nesting_depth++;
-                for (int i = 0; i < 5; ++i) {
-                    advance();
-                }
-                continue;
+        if (matches_keyword("#skip")) {
+            nesting_depth++;
+            for (int i = 0; i < 5; ++i) {
+                advance();
             }
+            continue;
         }
         
-        // Check for #end
-        if (current_pos_.offset() + 4 <= input_.size() and input_.substr(current_pos_.offset(), 4) == "#end") {
-            // Verify it's a proper keyword (followed by whitespace or end of input)
-            if (current_pos_.offset() + 4 >= input_.size() or 
-                std::isspace(input_[current_pos_.offset() + 4]) or 
-                input_[current_pos_.offset() + 4] == '\n') {
-                nesting_depth--;
-                for (int i = 0; i < 4; ++i) {
-                    advance();
-                }
-                if (0 == nesting_depth) {
-                    return; // Found the matching #end
-                }
-                continue;
+        if (matches_keyword("#end")) {
+            nesting_depth--;
+            for (int i = 0; i < 4; ++i) {
+                advance();
             }
+            if (0 == nesting_depth) {
+                return; // Found the matching #end
+            }
+            continue;
         }
         
         advance();
@@ -118,14 +103,8 @@ void lexer::skip_whitespace_and_comments()
                 advance();
             }
             // Will advance past newline in next iteration if present
-        } else if (current_pos_.offset() + 5 <= input_.size() and input_.substr(current_pos_.offset(), 5) == "#skip") {
-            // Check if #skip is followed by whitespace or end of input
-            char next_ch = peek(5);
-            if (next_ch == '\0' or std::isspace(next_ch) or next_ch == '\n') {
-                skip_disabled_block();
-            } else {
-                break; // Not a skip directive, treat as regular token
-            }
+        } else if (matches_keyword("#skip")) {
+            skip_disabled_block();
         } else {
             break;  // Found non-whitespace, non-comment character
         }
@@ -415,7 +394,14 @@ std::string lexer::read_arbitrary_base_digits(int base)
     return result;
 }
 
-lexer::lexer(std::string text) : input_(std::move(text)), current_pos_(1, 1, 0) {}
+lexer::lexer(std::string text)
+: lexer(std::make_unique<string_source>(std::move(text))) {}
+
+lexer::lexer(std::istream& in)
+: lexer(std::make_unique<istream_source>(in)) {}
+
+lexer::lexer(std::unique_ptr<char_source> source)
+: source_(std::move(source)), current_pos_(1, 1, 0) {}
 
 token lexer::next_token()
 {
@@ -464,7 +450,8 @@ token lexer::next_token()
             current_char() != ')' and 
             current_char() != ';') {
             // Not at a valid boundary - this means we have something like "-123abc"
-            // Reset position and treat the whole thing as a symbol
+            // Push the characters back and treat the whole thing as a symbol
+            source_->unget(number_str);
             current_pos_ = start_position;
             return token(token_type::symbol, read_symbol(), token_start);
         }
@@ -476,42 +463,50 @@ token lexer::next_token()
     return token(token_type::symbol, read_symbol(), token_start);
 }
 
+const token& parser::current_token()
+{
+    if (not current_token_) {
+        current_token_ = lex.next_token();
+    }
+    return *current_token_;
+}
+
 void parser::advance()
 {
-    current_token = lex.next_token();
+    current_token_.reset();
 }
 
 value_ptr parser::parse_list()
 {
     // Expect '('
-    if (current_token.type != token_type::left_paren) {
+    if (current_token().type != token_type::left_paren) {
         throw std::runtime_error("Expected '('");
     }
-    auto open_paren_position = current_token.pos;  // Remember where this list started
+    auto open_paren_position = current_token().pos;  // Remember where this list started
     advance(); // consume '('
     
-    if (current_token.type == token_type::right_paren) {
+    if (current_token().type == token_type::right_paren) {
         advance(); // consume ')'
         return value::make(nullptr); // nil
     }
     
     // Parse elements
     std::vector<value_ptr> elements;
-    while (current_token.type != token_type::right_paren && 
-            current_token.type != token_type::eof) {
+    while (current_token().type != token_type::right_paren && 
+            current_token().type != token_type::eof) {
         elements.push_back(parse_expression());
     }
 
-    if (current_token.type != token_type::right_paren) {
-        if (current_token.type == token_type::eof) {
+    if (current_token().type != token_type::right_paren) {
+        if (current_token().type == token_type::eof) {
             throw std::runtime_error(std::format("Expected ')' to close list opened at line {}, but reached end of input", 
                                                 open_paren_position.line()));
         } else {
             throw std::runtime_error(std::format("Expected ')' to close list opened at {} but found {} ('{}') at {}", 
                                                 open_paren_position.to_string(),
-                                                token_type_to_string(current_token.type), 
-                                                current_token.value,
-                                                current_token.pos.to_string()));
+                                                token_type_to_string(current_token().type), 
+                                                current_token().value,
+                                                current_token().pos.to_string()));
         }
     }
     advance(); // consume ')'
@@ -525,10 +520,9 @@ value_ptr parser::parse_list()
     return result;
 }
 
-parser::parser(std::string input) : lex(std::move(input))
-{
-    advance(); // prime the pump
-}
+parser::parser(std::string input) : lex(std::move(input)) {}
+
+parser::parser(std::istream& in) : lex(in) {}
 
 bignum parse_number_string(const std::string& num_str)
 {
@@ -706,24 +700,24 @@ bignum parse_number_string(const std::string& num_str)
 
 value_ptr parser::parse_expression()
 {
-    NOEVAL_DEBUG(parse, "Parsing token: {}", current_token.to_string());
-    switch (current_token.type) {
+    NOEVAL_DEBUG(parse, "Parsing token: {}", current_token().to_string());
+    switch (current_token().type) {
         case token_type::left_paren:
             NOEVAL_DEBUG(parse, "Starting list parse");
             return parse_list();
             
         case token_type::symbol:
             {
-                NOEVAL_DEBUG(parse, "Parsing symbol: {}", current_token.value);
-                auto result = value::make(symbol{current_token.value});
+                NOEVAL_DEBUG(parse, "Parsing symbol: {}", current_token().value);
+                auto result = value::make(symbol{current_token().value});
                 advance();
                 return result;
             }
             
         case token_type::number:
             {
-                NOEVAL_DEBUG(parse, "Parsing number: {}", current_token.value);
-                bignum val = parse_number_string(current_token.value);
+                NOEVAL_DEBUG(parse, "Parsing number: {}", current_token().value);
+                bignum val = parse_number_string(current_token().value);
                 auto result = value::make(val);
                 advance();
                 return result;
@@ -731,8 +725,8 @@ value_ptr parser::parse_expression()
             
         case token_type::string_literal:
             {
-                NOEVAL_DEBUG(parse, "Parsing string literal: {}", current_token.value);
-                auto result = value::make(current_token.value);
+                NOEVAL_DEBUG(parse, "Parsing string literal: {}", current_token().value);
+                auto result = value::make(current_token().value);
                 advance();
                 return result;
             }
@@ -755,7 +749,7 @@ std::vector<value_ptr> parser::parse_all()
 {
     std::vector<value_ptr> expressions;
     
-    while (current_token.type != token_type::eof) {
+    while (current_token().type != token_type::eof) {
         expressions.push_back(parse_expression());
     }
     
