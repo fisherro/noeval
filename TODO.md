@@ -21,18 +21,6 @@ Update noeval-reference.md
 Concrete, scoped work that could be picked up without first deciding whether
 or how to do it.
 
-`read` and the REPL can steal each other's input when stdin isn't a terminal.
-`read` parses `std::cin`, while the REPL reads through readline. When stdin is
-a pipe or file, stdio fills its buffer with a whole block, so after
-`(read)`, lines meant for the REPL may be sitting in `std::cin`'s buffer
-where readline never sees them. (On a terminal, input arrives a line at a
-time, so it works.) Fixing this would mean having the REPL and `read` share
-one input buffer, or disallowing `read` from the REPL. The lexer's
-`pushback_streambuf` could be that buffer: it wraps `std::cin`'s stream buffer
-(which, while synced with stdio, reads the C `stdin` `FILE*`), and readline
-can be pointed at it with `rl_getc_function`, so both would consume the same
-characters in order.
-
 `read` still pulls characters from `std::cin` one at a time. The lexer's
 `pushback_streambuf` reads its source in chunks only when `in_avail()` says
 characters are ready, and `std::cin`'s buffer, while synced with stdio, always
@@ -42,8 +30,9 @@ contents as ready, and parsing a 7.4 MB file is back to the speed it had
 before the lexer read from streams.) So far `read`'s time is dominated by
 evaluation, so this hasn't mattered. If it does, give `pushback_streambuf` a
 source that reads the file descriptor directly (`read(2)` returns what's
-available without waiting for more), which could also be shared with the REPL
-as described above.
+available without waiting for more). When stdin isn't a terminal, the REPL
+reads through `std::cin`'s stream buffer too (via `rl_getc_function`), so it
+would share that source.
 
 Have the parser track the file path so that `load` can use its directory as the "current directory" for relative paths.
 
@@ -58,8 +47,6 @@ Provide something like `get-builtins` that the check dependencies program could 
 Questions, things to consider, and open-ended design work.
 
 Implement transducers (See Clojure and SRFI-171)
-
-Should use of `read` be prevented from the REPL?
 
 Prioritize macros and RRB trees in order to improve performance.
 

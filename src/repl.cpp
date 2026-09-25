@@ -1,4 +1,6 @@
 #include <algorithm>
+#include <cerrno>
+#include <cstdio>
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
@@ -141,6 +143,33 @@ void setup_completion()
 {
     rl_attempted_completion_function = symbol_completion;
     rl_completer_word_break_characters = " \t\n()";
+}
+
+// Readline's getc function when stdin isn't a terminal. It reads through
+// std::cin's stream buffer, the same one `read` parses from, so the REPL and
+// `read` take characters from the input in order. (Readline's own getc reads
+// the file descriptor directly, missing whatever stdio or `read`'s parser has
+// already buffered.)
+int getc_from_cin(FILE*)
+{
+    using traits = std::char_traits<char>;
+    while (true) {
+        auto ch = std::cin.rdbuf()->sbumpc();
+        if (not traits::eq_int_type(ch, traits::eof())) {
+            return static_cast<unsigned char>(traits::to_char_type(ch));
+        }
+        // Retry if a signal interrupted the read rather than the input ending
+        if (not (std::ferror(stdin) and EINTR == errno)) return EOF;
+        std::clearerr(stdin);
+    }
+}
+
+// Have readline share std::cin's input when stdin isn't a terminal. On a
+// terminal, input arrives a line at a time, so nothing gets buffered past
+// what's been asked for, and readline needs its own getc for key sequences.
+void setup_input()
+{
+    if (not isatty(STDIN_FILENO)) rl_getc_function = getc_from_cin;
 }
 
 // Print welcome message
@@ -430,6 +459,7 @@ void repl(env_ptr env)
     read_history(history_file.c_str());
 #endif
     setup_completion();
+    setup_input();
 
     print_welcome();
     
