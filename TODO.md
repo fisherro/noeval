@@ -16,11 +16,10 @@ test suite size down.
 
 Update noeval-reference.md
 
-## Regular
+## Planned
 
-Implement transducers (See Clojure and SRFI-171)
-
-Should use of `read` be prevented from the REPL?
+Concrete, scoped work that could be picked up without first deciding whether
+or how to do it.
 
 `read` and the REPL can steal each other's input when stdin isn't a terminal.
 `read` parses `std::cin`, while the REPL reads through readline. When stdin is
@@ -53,6 +52,20 @@ Or, more specifically, provide `unfoldl`, `unfoldr`, `foldl-until`, and
 `foldr-until`. Use these to implement all/most of the other list processing
 library functions.
 
+Add max-garbage stat
+
+Ensure REPL tab completion works for REPL special commands
+
+Add validation of the bindings structures to let
+
+## Ideas
+
+Questions, things to consider, and open-ended design work.
+
+Implement transducers (See Clojure and SRFI-171)
+
+Should use of `read` be prevented from the REPL?
+
 Prioritize macros and RRB trees in order to improve performance.
 
 Member functions to extract values from the value type.
@@ -60,10 +73,6 @@ Member functions to extract values from the value type.
 A special form for "requires contracts" to standardize argument checking?
 
 File I/O
-
-Add max-garbage stat
-
-Ensure REPL tab completion works for REPL special commands
 
 map*
 
@@ -136,8 +145,6 @@ Makes `value` formattable by std::format and std::print and then use them to
 expose formattting functions to Noeval.
 
 Consider `do` and `try` creating their own environment
-
-Add validation of the bindings structures to let
 
 Function overloading or multimethods? Some way to allow the list functions to work on any sequence.
 
