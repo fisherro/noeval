@@ -44,12 +44,6 @@ Check in the definition of the `gcc-rlf:latest` container image. The
 devcontainer and `test-dependency-checker.zsh` use it, but a fresh clone can't
 build it.
 
-Remove the stale TODO above `even?` in `src/lib.noeval`. Numbers are already
-`cpp_rational`.
-
-Fix or remove the `#skip`ped `eval-list` test in `tests/evaluation.noeval` that
-assumes `env` exists.
-
 ## Ideas
 
 Questions, things to consider, and open-ended design work.
