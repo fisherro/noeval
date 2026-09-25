@@ -19,6 +19,37 @@ implemented in the language itself.
 Although I will bend to cases where a library implementation is impractical.
 (I've already been down the Church-encoded numbers road.)
 
+## Building and running
+
+Noeval needs:
+
+* GCC 14 or later (it uses C++26 features)
+* Boost (only the header-only Multiprecision library)
+* GNU Readline
+
+Build with `make`. The executable is `bin/noeval`.
+
+The Makefile doesn't enable optimization. For a much faster interpreter:
+
+    make clean
+    make CXXFLAGS='-std=c++26 -O2'
+
+Run it from the top of the repository, since it loads `src/lib.noeval` and
+`tests/main.noeval` by relative path.
+
+* `bin/noeval` runs the C++ tests, loads the library, and starts the REPL.
+  (Type `:help` in the REPL for its commands.)
+* `bin/noeval script.noeval` runs the tests, loads the library, and then runs
+  the script instead of starting the REPL.
+* `bin/noeval --gc-tests` runs only the garbage collection tests.
+
+The library tests take a while, so they don't run at startup. Use `:reload` in
+the REPL to reload the library and run them.
+
+Setting `NOEVAL_GC_STRESS=n` makes the garbage collector run every `n`
+environment creations, which is useful for finding GC bugs. See
+[design/env-gc.md](design/env-gc.md).
+
 ## Notes
 
 While inspired by Kernel, this interpreter is making some different choices.
