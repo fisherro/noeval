@@ -1,6 +1,6 @@
 # Equality notes
 
-Robert-Fisher_tmemu: Summarize the difference, in Scheme, between `=`, `eq?`, `eqv?`, and `equal?`.
+Robert: Summarize the difference, in Scheme, between `=`, `eq?`, `eqv?`, and `equal?`.
 
 GitHub Copilot: In Scheme, there are four different equality predicates with increasingly liberal definitions of "sameness":
 
