@@ -78,9 +78,6 @@ First-class delimited continuations
 
 Open questions about macros (see [design/macros.md](design/macros.md)):
 
-* Add `gensym`, if a macro needs a name that can't capture the user's names.
-  It can be written in the library with a counter, `number->string`, and
-  `string->symbol`.
 * Which other library operatives should be macros?
 
 Argument-count checks in the builtin operatives share `expect_args`, but

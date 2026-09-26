@@ -94,7 +94,8 @@ too.
   in the calling environment can't change.
 - **Don't introduce bindings in an expansion.** They could capture the names
   in the user's code. Put temporaries inside an embedded operative instead,
-  which evaluates the user's code in the calling environment.
+  which evaluates the user's code in the calling environment. If a temporary
+  has to be bound alongside the user's code, name it with `(gensym)`.
 - **Capture only on purpose.** When capturing a name is the point, as in an
   anaphoric macro that binds `it` for its body, insert that one name as a
   symbol, embed values for everything else, and document the name.

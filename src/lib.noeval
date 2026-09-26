@@ -733,6 +733,28 @@
 (define :fraction (q :fraction))
 (define :auto (q :auto))
 
+; (gensym [prefix]) returns a new symbol for a macro to bind without
+; capturing the user's names: #:g1, then #:g2, and so on. A prefix, a string
+; or a symbol, replaces the g, so (gensym "tmp") might return #:tmp3, which
+; makes expansions easier to read. Symbols are compared by name, so a
+; generated name could only clash with a user's name written the same way;
+; the #: (which Common Lisp prints before symbols it doesn't intern) makes
+; that unlikely, and the count, shared by every call, makes each generated
+; name different from every other.
+(define gensym
+  ((lambda* ()
+     (define-mutable count 0)
+     (lambda* args
+       (define prefix
+         (cond ((nil? args) "g")
+               ((not (nil? (rest args)))
+                (raise "gensym takes at most one argument, a prefix"))
+               ((string? (first args)) (first args))
+               ((symbol? (first args)) (symbol->string (first args)))
+               (else (raise "gensym's prefix must be a string or a symbol"))))
+       (set! count (+ count 1))
+       (string->symbol (string-append "#:" prefix (number->string count)))))))
+
 ; apply: The applicative version of invoke
 ; Takes an applicative and a list of arguments,
 ; applies the applicative to the arguments
