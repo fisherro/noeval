@@ -692,6 +692,9 @@ Validate once and expand to `((lambda* names body ...) values ...)`, with the
 bindings". `tests/main.noeval` loads each test file inside `(let () ...)`, so
 a broken `let` breaks every library test.
 
+Done, except that the skipped test was removed rather than enabled: it
+duplicated a test that already checks the same binding and its message.
+
 #### Step 7: `if`
 
 Expand `(if c a b)` to `(c a b)`, if the earlier steps show that it's worth

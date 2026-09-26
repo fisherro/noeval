@@ -560,8 +560,11 @@
 
 ; (let ((name expression) ...) body ...)
 ; Each binding must be a list of a symbol and one expression.
+; let is a macro that transforms its operands into a lambda* call, as in the
+; example above, with the value of lambda* rather than its name. The bindings
+; are checked when the let is first evaluated.
 (define let
-  (vau* operands dyn-env
+  (macro (vau* operands _
     (when (nil? operands)
       (raise "let requires a list of bindings"))
     (define bindings (first operands))
@@ -576,11 +579,10 @@
               ((not (symbol? (first binding)))
                (raise "let binding's name must be a symbol"))))
       bindings)
-    (eval (cons (prepend lambda*
-                         (map first bindings)
-                         (rest operands))
-                (map second bindings))
-      dyn-env)))
+    (cons (prepend lambda*
+                   (map first bindings)
+                   (rest operands))
+          (map second bindings)))))
 
 ; apply: The applicative version of invoke
 ; Takes an applicative and a list of arguments,

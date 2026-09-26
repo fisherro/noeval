@@ -285,10 +285,6 @@
 ; Test 19: let error conditions - malformed binding lists
 (test-error (let "not-a-list" body) "let should reject non-list binding forms")
 (test-error (let ((x)) x) "let should reject incomplete bindings")
-#skip
-; Need to enhance the let implementation to validate bindings
-(test-error (let ((x 1 2)) x) "let should reject malformed bindings")
-#end
 
 ; Test 20: let with wrapped operatives
 (define let-wrapped-op (wrap +))
@@ -332,3 +328,25 @@
 (test-assert
     (= (let-error (let ((1 2)) 3)) "let binding's name must be a symbol")
   "let should reject a binding whose name isn't a symbol")
+
+;------------------------------------------------------------------------------
+; let as a macro
+
+(test-assert
+    (macro? let)
+  "let should be a macro")
+
+(test-assert
+    (= (let ((lambda* 1)) (let ((x 2)) (+ lambda* x))) 3)
+  "let should be unaffected by a local binding of lambda*")
+
+; Each evaluation of a let makes a new environment, although its expansion is
+; cached.
+(define let-environments
+  (map (lambda (n) (let ((x n)) (get-current-environment)))
+       (list 1 2)))
+(test-assert
+    (and (not (= (first let-environments) (second let-environments)))
+         (= (eval (q x) (first let-environments)) 1)
+         (= (eval (q x) (second let-environments)) 2))
+  "each evaluation of a let should make a new environment")
