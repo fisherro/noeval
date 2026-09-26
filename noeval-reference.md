@@ -11,6 +11,7 @@ A summary of the language, for working on Noeval code (for example, as context f
 **Lists**: `cons`, `first`, `rest`, `nil?` (evaluate all arguments)
 **Strings**: `string->list` and `list->string` convert to/from lists of Unicode codepoints as Noeval numbers
 **Symbols**: `string->symbol` returns the symbol with a string as its name (any string, even one that wouldn't read back as that symbol), and `symbol->string` returns a symbol's name
+**Numbers and strings**: `number->string` and `string->number`. `(number->string number [radix] [style])` writes a number in a radix from 2 to 36 (10 by default, with lowercase letters for digits above 9) in a style: `:decimal` (repeating digits in parentheses, as in `0.1(6)`), `:fraction` (`1/6`), or `:auto` (the default, which is how numbers print: a decimal if it terminates and a fraction otherwise). The radix and style can be given in either order. `(string->number string [radix])` reads any form `number->string` writes, with letters in either case, and returns `()` for a string that isn't a number.
 **Predicates**: `=` (evaluate all arguments)
 **I/O**: `write`, `display`, `flush` (evaluate all arguments), `read` (reads the next expression from standard input, or returns an eof object at the end)
 **Mutation**: `define-mutable`, `set!`

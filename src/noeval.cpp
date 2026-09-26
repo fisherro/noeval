@@ -104,6 +104,68 @@ std::string format_number(const bignum& value, number_style style, unsigned radi
         + fraction_digits(numerator % denominator, denominator, radix);
 }
 
+std::optional<bignum> parse_number(std::string_view text, unsigned radix)
+{
+    if (radix < 2 or radix > 36) {
+        throw std::invalid_argument(std::format("radix must be from 2 to 36, got {}", radix));
+    }
+
+    // Read the digits at the start of text into value, and return how many
+    // there were.
+    auto read_digits = [&text, radix](cpp_int& value) {
+        size_t count = 0;
+        value = 0;
+        while (not text.empty()) {
+            char c = text.front();
+            unsigned digit = ('0' <= c and c <= '9')? c - '0':
+                             ('a' <= c and c <= 'z')? c - 'a' + 10:
+                             ('A' <= c and c <= 'Z')? c - 'A' + 10: radix;
+            if (digit >= radix) break;
+            value = value * radix + digit;
+            text.remove_prefix(1);
+            ++count;
+        }
+        return count;
+    };
+
+    bool negative = text.starts_with('-');
+    if (negative) text.remove_prefix(1);
+
+    cpp_int whole;
+    if (0 == read_digits(whole)) return std::nullopt;
+    bignum result{whole};
+
+    if (text.starts_with('/')) {
+        text.remove_prefix(1);
+        cpp_int denominator;
+        if (0 == read_digits(denominator) or 0 == denominator) return std::nullopt;
+        result = bignum(whole, denominator);
+    } else if (text.starts_with('.')) {
+        // x.y(z) is x + y/radix^|y| + z/(radix^|y| * (radix^|z| - 1))
+        text.remove_prefix(1);
+        cpp_int fixed;
+        auto fixed_length = read_digits(fixed);
+        cpp_int repeating;
+        size_t repeating_length = 0;
+        if (text.starts_with('(')) {
+            text.remove_prefix(1);
+            repeating_length = read_digits(repeating);
+            if (0 == repeating_length or not text.starts_with(')')) return std::nullopt;
+            text.remove_prefix(1);
+        }
+        if (0 == fixed_length and 0 == repeating_length) return std::nullopt;
+        cpp_int scale = boost::multiprecision::pow(cpp_int{radix}, fixed_length);
+        result += bignum(fixed, scale);
+        if (0 != repeating_length) {
+            result += bignum(repeating,
+                scale * (boost::multiprecision::pow(cpp_int{radix}, repeating_length) - 1));
+        }
+    }
+
+    if (not text.empty()) return std::nullopt;
+    return negative? -result: result;
+}
+
 std::string to_string(const bignum& value)
 {
     return format_number(value);
@@ -1482,6 +1544,88 @@ namespace builtins {
         return value::make(sym->name);
     }
 
+    // Raise an error for name, with the call as its context
+    [[noreturn]] void raise_argument_error(std::string_view name,
+        const std::vector<value_ptr>& args, std::string message)
+    {
+        throw evaluation_error(std::format("{}: {}", name, message),
+            call_context(name, args), call_stack::format());
+    }
+
+    // A radix argument's value: an integer from 2 to 36
+    unsigned radix_argument(std::string_view name, const std::vector<value_ptr>& args,
+        const value_ptr& arg)
+    {
+        auto n = std::get_if<bignum>(&arg->data);
+        if (not n or 1 != denominator(*n) or *n < 2 or *n > 36) {
+            raise_argument_error(name, args, std::format(
+                "radix must be an integer from 2 to 36, got {}", value_to_string(arg)));
+        }
+        return numerator(*n).convert_to<unsigned>();
+    }
+
+    // (number->string number [radix] [style]) writes number in radix (10 by
+    // default) in style: :decimal, :fraction, or :auto (the default, which
+    // writes a decimal if it terminates and a fraction otherwise). The radix
+    // and style can be given in either order.
+    continuation_type number_to_string_operative(const std::vector<value_ptr>& args, env_ptr env)
+    {
+        constexpr std::string_view name{"number->string"};
+        if (args.empty() or args.size() > 3) {
+            raise_argument_error(name, args, std::format(
+                "expected 1 to 3 arguments (number [radix] [style]), got {}", args.size()));
+        }
+        auto num_val = eval(args[0], env);
+        auto num = std::get_if<bignum>(&num_val->data);
+        if (not num) {
+            raise_argument_error(name, args, std::format(
+                "argument must be a number, got {}", value_to_string(num_val)));
+        }
+
+        std::optional<unsigned> radix;
+        std::optional<number_style> style;
+        for (const auto& arg: args | std::views::drop(1)) {
+            auto val = eval(arg, env);
+            if (std::holds_alternative<bignum>(val->data)) {
+                if (radix) raise_argument_error(name, args, "more than one radix");
+                radix = radix_argument(name, args, val);
+            } else if (auto sym = std::get_if<symbol>(&val->data)) {
+                if (style) raise_argument_error(name, args, "more than one style");
+                if (":decimal" == sym->name) style = number_style::decimal;
+                else if (":fraction" == sym->name) style = number_style::fraction;
+                else if (":auto" == sym->name) style = number_style::automatic;
+                else raise_argument_error(name, args, std::format(
+                    "style must be :decimal, :fraction, or :auto, got {}", sym->name));
+            } else {
+                raise_argument_error(name, args, std::format(
+                    "expected a radix or a style, got {}", value_to_string(val)));
+            }
+        }
+        return value::make(format_number(*num,
+            style.value_or(number_style::automatic), radix.value_or(10)));
+    }
+
+    // (string->number string [radix]) reads string as a number in radix (10 by
+    // default), in any form number->string writes, and returns () if it isn't
+    // one.
+    continuation_type string_to_number_operative(const std::vector<value_ptr>& args, env_ptr env)
+    {
+        constexpr std::string_view name{"string->number"};
+        if (args.empty() or args.size() > 2) {
+            raise_argument_error(name, args, std::format(
+                "expected 1 or 2 arguments (string [radix]), got {}", args.size()));
+        }
+        auto str_val = eval(args[0], env);
+        auto str = std::get_if<std::string>(&str_val->data);
+        if (not str) {
+            raise_argument_error(name, args, std::format(
+                "argument must be a string, got {}", value_to_string(str_val)));
+        }
+        unsigned radix = (2 == args.size())? radix_argument(name, args, eval(args[1], env)): 10;
+        auto result = parse_number(*str, radix);
+        return result? value::make(*result): value::make(nullptr);
+    }
+
     continuation_type load_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         expect_args("load", args, 1, "(filename)");
@@ -1663,6 +1807,9 @@ env_ptr create_top_level_environment()
     // Symbols
     define_builtin("string->symbol", builtins::string_to_symbol_operative);
     define_builtin("symbol->string", builtins::symbol_to_string_operative);
+    // Numbers and strings
+    define_builtin("number->string", builtins::number_to_string_operative);
+    define_builtin("string->number", builtins::string_to_number_operative);
     // Equality
     define_builtin("=", builtins::equal_operative);
     // I/O

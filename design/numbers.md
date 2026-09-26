@@ -20,6 +20,10 @@ repeating part can be almost as long as the denominator: 1/1000003 printed as
 Whether a decimal terminates doesn't need any division: it does when the
 denominator, in lowest terms, has no prime factors but 2 and 5.
 
+`number->string` can ask for either form explicitly (`:decimal` or
+`:fraction`, or `:auto` for the printing rule), in any radix from 2 to 36.
+`string->number` reads all of these forms back, in the same radix.
+
 Note that fractional decimal form requires at least a single digit before the
 decimal point.
 

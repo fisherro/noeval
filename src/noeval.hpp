@@ -4,6 +4,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -364,6 +365,12 @@ enum class number_style { decimal, fraction, automatic };
 // in the given style. Printing uses the automatic style in radix 10.
 std::string format_number(const bignum& value,
     number_style style = number_style::automatic, unsigned radix = 10);
+
+// Read text as a number in radix (2 to 36, with letters in either case for
+// digits above 9), in any form format_number writes: an integer, a fraction,
+// or a decimal with any repeating digits in parentheses, each with an
+// optional leading -. Returns nothing if text isn't a number in that form.
+std::optional<bignum> parse_number(std::string_view text, unsigned radix = 10);
 
 // String conversion functions
 std::string to_string(const bignum& value);

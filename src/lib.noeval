@@ -711,6 +711,14 @@
                        (= 58 (first it))
                        (not (nil? (rest it))))))))
 
+; The styles for number->string. These are what (define-keyword :decimal
+; :fraction :auto) would define, but calling define-keyword while the library
+; loads would add about 200 kB to every program's peak memory: it's the
+; first use of several macros, and it leaves garbage for the cycle collector.
+(define :decimal (q :decimal))
+(define :fraction (q :fraction))
+(define :auto (q :auto))
+
 ; apply: The applicative version of invoke
 ; Takes an applicative and a list of arguments,
 ; applies the applicative to the arguments

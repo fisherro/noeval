@@ -1015,6 +1015,41 @@ int test_number_formatting()
     check(rational(1, 3), fraction, 2, "1/11");
     check(rational(1, 10), automatic, 16, "1/a");
 
+    // parse_number reads what format_number writes.
+    auto check_parse = [&failures](std::string_view text, unsigned radix,
+                                   std::optional<bignum> expected) {
+        auto actual = parse_number(text, radix);
+        if (actual == expected) {
+            std::println("✓ parse \"{}\" (radix {}) => {}", text, radix,
+                actual? format_number(*actual): "nothing");
+        } else {
+            println_red("✗ parse \"{}\" (radix {}): expected {}, got {}", text, radix,
+                expected? format_number(*expected): "nothing",
+                actual? format_number(*actual): "nothing");
+            ++failures;
+        }
+    };
+    check_parse("42", 10, 42);
+    check_parse("-42", 10, -42);
+    check_parse("1/6", 10, rational(1, 6));
+    check_parse("-7/3", 10, rational(-7, 3));
+    check_parse("0.25", 10, rational(1, 4));
+    check_parse("0.1(6)", 10, rational(1, 6));
+    check_parse("0.(3)", 10, rational(1, 3));
+    check_parse("-2.(3)", 10, rational(-7, 3));
+    check_parse("ff", 16, 255);
+    check_parse("FF", 16, 255);
+    check_parse("-ff", 16, -255);
+    check_parse("0.(01)", 2, rational(1, 3));
+    check_parse("1/11", 2, rational(1, 3));
+    check_parse("1/a", 16, rational(1, 10));
+    for (std::string_view bad: {"", "-", "abc", "1/0", "1/", "/2", ".5", "1.", "1.()",
+                                "1.(3", "1.(3)4", "--1", "1 ", " 1", "1/2/3", "#x10"}) {
+        check_parse(bad, 10, std::nullopt);
+    }
+    check_parse("12", 2, std::nullopt);
+    check_parse("g", 16, std::nullopt);
+
     for (unsigned radix: {0u, 1u, 37u}) {
         try {
             format_number(1, automatic, radix);
