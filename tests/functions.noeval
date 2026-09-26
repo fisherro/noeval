@@ -453,6 +453,56 @@
     (= arg-eval-test 999)  ; Should be 999 from vau* body, not from argument
   "vau* should not evaluate its arguments")
 
+
+;------------------------------------------------------------------------------
+; lambda, lambda* and vau* are macros
+
+(test-assert
+    (and (macro? lambda) (macro? lambda*) (macro? vau*))
+  "lambda, lambda* and vau* should be macros")
+
+; The message of the error expr raises
+(define error-message
+  (vau (expr) env
+    (try (eval expr env)
+         (lambda (e) (second e)))))
+
+(test-assert
+    (and (= (error-message (lambda))
+            "lambda requires a parameter list and one body expression")
+         (= (error-message (lambda (x)))
+            "lambda requires a parameter list and one body expression")
+         (= (error-message (lambda (x) 1 2))
+            "lambda requires a parameter list and one body expression"))
+  "lambda should require a parameter list and one body expression")
+
+(test-assert
+    (= (error-message (lambda*)) "lambda* requires a parameter list")
+  "lambda* should require a parameter list")
+
+(test-assert
+    (and (= (error-message (vau*))
+            "vau* requires a parameter list and an environment parameter")
+         (= (error-message (vau* (x)))
+            "vau* requires a parameter list and an environment parameter"))
+  "vau* should require a parameter list and an environment parameter")
+
+; The expansions embed the values of wrap, vau and do, so local bindings of
+; those names don't change them.
+(test-assert
+    (let ((wrap 1) (vau 2) (do 3))
+      (and (= ((lambda (x) (+ x 1)) 1) 2)
+           (= ((lambda* (x) (+ x 1) (+ x 2)) 1) 3)
+           (= ((vau* (x) _ 1 x) y) (q y))))
+  "lambda, lambda* and vau* should work where wrap, vau and do are rebound")
+
+; vau*'s environment parameter is bound to the calling environment.
+(define env-of-caller (vau* () env env))
+(test-assert
+    (let ((marker 42)) (= (eval (q marker) (env-of-caller)) 42))
+  "vau* should bind its environment parameter to the calling environment")
+
+
 ;------------------------------------------------------------------------------
 ; prepend tests (list* equivalent)
 (lndisplayln "list functions tests")

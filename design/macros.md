@@ -792,9 +792,9 @@ step 1 (not copying the cell), which isn't specific to macros.
 field doesn't make values bigger. (`library-tests` runs each version's own
 tests, and the final version has more of them.)
 
-Open questions are listed in `TODO.md`: which other library operatives should
-be macros. (A stale cache is now cleared; see the cache section above. And the
-library now has `gensym`; see the hygiene section.)
+Since then, a stale cache is cleared (see the cache section above), the
+library has `gensym` (see the hygiene section), and more library operatives
+are macros (see below).
 
 Since then, every value other than a symbol or a cons cell evaluates to
 itself, as in Kernel, so an expansion no longer needs `(list q value)` to
@@ -802,3 +802,57 @@ embed an operative outside operator position. The mutable-binding wrapper is
 the exception: symbol lookup always unwraps it, so `eval` still reports one as
 an interpreter error. `eval_operation` still uses an embedded operator
 directly, as a shortcut.
+
+### More library operatives as macros
+
+Later, `and`, `or`, `not`, `lambda`, `lambda*`, and `vau*` became macros too.
+Each of them only built code and evaluated it in the calling environment, and
+they did it on every call: `and` and `or` built a new combination for the rest
+of their operands and passed it to `eval`, and `lambda` built a `vau`
+combination.
+
+| Macro     | Expansion                                 |
+|-----------|-------------------------------------------|
+| `and`     | `(a (b c false) false)`                   |
+| `or`      | `(a true (b true c))`                     |
+| `not`     | `(x false true)`                          |
+| `lambda`  | `(wrap (vau formals () body))`            |
+| `lambda*` | `(wrap (vau formals () (do body ...)))`   |
+| `vau*`    | `(vau formals env-param (do body ...))`   |
+
+At first, the last operand of `and` and `or` was still used as a Church
+Boolean, as `(c true false)`, so that a non-Boolean operand raised an error
+wherever it was. But that kept it out of tail position, as it had been before,
+so a recursion through `and` or `or` crashed the interpreter somewhere between
+5,000 and 20,000 calls deep. So now, as in Scheme, the last operand is returned
+as it is, in tail position, and `(and true 5)` is 5. That also saves 3-6% of
+executed instructions on `cond`, `fib`, `lists`, and `substring`.
+
+One thing is lost: an operative could be passed to a higher-order function,
+and before, `(map not flags)`, `(filter not ...)`, `(apply and ...)`, and
+`(foldl or false ...)` worked, since the operands they passed were Booleans or
+local names, which evaluated correctly. A macro isn't callable, so those are
+errors now, as `and` and `or` are in Scheme. The library has function versions
+instead, `and-fn`, `or-fn`, and `not-fn`, which evaluate all their arguments
+but otherwise give the same results.
+
+The other library operatives can't be macros or wouldn't gain from it:
+`get-current-environment`, `q`, and `unevaluated-list` return their
+environment or operands, so their result isn't code to evaluate; `wrap`
+evaluates its operand once and returns a new operative; and `partiall-lazy`
+and `partialr-lazy` return functions that evaluate the fixed arguments on
+each call.
+
+Each change against the commit before it, in time (`run.bash -a`) or in
+executed instructions (cachegrind):
+
+- `and`: `cond`, `fib`, and `if-chain` about 0.71x in time, `lists` 0.79x.
+- `or`: `substring` 0.83x and `library-tests` 0.91x in time.
+- `not`: 18K instructions per use instead of 40K; the benchmarks barely use
+  it.
+- `lambda`, `lambda*`, and `vau*`: `let-when-unless` 0.88x and
+  `library-tests` 0.97x in instructions. Startup is 1.06x, since the
+  library's top-level lambdas are expanded as it loads, and `fib`, `cond`,
+  `if-chain`, `lists`, and `substring` are 1.01-1.02x. That's all in the
+  cycle collector and `malloc`: the cached expansions of the lambdas inside
+  library functions stay alive, so each collection scans a little more.

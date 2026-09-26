@@ -635,6 +635,20 @@
 (test-assert (= 0 boolean-test-int)
   "and should short-circuit")
 
+(test-assert
+    (and (= 1 1) (let ((x 2)) (and (= x 2) (= (+ x 1) 3))))
+  "and should evaluate its operands in the calling environment")
+
+(test-assert
+    (and (= (and true 1) 1) (= (and 1) 1) (not (and false 1)))
+  "and should return its last operand as it is")
+
+(test-assert
+    (= (error-message (and 1 true)) "Not an operative: 1")
+  "and should raise an error for a non-Boolean operand before the last")
+
+(test-assert (macro? and) "and should be a macro")
+
 (test-assert (not (or))
   "(or) should return false")
 (test-assert (or true) "(or true) should return true")
@@ -651,10 +665,84 @@
 (test-assert (= 0 boolean-test-int)
   "or should short-circuit")
 
+(test-assert
+    (or (= 1 2) (let ((x 2)) (or (= x 3) (= (+ x 1) 3))))
+  "or should evaluate its operands in the calling environment")
+
+(test-assert
+    (and (= (or false 1) 1) (= (or 1) 1) (or true 1))
+  "or should return its last operand as it is")
+
+(test-assert
+    (= (error-message (or 1 false)) "Not an operative: 1")
+  "or should raise an error for a non-Boolean operand before the last")
+
+; The last operand of and and or is in tail position, so this doesn't grow the
+; stack.
+(define and-or-countdown
+  (lambda (n)
+    (or (= n 0)
+        (and (> n 0) (and-or-countdown (- n 1))))))
+(test-assert
+    (and-or-countdown 8000)
+  "the last operand of and and or should be in tail position")
+
+(test-assert (macro? or) "or should be a macro")
+
 (test-assert (not (not true))
   "(not true) should return false")
 (test-assert (not false)
   "(not false) should return true")
+
+(test-assert
+    (let ((x 1)) (not (= x 2)))
+  "not should evaluate its operand in the calling environment")
+
+(test-assert
+    (= (error-message (not 1)) "Not an operative: 1")
+  "not should raise an error for a non-Boolean operand")
+
+(test-assert
+    (and (= (error-message (not)) "not requires exactly one operand")
+         (= (error-message (not true false)) "not requires exactly one operand"))
+  "not should require exactly one operand")
+
+(test-assert (macro? not) "not should be a macro")
+
+; A macro can't be passed to a higher-order function, so and-fn, or-fn and
+; not-fn are functions that do the same.
+(test-assert
+    (and (= (error-message (map not (list true)))
+            "map's first argument must be callable")
+         (= (error-message (apply and (list true)))
+            "apply's first argument must be an applicative"))
+  "and, or and not shouldn't be accepted as functions")
+
+(test-assert
+    (and (= (map not-fn (list true false)) (list false true))
+         (= (filter not-fn (list true false false)) (list false false)))
+  "not-fn should be a function version of not")
+
+(test-assert
+    (and (apply and-fn (list true true true))
+         (not (apply and-fn (list true false true)))
+         (and-fn)
+         (= (and-fn true 5) 5)
+         (not (and-fn false 5)))
+  "and-fn should be a function version of and")
+
+(test-assert
+    (and (apply or-fn (list false true false))
+         (not (apply or-fn (list false false)))
+         (not (or-fn))
+         (= (or-fn false 5) 5)
+         (or-fn true 5))
+  "or-fn should be a function version of or")
+
+(test-assert
+    (and (= (foldl and-fn true (list true true)) true)
+         (= (foldl or-fn false (list false true)) true))
+  "and-fn and or-fn should work with foldl")
 
 ; nand and nor
 (test-assert (not (nand)) "(nand) should return false")

@@ -582,8 +582,8 @@
 
 ; Test 8: operative? with library-defined operatives
 (test-assert
-    (= (operative? and) true)
-  "operative? should return true for library-defined operatives like and")
+    (= (operative? wrap) true)
+  "operative? should return true for library-defined operatives like wrap")
 
 (test-assert
     (and (macro? cond) (not (operative? cond)))
