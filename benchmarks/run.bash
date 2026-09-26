@@ -11,7 +11,9 @@
 # Each benchmark is a .noeval file in this directory, run as a script with
 # --skip-tests so the C++ tests aren't timed. If NAME.stdin exists, it is the
 # benchmark's standard input. Times include starting noeval and loading the
-# library; the startup benchmark measures just that.
+# library; the startup benchmark measures just that. Peak memory is the highest
+# peak resident set size of any of the runs, which noeval reports when
+# NOEVAL_REPORT_PEAK_MEMORY is set.
 #
 # The results are a table on stdout. To measure a change, save the results
 # from before it and compare the results from after it against them:
@@ -67,7 +69,7 @@ now_ms() {
     echo $(( t / 1000 ))
 }
 
-printf "%-20s %8s %10s" benchmark "min ms" "median ms"
+printf "%-20s %8s %10s %8s" benchmark "min ms" "median ms" "peak MB"
 [[ -n $previous ]] && printf " %10s" "vs. before"
 printf "\n"
 
@@ -83,14 +85,19 @@ for name in "${names[@]}"; do
     fi
 
     times=()
+    peak_kb=0
     failed=
     for (( i = 0; i < runs; i++ )); do
         start=$(now_ms)
-        if ! output=$("$binary" --skip-tests "$script" < "$input" 2>&1); then
+        if ! output=$(NOEVAL_REPORT_PEAK_MEMORY=1 "$binary" --skip-tests "$script" < "$input" 2>&1); then
             failed=1
             break
         fi
         times+=($(( $(now_ms) - start )))
+        # noeval reports "peak memory: N kB" as it exits. (It may follow
+        # output that didn't end its line.)
+        kb=$(sed -n 's/.*peak memory: \([0-9]*\) kB$/\1/p' <<< "$output" | tail -n 1)
+        (( ${kb:-0} > peak_kb )) && peak_kb=$kb
     done
     if [[ -n $failed ]]; then
         printf "%-20s %8s\n" "$name" failed
@@ -102,7 +109,10 @@ for name in "${names[@]}"; do
     sorted=($(printf "%s\n" "${times[@]}" | sort -n))
     min=${sorted[0]}
     median=${sorted[$(( runs / 2 ))]}
-    printf "%-20s %8d %10d" "$name" "$min" "$median"
+    # The highest peak of any run, in megabytes to one decimal place
+    tenths=$(( (peak_kb * 10 + 512) / 1024 ))
+    printf "%-20s %8d %10d %8s" "$name" "$min" "$median" \
+        "$(( tenths / 10 )).$(( tenths % 10 ))"
     if [[ -n $previous ]]; then
         if [[ -n ${before[$name]:-} ]] && (( before[$name] > 0 )); then
             # The ratio to two decimal places, using integer arithmetic

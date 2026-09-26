@@ -8,6 +8,7 @@
 #include <chrono>
 #include <filesystem>
 #include <format>
+#include <fstream>
 #include <functional>
 #include <memory>
 #include <print>
@@ -2172,6 +2173,24 @@ env_ptr reload_top_level_environment(bool test_the_library)
     return env;
 }
 
+// Print the process's peak memory use (resident set size) to stderr, as
+// "peak memory: N kB". It reads VmHWM from /proc/self/status, which covers
+// only this program. (getrusage's maximum also counts the memory of the
+// process that started this one.)
+void report_peak_memory()
+{
+    std::ifstream status("/proc/self/status");
+    for (std::string line; std::getline(status, line); ) {
+        if (line.starts_with("VmHWM:")) {
+            auto value = line.substr(line.find_first_not_of(" \t", 6));
+            // So that the report comes after the program's own output
+            std::fflush(stdout);
+            std::println(stderr, "peak memory: {}", value);
+            return;
+        }
+    }
+}
+
 int main(const int argc, const char** argv)
 {
     std::vector<std::string> args(argv + 1, argv + argc);
@@ -2181,6 +2200,10 @@ int main(const int argc, const char** argv)
     if (auto stress = std::getenv("NOEVAL_GC_STRESS")) {
         environment::set_stress_interval(std::max(0, std::atoi(stress)));
     }
+
+    // NOEVAL_REPORT_PEAK_MEMORY (set to anything) reports the peak memory use
+    // at exit, for the benchmarks.
+    if (std::getenv("NOEVAL_REPORT_PEAK_MEMORY")) std::atexit(report_peak_memory);
 
     // Run only the garbage collection tests.
     if ((not args.empty()) and ("--gc-tests" == args[0])) {

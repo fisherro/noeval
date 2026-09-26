@@ -35,8 +35,9 @@ loads the library and tests by relative path.
   collection tests under stress.
 - `make test-sanitize` runs the same tests with AddressSanitizer and
   UndefinedBehaviorSanitizer, and with the library tests under GC stress.
-- `make bench` times the benchmarks. To measure a change, compare against
-  results saved from before it with `benchmarks/run.bash -c`.
+- `make bench` times the benchmarks and reports their peak memory use. To
+  measure a change, compare against results saved from before it with
+  `benchmarks/run.bash -c`.
 
 `./check-reference.bash` lists the builtins and library definitions that
 [noeval-reference.md](noeval-reference.md) doesn't mention. Run it after
