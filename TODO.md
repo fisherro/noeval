@@ -42,6 +42,18 @@ Attempt to implement `syntax-rules` and `syntax-case` on top of our macro system
 
 Questions, things to consider, and open-ended design work.
 
+A top-level definition that shadows a builtin breaks the library. The library
+is loaded into the top-level environment, where scripts and the REPL also
+run, and library code looks builtins up by name when it runs. So after
+`(define cons 1)` at the top level, even `(displayln "x")` fails, inside
+`wrap` ("Not an operative: 1"), and `(define first 1)` breaks `map`. (The same
+definitions inside a `let` are harmless, and a library name can't be
+redefined at the top level at all, since `define` can't rebind it.) Options:
+have library code embed builtins' values rather than their names, as the
+macros do; or load the library into an environment of its own, between the
+builtins and the top level, so that library code never sees top-level
+definitions.
+
 Consider `digamma` as an alias for `vau`. And a Unicode alias too?
 
 Implement transducers (See Clojure and SRFI-171)
