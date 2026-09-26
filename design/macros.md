@@ -509,11 +509,39 @@ There are no renaming or syntax objects. Capture is avoided by convention:
   receives the user's code as operands and evaluates it in the calling
   environment, so its own names are in its own environment. `cond`, `when`,
   and `unless` introduce no names, and `let` introduces only the user's.
-  There's no `gensym` (or `string->symbol`); one can be added if a macro needs
-  it.
+  There's no `gensym`, but with `string->symbol` it can be written in the
+  library if a macro needs it.
 
 A drawback is that expansions print as `(#<operative...> ...)`, which is
 harder to read when debugging.
+
+Because hygiene is a convention rather than something the expander enforces,
+a macro can capture names on purpose, choosing name by name: a value in an
+expansion can't be affected by the calling environment, but a symbol is
+looked up, or bound, there. That supports the usual legitimate uses of
+unhygienic macros:
+
+- **Anaphoric macros**, which bind a name for the user's code. `with-it`
+  expands `(with-it expr body ...)` to `(let ((it expr)) body ...)`, with the
+  value of `let` but the symbol `it`.
+- **Referring to the caller's variables by name**, such as a macro that
+  expands to `(set! counter (+ counter 1))`. The expansion is cached, but a
+  symbol in it is looked up wherever the combination is evaluated, so the
+  same combination evaluated in two environments uses each one's variable.
+- **Defining macros**, which `define` names given as operands. The expansion
+  is evaluated in the calling environment, so the names are defined there,
+  following `define`'s rule against rebinding. A defining macro can also make
+  new names from its operands with `string->symbol` and `symbol->string`, as
+  `(define-accessors point x y)` defines `point-x` and `point-y`. (Those
+  builtins were added for this: before them, a transformer had no way to make
+  a symbol that wasn't already in its operands.)
+
+What a transformer can't do is look at the calling environment while it
+expands, since it gets an empty one. That's what keeps caching sound. Code
+that has to decide what to do from the caller's bindings can be an ordinary
+fexpr, which sees the calling environment on every call.
+
+The library tests in `tests/macros.noeval` cover these cases.
 
 ### Interaction with the rest of the language
 
