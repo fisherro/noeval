@@ -4,7 +4,8 @@
 
 ## Ongoing
 
-What primitives can we get rid of?
+What primitives can we get rid of? See [design/primitives.md](design/primitives.md)
+for a survey of the builtins.
 
 Should any library functions take advantage of other library functions or
 primitives that they aren't?
@@ -33,8 +34,6 @@ source that reads the file descriptor directly (`read(2)` returns what's
 available without waiting for more). When stdin isn't a terminal, the REPL
 reads through `std::cin`'s stream buffer too (via `rl_getc_function`), so it
 would share that source.
-
-Add max-garbage stat
 
 ## Ideas
 
