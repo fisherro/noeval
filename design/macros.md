@@ -469,14 +469,17 @@ Consequences:
   expanded every time it's evaluated. That's correct, just not faster.
 - Combinations inside an expansion are cached on the expansion's cells, which
   the cache keeps, so macros that expand into other macro calls work.
-- Every `cons_cell` grows by a pointer, including those in list data. The
-  benchmarks' peak memory will show the cost. (A side table keyed by cell
-  address is the alternative; it may be revisited.)
+- The field costs no memory. `cons_cell` grows from 48 to 56 bytes, but a
+  `value` is 160 bytes, sized by its largest alternative (`operative`, 128
+  bytes), so no value gets bigger. The cache itself is allocated only for
+  combinations whose operator is a macro. (A side table keyed by cell address
+  was the alternative; it may be revisited.)
 - The cycle collector must scan the cached macro and expansion. Missing them
   would cause leaks, not corruption, but they have to be counted.
-- Expansions have no source location, so errors inside one are reported at the
-  macro call. Copying the call's location to the top cell of the expansion
-  would help.
+- Expansions have no source location, but errors inside one are still
+  reported at the macro call. The expansion is evaluated as a tail call, and
+  `call_stack::guard::tail_call` only replaces a frame's tail expression with
+  one that has a location, so the frame keeps the call's location.
 
 ### Hygiene
 
@@ -578,6 +581,102 @@ Save results before the change, then compare with `benchmarks/run.bash -c`:
 - `cond`, `if-chain`, and `codepoints-utf8`: `cond` should approach
   `if-chain`, with the remaining difference being the operator lookup and the
   cache check.
-- `startup` and `library-tests`: the time and peak memory cost of the larger
-  `cons_cell`, which every benchmark pays.
+- `startup` and `library-tests`: checks that the extra variant alternative and
+  the cache check don't slow down ordinary code, which every benchmark runs.
 - Possibly a new benchmark that uses `let`, `when`, and `unless` heavily.
+
+### Implementation plan
+
+Each step is a separate commit, and `make test` and `make test-sanitize` pass
+before the next one starts.
+
+#### Step 0: Baseline
+
+Build, run `make test`, and save `benchmarks/run.bash` results. Every later
+comparison is against these.
+
+#### Step 1: Stop `eval_operation` from copying the cell
+
+`eval_operation` takes a `const cons_cell&` and rebuilds a value from it with
+`value::make(cell)` on every call. Pass it the `value_ptr` that `eval` already
+has instead. The cache needs the original cell, and removing an allocation per
+combination may be a small speedup by itself, so this step is benchmarked on
+its own. No change in behavior.
+
+#### Step 2: The `macro` type and primitive, without the cache
+
+- Add `struct macro { value_ptr transformer; }` to the `value` variant, with
+  `to_string` (`#<macro:...>`) and `operator==` (the same transformer object),
+  and `"macro"` in `typeof_visitor`.
+- Add the `macro` builtin: `expect_args` for one argument, evaluate it, and
+  require an `operative` or `builtin_operative` (proposed message: `macro:
+  argument must be an operative, got <type>`).
+- In `eval_operation`, accept a macro in operator position directly, as it
+  does for operatives. For a macro, build `(transformer . operands)`, `eval` it
+  in a fresh `environment::make()` with no parent, and return
+  `tail_call{expansion, env}`. A fresh environment per expansion, rather than
+  a shared one, keeps a transformer from leaving definitions behind for the
+  next expansion.
+- The cycle collector visits `macro::transformer`.
+- A macro outside operator position gets `eval`'s existing "Cannot evaluate"
+  error.
+- Add `macro?` to the library's predicates, update `noeval-reference.md`, and
+  run `./check-reference.bash`.
+- Tests: create `tests/macros.noeval` and load it from `tests/main.noeval`.
+  Cover the library tests listed under Testing that don't involve the cache.
+  In C++, test `typeof`, printing, and the collector scanning the transformer.
+
+#### Step 3: The call-site cache
+
+- Add the hidden field to `cons_cell`: a `mutable` `std::unique_ptr` to a
+  `macro_cache` holding the macro and the expansion, in a small wrapper whose
+  copy is empty, so `cons_cell` stays copyable and copies never share a cache.
+  `operator==` and `to_string` ignore it.
+- In `eval_operation`, if the operator is the cached macro, evaluate the cached
+  expansion. If it's a different macro, expand and replace the cache. If it
+  isn't a macro, call it normally and ignore the cache.
+- The cycle collector visits the cache's macro and expansion, each exactly
+  once.
+- Add a `macro` debug category that logs expansions and cache hits.
+- Tests: the cache tests listed under Testing. A counter can be reached through
+  the transformer's closure, though not through its environment argument. Test
+  a rebound macro with a binding in an inner scope, since `redefine` is only
+  available in the REPL.
+
+#### Step 4: `cond`
+
+- Restore `cond-transformer` with `(q do)` changed to `do`, define `cond` as a
+  macro, delete `cond-clauses`, `cond-clause`, `cond-test`, and `cond-body`,
+  and update the comment above `cond`.
+- `cond-transformer` uses `length` and `and`, which are defined after `cond`
+  and `let`. Lazy expansion makes that fine unless a top-level form in the
+  library evaluates a `cond` before they're defined; the tests will show it.
+- Replace the test "cond should not check clauses after the one chosen". The
+  error messages stay the same.
+- Update `noeval-reference.md` and `TODO.md` (the "try the old `cond` again"
+  item and the question about hiding `cond`'s helpers).
+- Compare `cond`, `if-chain`, and `codepoints-utf8` against the baseline.
+
+#### Step 5: `when` and `unless`
+
+Convert both, embedding `if` and `do`. Add a test that a `define` in the body
+binds in the calling environment.
+
+#### Step 6: `let`
+
+Validate once and expand to `((lambda* names body ...) values ...)`, with the
+`lambda*` value embedded. Enable the skipped test "let should reject malformed
+bindings". `tests/main.noeval` loads each test file inside `(let () ...)`, so
+a broken `let` breaks every library test.
+
+#### Step 7: `if`
+
+Expand `(if c a b)` to `(c a b)`, if the earlier steps show that it's worth
+it.
+
+#### Step 8: Documentation
+
+- Mark this design as implemented, and record the benchmark results.
+- Add the hygiene convention to `CONTRIBUTING.md`: embed values rather than
+  symbols, and don't introduce bindings in an expansion.
+- Run all the benchmarks against the baseline.
