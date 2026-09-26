@@ -11,10 +11,11 @@ A summary of the language, for working on Noeval code (for example, as context f
 **Lists**: `cons`, `first`, `rest`, `nil?` (evaluate all arguments)
 **Strings**: `string->list` and `list->string` convert to/from lists of Unicode codepoints as Noeval numbers
 **Predicates**: `=` (evaluate all arguments)
-**I/O**: `write`, `display`, `flush` (evaluate all arguments)
+**I/O**: `write`, `display`, `flush` (evaluate all arguments), `read` (reads the next expression from standard input, or returns an eof object at the end)
 **Mutation**: `define-mutable`, `set!`
 **Church Booleans**: `true`, `false` (built-in operatives)
 **Reflection**: `typeof`
+**Environments**: `environment-names`, `environment-parent`, `get-builtins-environment`, `get-top-level-environment` (see [Environments](#environments))
 
 ## Key Language Patterns
 
@@ -35,18 +36,30 @@ A summary of the language, for working on Noeval code (for example, as context f
 ## Standard Library (lib.noeval)
 
 **Core**: `lambda` (single expression), `lambda*` (multiple expressions), `vau*` (multiple expressions), `wrap`, `apply`, `if`, `let`, `cond`
-**Lists**: `append`, `reverse`, `length`, `filter`, `map`, `foldl`, `foldr`, `foldl-until`, `foldr-until`, `unfoldl`, `unfoldr`, `last`, `list`, `snoc`, `iota`, `prepend`, `second`, `list-ref`, `list-index`
+**Lists**: `append`, `reverse`, `length`, `filter`, `map`, `foldl`, `foldr`, `foldl-until`, `foldr-until`, `unfoldl`, `unfoldr`, `last`, `list`, `snoc`, `iota`, `prepend`, `second`, `third`, `fourth`, `nth` (`(nth list index)`, zero-based), `take` and `drop` (`(take n list)`), `list-index`, `any?` and `all?` (`(any? predicate list)`)
 **Control**: `when`, `unless`, `and`, `or`, `not`
-**Predicates**: `odd?`, `even?`, `number?`, `integer?`, `string?`, `symbol?`, `list?`, `operative?`, `environment?`
+**Predicates**: `odd?`, `even?`, `number?`, `integer?`, `non-negative-integer?`, `string?`, `symbol?`, `list?`, `operative?`, `environment?`, `eof-object?`
 **I/O**: `newline`, `displayln`, `lndisplayln`, `for-each`
 **Meta**: `q`, `get-current-environment`, `unevaluated-list`
-**Examples**: `countdown`, `factorial`
+**Partial application**: `partiall` and `partialr` fix the leftmost or rightmost arguments: `((partiall - 10) 3)` is 7, `((partialr - 10) 3)` is -7. `partiall-lazy` and `partialr-lazy` don't evaluate the fixed arguments until the resulting function is called, and evaluate them on every call.
+**Validation**: `check` (`(check value predicate message)` returns `value` if `(predicate value)` is true and raises `message` otherwise)
+**Examples**: `countdown`, `factorial`, `fibonacci`
 **Comparisons**: `!=`, `<>` (alias for `!=`)
 **Numeric comparisons**: `<`, `>`, `<=`, `>=` (with Unicode aliases `≤`, `≥`)
-**Numeric operations**: `abs`, `modulo`
-**String operations**: `string-length`, `string-nth`, `substring`, `string-append`, `strings->string`, `string->codepoint-strings`
+**Numeric operations**: `abs`, `modulo`, `quotient` (integer division), `clamp` (`(clamp value lower higher)`)
+**String operations**: `string-length`, `string-nth`, `substring`, `string-append`, `strings->string`, `string->codepoint-strings`, `codepoints->utf8` and `utf8->codepoints` (convert between lists of codepoints and lists of UTF-8 byte values)
 **Testing**: `test-assert`, `test-error` (for library test suite)
+**Internal helpers**: `cond-clauses`, `cond-clause`, `cond-test`, and `cond-body` (used by `cond`), and `recurse` (used by `prepend`, but defined at the top level because `do` doesn't create an environment)
 **Unicode support**: `λ` (alias for `lambda`), `∧` (alias for `and`), `∨` (alias for `or`), `¬` (alias for `not`), `×` (alias for `*`), `÷` (alias for `/`)
+
+## Environments
+
+Environments are first-class values that can be inspected.
+
+- **Builtins and the top level**: The builtins are in their own environment. Its child, the top-level environment, is where the library is loaded, and the REPL and scripts evaluate in it too. A definition at the top level can shadow a builtin but doesn't replace it.
+- **get-builtins-environment**, **get-top-level-environment**: `(get-builtins-environment)` and `(get-top-level-environment)` return those environments
+- **environment-names**: `(environment-names env)` returns a sorted list of the symbols bound in `env` itself, not in its ancestors
+- **environment-parent**: `(environment-parent env)` returns `env`'s parent environment, or `()` for the builtins environment
 
 ## Error Handling
 

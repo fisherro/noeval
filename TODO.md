@@ -38,15 +38,22 @@ Add max-garbage stat
 
 Add validation of the bindings structures to let
 
-Provide something like `get-builtins` that the check dependencies program could use.
-
 Check in the definition of the `gcc-rlf:latest` container image, or stop
 using it. `test-dependency-checker.zsh` runs in it, but a fresh clone can't
 build it.
 
+`prepend`'s `recurse` helper is bound in the top-level environment, because
+it's defined inside a `do`, which doesn't create an environment. Define it
+somewhere that does, such as a `let` or `lambda*`.
+
 ## Ideas
 
 Questions, things to consider, and open-ended design work.
+
+`cond`'s helpers (`cond-clauses`, `cond-clause`, `cond-test`, and
+`cond-body`) are global names. Should they be hidden? Defining them inside
+`cond` would rebuild them on every call, which would give back some of the
+speed `cond` gained by evaluating its clauses directly.
 
 Implement transducers (See Clojure and SRFI-171)
 
@@ -143,12 +150,6 @@ made it about 14 times slower than the `if` chain alone. The current `cond`
 evaluates its clauses directly, which is about 1.7 times slower than the `if`
 chain. A macro could transform once and also check every clause up front.
 (Benchmarks: `cond`, `if-chain`, and `codepoints-utf8`.)
-
-Automate keeping `noeval-reference.md` in sync. Once `get-builtins` exists, a
-script could report global bindings the reference doesn't mention. (It is
-currently missing `read`, `eof-object?`, `nth`, `any?`, `all?`, `take`,
-`drop`, `partiall`/`partialr`, `quotient`, `clamp`, `check`,
-`codepoints->utf8`, and `utf8->codepoints`, among others.)
 
 `string-length`, `string-nth`, and `substring` convert the whole string to a
 list on every call, so indexing a string in a loop is quadratic.

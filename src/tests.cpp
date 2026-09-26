@@ -668,6 +668,57 @@ int test_stream_parsing()
     return failures;
 }
 
+int test_environments()
+{
+    std::println("\n--- Environments ---");
+    int failures{0};
+    auto check = [&](bool ok, std::string_view description) {
+        if (ok) {
+            std::println("✓ {}", description);
+        } else {
+            println_red("✗ {}", description);
+            ++failures;
+        }
+    };
+
+    // The top-level environment's parent holds the builtins
+    auto env = create_top_level_environment();
+    auto builtins_env = env->get_parent();
+    check(builtins_env and (not builtins_env->get_parent())
+          and env->get_own_symbols().empty()
+          and std::ranges::contains(builtins_env->get_own_symbols(), "vau"),
+          "The builtins are in the top-level environment's parent");
+
+    // Defining a builtin's name at the top level shadows it rather than
+    // replacing it
+    parser p1("(define first 42)");
+    eval(p1.parse(), env);
+    parser p2("first");
+    check("42" == value_to_string(eval(p2.parse(), env))
+          and "#<builtin-operative:first>" == value_to_string(builtins_env->lookup("first")),
+          "Defining a builtin's name at the top level shadows it");
+
+    // get-top-level-environment only holds a weak reference, so it fails once
+    // the top-level environment is gone rather than keeping it alive
+    auto getter = builtins_env->lookup("get-top-level-environment");
+    env.reset();
+    environment::collect();
+    std::string error;
+    try {
+        auto call = value::make(cons_cell{getter, value::make(nullptr)});
+        eval(call, builtins_env);
+    } catch (const std::exception& e) {
+        error = e.what();
+    }
+    check(std::string::npos != error.find("the environment no longer exists"),
+          "get-top-level-environment fails once the environment is gone");
+
+    if (0 != failures) {
+        println_red("✗ {} environment test(s) failed", failures);
+    }
+    return failures;
+}
+
 int test_source_locations()
 {
     std::println("\n--- Source locations ---");
@@ -1636,6 +1687,7 @@ bool run_tests()
     failures += test_inline_comments();
     failures += test_stream_parsing();
     failures += test_source_locations();
+    failures += test_environments();
     failures += test_operative_as_first_element();
     std::println("{}", std::string(60, '='));
     failures += test_parameter_binding();

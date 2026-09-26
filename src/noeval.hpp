@@ -239,7 +239,11 @@ public:
 
     value_ptr lookup(const std::string& name) const;
     void define(const std::string& name, value_ptr val);
+    // The names bound in this environment and all its ancestors
     std::vector<std::string> get_all_symbols() const;
+    // The names bound in this environment itself, sorted
+    std::vector<std::string> get_own_symbols() const;
+    env_ptr get_parent() const { return parent; }
     std::string dump_chain() const;
 };
 

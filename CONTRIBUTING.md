@@ -33,6 +33,10 @@ loads the library and tests by relative path.
 - `make bench` times the benchmarks. To measure a change, compare against
   results saved from before it with `benchmarks/run.bash -c`.
 
+`./check-reference.bash` lists the builtins and library definitions that
+[noeval-reference.md](noeval-reference.md) doesn't mention. Run it after
+adding one.
+
 CI runs `make test`, `make test-sanitize`, and each benchmark once.
 
 ## Conventions

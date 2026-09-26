@@ -1,37 +1,4 @@
-(define builtins
-  (list "define"
-        "lambda"
-        "if"
-        "quote"
-        "set!"
-        "begin"
-        "let"
-        "let*"
-        "letrec"
-        "cond"
-        "and"
-        "or"
-        "case"
-        "delay"
-        "cons"
-        "car"
-        "cdr"
-        "list"
-        "list?"
-        "null?"
-        "pair?"
-        "symbol?"
-        "number?"
-        "boolean?"
-        "string?"
-        "procedure?"
-        "display"
-        "newline"
-        "eval"
-        "apply"
-        "read"
-        "true"
-        "false"))
+(define builtins (environment-names (get-builtins-environment)))
 
 (define symbol-in-list?
   (lambda* (sym lst)
@@ -42,7 +9,8 @@
 (define extract-symbols
   (lambda* (acc expr)
     (cond ((and (symbol? expr)
-                (not (symbol-in-list? expr acc)))
+                (not (symbol-in-list? expr acc))
+                (not (symbol-in-list? expr builtins)))
            (cons expr acc))
           ((list? expr)
            (foldl extract-symbols acc expr))
