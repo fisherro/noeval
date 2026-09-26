@@ -184,3 +184,67 @@
     (all? (lambda (test) (= (macro-when test 1 2) (reference-when test 1 2)))
           (list true false))
   "a macro should give the same results as its reference operative")
+
+; Intentional capture
+;
+; A macro chooses name by name whether to capture: a value in the expansion
+; can't be affected by the calling environment, but a symbol is looked up (or
+; bound) there.
+
+; An anaphoric macro binds the name it for its body. It embeds the value of
+; let but inserts the symbol it.
+(define with-it
+  (macro (vau args _
+    (cons let (cons (list (list (q it) (first args))) (rest args))))))
+(test-assert
+    (= (with-it (+ 1 2) (* it 10)) 30)
+  "an anaphoric macro should bind a name for its body")
+(test-assert
+    (= (let ((it 5)) (list (with-it 1 it) it)) (list 1 5))
+  "an anaphoric macro's binding should only be visible in its body")
+(test-assert
+    (= (let ((let 5)) (with-it 2 (* it 3))) 6)
+  "an anaphoric macro should still embed the values it doesn't capture")
+
+; A macro that refers to a variable of the caller's by name
+(define bump!
+  (macro (vau () _
+    (list set! (q bump-counter) (list + (q bump-counter) 1)))))
+(define-mutable bump-counter 0)
+(bump!)
+(bump!)
+(test-assert
+    (= bump-counter 2)
+  "a macro should be able to refer to a caller's variable by name")
+(test-assert
+    (and (= (let () (define-mutable bump-counter 100) (bump!) bump-counter) 101)
+         (= bump-counter 2))
+  "a captured name should be looked up where the macro is used")
+
+; The same combination evaluated in two environments shares an expansion, but
+; the captured name is looked up in each.
+(define bump-in (lambda (env) (eval (q (bump!)) env)))
+(define bump-env-a
+  (let () (define-mutable bump-counter 10) (get-current-environment)))
+(define bump-env-b
+  (let () (define-mutable bump-counter 20) (get-current-environment)))
+(bump-in bump-env-a)
+(bump-in bump-env-b)
+(test-assert
+    (and (= (eval (q bump-counter) bump-env-a) 11)
+         (= (eval (q bump-counter) bump-env-b) 21))
+  "a cached expansion should look up a captured name where it's evaluated")
+
+; A defining macro defines names given as operands in the calling environment.
+(define define-pair
+  (macro (vau (a b value) _
+    (list do (list define a (list first value))
+             (list define b (list second value))))))
+(test-assert
+    (= (let () (define-pair lo hi (list 1 9)) (list lo hi)) (list 1 9))
+  "a defining macro should define names in the calling environment")
+(test-assert
+    (= (error-message
+         (let () (define-pair lo hi (list 1 9)) (define-pair lo hi (list 2 8))))
+       "define: lo is already defined in this environment (use set! to change a mutable binding, or let for a new scope)")
+  "a defining macro should follow define's rule against rebinding")

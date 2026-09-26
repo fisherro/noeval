@@ -90,6 +90,9 @@ too.
 - **Don't introduce bindings in an expansion.** They could capture the names
   in the user's code. Put temporaries inside an embedded operative instead,
   which evaluates the user's code in the calling environment.
+- **Capture only on purpose.** When capturing a name is the point, as in an
+  anaphoric macro that binds `it` for its body, insert that one name as a
+  symbol, embed values for everything else, and document the name.
 - **Don't add a scope.** The expansion is evaluated in the calling
   environment, so a `define` in it binds there, as it would in `do`. Wrapping
   the expansion in a `lambda` would change that.
