@@ -49,7 +49,7 @@
 
 ; The transformer's environment
 
-(define transformer-env (macro (vau _ env (list q env))))
+(define transformer-env (macro (vau _ env env)))
 (test-assert
     (nil? (environment-names (transformer-env)))
   "a transformer's environment should have no bindings")
@@ -106,9 +106,8 @@
        "transformer failed")
   "an error raised by a transformer should propagate")
 (test-assert
-    (= (error-message (eval my-when (get-current-environment)))
-       "Cannot evaluate macro")
-  "a macro value can only be evaluated as an operator")
+    (= (eval my-when (get-current-environment)) my-when)
+  "a macro value should evaluate to itself")
 
 ; Caching
 
@@ -260,8 +259,8 @@
           (string->symbol
             (string-append (symbol->string prefix) "-" (symbol->string field)))))
       (list do
-            (list define (accessor-name a) (list q first))
-            (list define (accessor-name b) (list q second)))))))
+            (list define (accessor-name a) first)
+            (list define (accessor-name b) second))))))
 (test-assert
     (= (let ()
          (define-accessors point x y)

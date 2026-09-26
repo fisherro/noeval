@@ -499,11 +499,11 @@ There are no renaming or syntax objects. Capture is avoided by convention:
 - **Names inserted by a macro captured by user bindings** (a local `do` or `if`
   breaking `when`): a macro inserts values, not symbols, as Wat does and as
   `when` and `unless` already do. The old `cond` inserts `(q do)`, which will
-  become the `do` value. An operative or environment value can only be
-  evaluated in operator position; elsewhere it has to be quoted with
-  `(list q value)`. Making every value other than a symbol or a cons cell
-  evaluate to itself, as Kernel does, would remove that restriction, but it
-  isn't needed yet.
+  become the `do` value. At first, an operative or environment value could
+  only be evaluated in operator position, and elsewhere had to be quoted with
+  `(list q value)`. Since then, every value other than a symbol or a cons
+  cell evaluates to itself, as in Kernel, so a value can be embedded in any
+  position.
 - **User names captured by bindings a macro introduces**: an expansion doesn't
   introduce bindings. Temporaries belong in an embedded operative, which
   receives the user's code as operands and evaluates it in the calling
@@ -782,6 +782,12 @@ field doesn't make values bigger. (`library-tests` runs each version's own
 tests, and the final version has more of them.)
 
 Open questions are listed in `TODO.md`: whether a stale cache should be
-cleared or moved to a side table, whether values other than symbols and cons
-cells should evaluate to themselves, `gensym`, and which other library
+cleared or moved to a side table, `gensym`, and which other library
 operatives should be macros.
+
+Since then, every value other than a symbol or a cons cell evaluates to
+itself, as in Kernel, so an expansion no longer needs `(list q value)` to
+embed an operative outside operator position. The mutable-binding wrapper is
+the exception: symbol lookup always unwraps it, so `eval` still reports one as
+an interpreter error. `eval_operation` still uses an embedded operator
+directly, as a shortcut.

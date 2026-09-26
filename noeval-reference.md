@@ -26,6 +26,7 @@ A summary of the language, for working on Noeval code (for example, as context f
 - **Single vs multiple expressions**: `lambda` and `vau` support only single body expressions; use `lambda*` and `vau*` for multiple expressions in the body
 - **Lists**: Built from `cons` cells, terminated with `()`
 - **Unevaluated arguments**: Operatives receive raw expressions
+- **Evaluation rule**: As in Kernel, a symbol is looked up and a cons cell is a combination; every other value (numbers, strings, `()`, operatives, macros, environments, the eof object) evaluates to itself. So code built at runtime can contain any value, not just its name.
 - **Environment access**: Second parameter to `vau` gets calling environment
 - **Nil representation**: `()` not `nil`
 - **Mutation restrictions**: Only variables created with `define-mutable` can be modified with `set!` - attempting to `set!` a variable created with `define` will raise an error
@@ -72,7 +73,7 @@ Environments are first-class values that can be inspected.
 - **Embed values, not names**: build expansions with `list` and `cons` so that they contain the values of `if`, `do` and so on, not their names, which the calling environment might rebind: `(macro (vau args _ (list if (first args) (cons do (rest args)) ())))`.
 - **Capture on purpose with names**: hygiene is a convention, chosen name by name. A symbol in an expansion is looked up, or bound, in the calling environment, so a macro can deliberately insert a name instead of a value. This supports anaphoric macros, which bind a name such as `it` for their body (`(cons let (cons (list (list (q it) (first args))) (rest args)))`), macros that refer to a caller's variable by name, and defining macros, which `define` names given as operands or made from them with `string->symbol`. A captured name is looked up wherever the combination is evaluated, even though the expansion is cached.
 - **No new scope**: the expansion is evaluated in the calling environment, so a `define` in it binds there, and `define`'s usual rule against rebinding applies.
-- **Only as an operator**: a macro value can't be evaluated on its own ("Cannot evaluate macro").
+- **Values anywhere**: every value except a symbol or a cons cell evaluates to itself, so an expansion can contain an operative, macro, or environment in any position, not just as an operator: `(list define name first)` defines `name` as `first`'s value.
 - **Expanded once**: a combination's expansion is cached, invisibly, on the combination, and reused each time the combination is evaluated with a macro that has the same transformer. So a transformer runs once per combination, not once per call, and it shouldn't have side effects. A combination built at runtime (`(eval (cons m args) env)`) is expanded each time it's evaluated.
 
 ## Error Handling

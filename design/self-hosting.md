@@ -128,13 +128,17 @@ The fascinating aspect is whether you'd keep the same evaluation model. Your cur
   (vau (expr env) ()
     (cond
       ((symbol? expr) (env-lookup expr env))
-      ((integer? expr) expr)
-      ((string? expr) expr)
-      ((nil? expr) expr)
       ((cons? expr) (apply-fexpr (noeval-eval (first expr) env)
                                  (rest expr) env))
-      (else (raise "Cannot evaluate expression")))))
+      (else expr))))
 ```
+
+As in Kernel, a symbol is looked up and a cons cell is a combination, and
+every other value (numbers, strings, `()`, operatives, macros, environments)
+evaluates to itself. `apply-fexpr` would also have to handle macros: call the
+transformer with the operands, then evaluate the expansion in `env` (and
+cache it on the combination, which Noeval code can't do with its current
+primitives).
 
 The meta-circular nature would be quite elegant with your fexpr foundation.
 
