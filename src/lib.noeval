@@ -487,13 +487,14 @@
                ((nil? (rest operands)) false (chain (rest operands))))))
      (macro (vau operands _ ((nil? operands) false (chain operands)))))))
 
-; not operative - logical negation
-; Returns the Church Boolean opposite of its argument
+; (not operand) is true when its operand is false, and false when it's true.
+; It's a macro, and (not x) expands to (x false true).
 (define not
-  (vau (operand) env
-    (do
-      (define val (eval operand env))
-      (val false true))))
+  (macro
+    (vau operands _
+      ((= (length operands) 1)
+       (list (first operands) false true)
+       (raise "not requires exactly one operand")))))
 
 ; (nand operand ...) is (not (and operand ...)), and (nor operand ...) is
 ; (not (or operand ...)). They're macros that expand to exactly that, so they

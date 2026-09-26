@@ -676,6 +676,21 @@
 (test-assert (not false)
   "(not false) should return true")
 
+(test-assert
+    (let ((x 1)) (not (= x 2)))
+  "not should evaluate its operand in the calling environment")
+
+(test-assert
+    (= (error-message (not 1)) "Not an operative: 1")
+  "not should raise an error for a non-Boolean operand")
+
+(test-assert
+    (and (= (error-message (not)) "not requires exactly one operand")
+         (= (error-message (not true false)) "not requires exactly one operand"))
+  "not should require exactly one operand")
+
+(test-assert (macro? not) "not should be a macro")
+
 ; nand and nor
 (test-assert (not (nand)) "(nand) should return false")
 (test-assert (not (nand true)) "(nand true) should return false")
