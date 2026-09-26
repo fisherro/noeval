@@ -40,10 +40,6 @@ Check in the definition of the `gcc-rlf:latest` container image, or stop
 using it. `test-dependency-checker.zsh` runs in it, but a fresh clone can't
 build it.
 
-`prepend`'s `recurse` helper is bound in the top-level environment, because
-it's defined inside a `do`, which doesn't create an environment. Define it
-somewhere that does, such as a `let` or `lambda*`.
-
 ## Ideas
 
 Questions, things to consider, and open-ended design work.

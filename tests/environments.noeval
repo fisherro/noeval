@@ -45,6 +45,10 @@
   "the top-level environment should hold the library but not the builtins")
 
 (test-assert
+    (not (names-include? top-level-names (q recurse)))
+  "prepend's recurse helper should not be bound in the top-level environment")
+
+(test-assert
     (nil? (environment-parent (get-builtins-environment)))
   "the builtins environment should have no parent")
 

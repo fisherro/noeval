@@ -133,18 +133,20 @@
 ; look to match the expected behavior in use. It would evaluate its arguments
 ; multiple times during the recursion, but uses seem to expect that its
 ; arguments would only be evaluated once. To achieve that, this implementation
-; uses an inner fexpr for the recursion.
+; uses an inner fexpr for the recursion. It's defined inside a lambda* so that
+; it isn't bound in the top-level environment.
 (define prepend
-  (do (define recurse
-        (vau operands _
-          ((nil? operands)
-           ()
-           (do (define head (first operands))
-               (define tail (rest operands))
-               ((nil? tail)
-                head
-                (cons head (invoke recurse tail)))))))
-      (lambda args (invoke recurse args))))
+  ((lambda* ()
+     (define recurse
+       (vau operands _
+         ((nil? operands)
+          ()
+          (do (define head (first operands))
+              (define tail (rest operands))
+              ((nil? tail)
+               head
+               (cons head (invoke recurse tail)))))))
+     (lambda args (invoke recurse args)))))
 
 (define newline (lambda () (display "\n")))
 
