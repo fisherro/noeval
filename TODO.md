@@ -36,8 +36,6 @@ would share that source.
 
 Add max-garbage stat
 
-Add validation of the bindings structures to let
-
 Check in the definition of the `gcc-rlf:latest` container image, or stop
 using it. `test-dependency-checker.zsh` runs in it, but a fresh clone can't
 build it.
