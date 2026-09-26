@@ -700,6 +700,9 @@ duplicated a test that already checks the same binding and its message.
 Expand `(if c a b)` to `(c a b)`, if the earlier steps show that it's worth
 it.
 
+Done. The transformer returns its operands unchanged, so `if` behaves exactly
+as it did, including `(if)`, which returns `()`.
+
 #### Step 8: Documentation
 
 - Mark this design as implemented, and record the benchmark results.

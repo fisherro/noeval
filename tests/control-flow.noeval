@@ -590,6 +590,31 @@
 
 
 ;------------------------------------------------------------------------------
+; if tests
+(lndisplayln "if tests")
+
+(test-assert
+    (and (= (if true 1 2) 1) (= (if false 1 2) 2))
+  "if should choose a branch")
+
+(define-mutable if-branches-evaluated 0)
+(if (= 1 1)
+  (set! if-branches-evaluated (+ if-branches-evaluated 1))
+  (set! if-branches-evaluated (+ if-branches-evaluated 10)))
+(test-assert
+    (= if-branches-evaluated 1)
+  "if should evaluate only the chosen branch")
+
+(test-assert
+    (nil? (if))
+  "if with no operands should return nil")
+
+(test-assert
+    (= (error-message (if true 1)) "true Wrong number of arguments: expected 2, got 1")
+  "if should require both branches")
+
+
+;------------------------------------------------------------------------------
 ; and/or/not tests
 (lndisplayln "and/or/not tests")
 

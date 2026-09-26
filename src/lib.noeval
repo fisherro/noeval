@@ -36,12 +36,11 @@
                    (cons env ())))))))
 #end
 
-; A convenience function.
+; A convenience macro.
 ; Since we use Church Booleans, you can essentially just remove the if.
 ; (if (nil? lyst) 0 1) -> ((nil? lyst) 0 1)
-; Which is what this implementation does.
-; Candidate for being replaced by a macro in the future.
-(define if (vau operands env (eval operands env)))
+; Which is what this macro does: its expansion is its operands.
+(define if (macro (vau operands _ operands)))
 
 ; Construct a list from the arguments without evaluating them
 (define unevaluated-list (vau args _ args))

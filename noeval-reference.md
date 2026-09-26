@@ -36,7 +36,7 @@ A summary of the language, for working on Noeval code (for example, as context f
 
 ## Standard Library (lib.noeval)
 
-**Core**: `lambda` (single expression), `lambda*` (multiple expressions), `vau*` (multiple expressions), `wrap`, `apply`, `if`, and the macros `let` and `cond` (see [Macros](#macros))
+**Core**: `lambda` (single expression), `lambda*` (multiple expressions), `vau*` (multiple expressions), `wrap`, `apply`, and the macros `if`, `let` and `cond` (see [Macros](#macros))
 **Lists**: `append`, `reverse`, `length`, `filter`, `map`, `foldl`, `foldr`, `foldl-until`, `foldr-until`, `unfoldl`, `unfoldr`, `last`, `list`, `snoc`, `iota`, `prepend`, `second`, `third`, `fourth`, `nth` (`(nth list index)`, zero-based), `take` and `drop` (`(take n list)`), `list-index`, `any?` and `all?` (`(any? predicate list)`)
 **Control**: `when` and `unless` (macros), `and`, `or`, `not`
 **Predicates**: `odd?`, `even?`, `number?`, `integer?`, `non-negative-integer?`, `string?`, `symbol?`, `list?`, `operative?`, `macro?`, `environment?`, `eof-object?`
