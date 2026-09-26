@@ -475,30 +475,29 @@
 
 ; (and operand ...) is true when all its operands are true. It evaluates them
 ; in order and stops at the first false one. (and) is true.
-; It's a macro, and (and a b c) expands to (a (b (c true false) false) false).
-; Each operand, including the last, is used as a Church Boolean, so a
-; non-Boolean operand raises an error wherever it is. That means no operand is
-; in tail position.
+; It's a macro, and (and a b c) expands to (a (b c false) false). So, as in
+; Scheme, the last operand is in tail position and is returned as it is,
+; while an operand before it must be a Church Boolean.
 (define and
   ((lambda* ()
      (define chain
        (lambda (operands)
-         (list (first operands)
-               ((nil? (rest operands)) true (chain (rest operands)))
-               false)))
+         ((nil? (rest operands))
+          (first operands)
+          (list (first operands) (chain (rest operands)) false))))
      (macro (vau operands _ ((nil? operands) true (chain operands)))))))
 
 ; (or operand ...) is true when any of its operands is true. It evaluates them
 ; in order and stops at the first true one. (or) is false.
-; It's a macro, and (or a b c) expands to (a true (b true (c true false))), so
-; like and, it uses each operand as a Church Boolean.
+; It's a macro, and (or a b c) expands to (a true (b true c)), so like and, it
+; returns its last operand as it is, in tail position.
 (define or
   ((lambda* ()
      (define chain
        (lambda (operands)
-         (list (first operands)
-               true
-               ((nil? (rest operands)) false (chain (rest operands))))))
+         ((nil? (rest operands))
+          (first operands)
+          (list (first operands) true (chain (rest operands))))))
      (macro (vau operands _ ((nil? operands) false (chain operands)))))))
 
 ; (not operand) is true when its operand is false, and false when it's true.

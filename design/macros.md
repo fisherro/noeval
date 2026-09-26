@@ -813,16 +813,20 @@ combination.
 
 | Macro     | Expansion                                 |
 |-----------|-------------------------------------------|
-| `and`     | `(a (b (c true false) false) false)`      |
-| `or`      | `(a true (b true (c true false)))`        |
+| `and`     | `(a (b c false) false)`                   |
+| `or`      | `(a true (b true c))`                     |
 | `not`     | `(x false true)`                          |
 | `lambda`  | `(wrap (vau formals () body))`            |
 | `lambda*` | `(wrap (vau formals () (do body ...)))`   |
 | `vau*`    | `(vau formals env-param (do body ...))`   |
 
-The last operand of `and` and `or` is still used as a Church Boolean, as it
-was, so a non-Boolean operand raises an error wherever it is. That keeps it out
-of tail position, as it was before too.
+At first, the last operand of `and` and `or` was still used as a Church
+Boolean, as `(c true false)`, so that a non-Boolean operand raised an error
+wherever it was. But that kept it out of tail position, as it had been before,
+so a recursion through `and` or `or` crashed the interpreter somewhere between
+5,000 and 20,000 calls deep. So now, as in Scheme, the last operand is returned
+as it is, in tail position, and `(and true 5)` is 5. That also saves 3-6% of
+executed instructions on `cond`, `fib`, `lists`, and `substring`.
 
 The other library operatives can't be macros or wouldn't gain from it:
 `get-current-environment`, `q`, and `unevaluated-list` return their

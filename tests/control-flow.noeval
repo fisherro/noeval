@@ -640,8 +640,12 @@
   "and should evaluate its operands in the calling environment")
 
 (test-assert
-    (= (error-message (and true 1)) "Not an operative: 1")
-  "and should raise an error for a non-Boolean last operand")
+    (and (= (and true 1) 1) (= (and 1) 1) (not (and false 1)))
+  "and should return its last operand as it is")
+
+(test-assert
+    (= (error-message (and 1 true)) "Not an operative: 1")
+  "and should raise an error for a non-Boolean operand before the last")
 
 (test-assert (macro? and) "and should be a macro")
 
@@ -666,8 +670,22 @@
   "or should evaluate its operands in the calling environment")
 
 (test-assert
-    (= (error-message (or false 1)) "Not an operative: 1")
-  "or should raise an error for a non-Boolean last operand")
+    (and (= (or false 1) 1) (= (or 1) 1) (or true 1))
+  "or should return its last operand as it is")
+
+(test-assert
+    (= (error-message (or 1 false)) "Not an operative: 1")
+  "or should raise an error for a non-Boolean operand before the last")
+
+; The last operand of and and or is in tail position, so this doesn't grow the
+; stack.
+(define and-or-countdown
+  (lambda (n)
+    (or (= n 0)
+        (and (> n 0) (and-or-countdown (- n 1))))))
+(test-assert
+    (and-or-countdown 8000)
+  "the last operand of and and or should be in tail position")
 
 (test-assert (macro? or) "or should be a macro")
 
