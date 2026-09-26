@@ -42,7 +42,7 @@ Questions, things to consider, and open-ended design work.
 
 Implement transducers (See Clojure and SRFI-171)
 
-Prioritize macros and RRB trees in order to improve performance.
+Prioritize RRB trees in order to improve performance.
 
 Member functions to extract values from the value type.
 
@@ -60,11 +60,17 @@ Include a (weak) reference to the environment?
 
 First-class delimited continuations
 
-Add expansion-time macros (see [having-both-fexprs-and-macros.html](https://axisofeval.blogspot.com/2012/09/having-both-fexprs-and-macros.html) )
+Open questions about macros (see [design/macros.md](design/macros.md)):
 
-* A `macro` primitive works kind of like `wrap` to turn any operative into a macro transformer.
-* Need a macro transformer primitive that will expand macros.
-* When the code is creating an operative, run macro expansion on the body before storing it in the operative.
+* A combination's cached expansion keeps its transformer, and so the
+  transformer's environment, alive, even when the combination's operator is
+  no longer a macro. Should the cache be cleared then, or kept in a side
+  table keyed by the cell instead of in `cons_cell`?
+* Make every value other than a symbol or a cons cell evaluate to itself, as
+  Kernel does, so that an expansion can contain an operative outside operator
+  position without quoting it?
+* Add `gensym`, if a macro needs a name that can't capture the user's names.
+* Which other library operatives should be macros?
 
 Argument-count checks in the builtin operatives share `expect_args`, but
 there's more common code that could be refactored, such as the blocks that

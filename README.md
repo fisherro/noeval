@@ -184,6 +184,19 @@ usual print form of operatives.
 Because Noeval uses Church Booleans, other values do not represent truthiness
 or falsiness.
 
+### Macros
+
+Kernel has no macros: an operative that builds code does so every time it's
+called. Noeval adds expansion-time macros, following
+[Having both fexprs and macros](https://axisofeval.blogspot.com/2012/09/having-both-fexprs-and-macros.html).
+The `macro` primitive turns an operative into a macro. When a macro is the
+operator of a combination, its operative is called with the unevaluated
+operands, and the resulting expansion is evaluated in the calling
+environment. The expansion is cached on the combination, so it's built only
+once, however many times the combination is evaluated. `if`, `cond`, `let`,
+`when`, and `unless` are macros. See
+[design/macros.md](design/macros.md) for the design.
+
 ### Limited mutability
 
 Unlike Kernel, all objects (or perhaps more precisely, all bindings) are

@@ -349,7 +349,9 @@ This separation allows Wat to have powerful metaprogramming features where evalu
 
 This section is the design for expansion-time macros in Noeval, following the
 idea in [Having both fexprs and macros](https://axisofeval.blogspot.com/2012/09/having-both-fexprs-and-macros.html).
-Nothing here is implemented yet.
+It has been implemented, following the plan below. The Results section at the
+end records where the implementation departed from the plan, and the
+benchmark results.
 
 ### Motivation
 
@@ -709,3 +711,49 @@ as it did, including `(if)`, which returns `()`.
 - Add the hygiene convention to `CONTRIBUTING.md`: embed values rather than
   symbols, and don't introduce bindings in an expansion.
 - Run all the benchmarks against the baseline.
+
+Done. `CONTRIBUTING.md` has a Macros section with the conventions, `TODO.md`
+lists the open questions below, and the `let-when-unless` benchmark measures
+`let`, `when`, and `unless` in a loop, which no benchmark did before.
+
+### Results
+
+Departures from the plan:
+
+- The cache compares transformers rather than macro values. Both are sound,
+  and comparing transformers lets `((macro t) ...)` use the cache.
+- The old `cond-transformer` wasn't restored as it was, because it accepted
+  `(cond (else 1) (else))` and reported the last malformed clause rather than
+  the first (see step 4).
+- The skipped `let` test was removed rather than enabled, since it duplicated
+  another test.
+- `if` was made a macro too (step 7).
+
+The final code against the code from before this work (commit `4200672`),
+timed back to back in both orders. The medians are from the first order; the
+speedups are the range over both orders. About 5-9% of each speedup comes from
+step 1 (not copying the cell), which isn't specific to macros.
+
+| Benchmark            | Before (ms) | After (ms) | Speedup    |
+|----------------------|------------:|-----------:|------------|
+| `codepoints-utf8`    |         202 |        168 | 1.2-1.4x   |
+| `cond`               |         133 |         74 | 1.8-2.0x   |
+| `dependency-checker` |         539 |         72 | 7.5-7.9x   |
+| `fib`                |        1155 |       1044 | 1.1-1.2x   |
+| `if-chain`           |          84 |         72 | 1.2x       |
+| `let-when-unless`    |        3261 |        178 | 18-19x     |
+| `library-tests`      |        1718 |       1012 | 1.7x       |
+| `lists`              |        1351 |       1270 | 1.1x       |
+| `startup`            |           7 |          8 | none       |
+| `string-index`       |        1346 |       1339 | none       |
+| `substring`          |        1155 |       1102 | 1.0-1.05x  |
+
+`cond` now takes about as long as the equivalent `if` chain (74 ms against
+72 ms), where it was 1.7 times slower. Peak memory is unchanged: the cache
+field doesn't make values bigger. (`library-tests` runs each version's own
+tests, and the final version has more of them.)
+
+Open questions are listed in `TODO.md`: whether a stale cache should be
+cleared or moved to a side table, whether values other than symbols and cons
+cells should evaluate to themselves, `gensym`, and which other library
+operatives should be macros.

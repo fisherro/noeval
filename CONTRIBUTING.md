@@ -73,6 +73,27 @@ Built-ins follow a consistent pattern: validate the arguments, evaluate
 selectively, and return a value. Check the number of arguments with
 `expect_args`, which gives the standard error message.
 
+### Macros
+
+An operative that only builds code and evaluates it in the calling
+environment should be a macro: `(macro (vau operands _ expansion))`. The
+expansion is built once for each combination and cached (see
+[design/macros.md](design/macros.md)), so checks on the operands are made once
+too.
+
+- **A transformer depends only on its operands.** It gets an empty
+  environment, and it runs once per combination, not once per call, so it
+  shouldn't have side effects.
+- **Embed values, not names.** Build the expansion with `list` and `cons`, so
+  that it contains the values of `if`, `do`, and so on, which a local binding
+  in the calling environment can't change.
+- **Don't introduce bindings in an expansion.** They could capture the names
+  in the user's code. Put temporaries inside an embedded operative instead,
+  which evaluates the user's code in the calling environment.
+- **Don't add a scope.** The expansion is evaluated in the calling
+  environment, so a `define` in it binds there, as it would in `do`. Wrapping
+  the expansion in a `lambda` would change that.
+
 ### Errors
 
 - Re-throw `evaluation_error` instances unchanged.
