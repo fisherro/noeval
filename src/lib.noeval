@@ -162,28 +162,16 @@
 (define environment? (lambda (x) (= (q environment) (typeof x))))
 (define eof-object? (lambda (x) (= (q eof-object) (typeof x))))
 
-; An example of a macro-like fexpr:
-;($define! $when
-;   ($vau (test . body) env
-;      (eval (list $if test (list* $sequence body) #inert)
-;            env)))
-; Test: (when (nil? ()) (display "true"))
-; Needs more tests
+; (when test body ...) evaluates the body when test is true, and returns ()
+; otherwise. (unless test body ...) is the opposite. They're macros:
+; (when test body ...) expands to (if test (do body ...) ()), with the values
+; of if and do rather than their names, and the body is evaluated in the
+; calling environment.
 (define when
-  (vau args env
-    (do
-      (define test (first args))
-      (define body (rest args))
-      (define if-expr (list if test (cons do body) ()))
-      (eval if-expr env))))
+  (macro (vau args _ (list if (first args) (cons do (rest args)) ()))))
 
 (define unless
-  (vau args env
-    (do
-      (define test (first args))
-      (define body (rest args))
-      (define if-expr (list if test () (cons do body)))
-      (eval if-expr env))))
+  (macro (vau args _ (list if (first args) () (cons do (rest args))))))
 
 ; Partial application from the left
 ; (partiall + 1) creates a function that adds 1 to its argument

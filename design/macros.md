@@ -683,6 +683,8 @@ loop is a three-clause `cond` with cheap tests, is about 6.6 times faster.
 Convert both, embedding `if` and `do`. Add a test that a `define` in the body
 binds in the calling environment.
 
+Done. The error for `(when)` and `(unless)` is unchanged.
+
 #### Step 6: `let`
 
 Validate once and expand to `((lambda* names body ...) values ...)`, with the

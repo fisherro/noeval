@@ -496,6 +496,26 @@
 (test-error (when) "when should require at least 1 argument")
 (test-error (unless) "unless should require at least 1 argument")
 
+; when and unless are macros whose expansions are evaluated in the calling
+; environment, and embed the values of if and do.
+(test-assert
+    (and (macro? when) (macro? unless))
+  "when and unless should be macros")
+
+(test-assert
+    (= (let ()
+         (when true (define when-defined 1))
+         (unless false (define unless-defined 2))
+         (+ when-defined unless-defined))
+       3)
+  "definitions in when and unless bodies should bind in the calling environment")
+
+(test-assert
+    (= (let ((do 1) (if 2))
+         (list (when true 3 4) (unless false 5 6)))
+       (list 4 6))
+  "when and unless should be unaffected by local bindings of the names they use")
+
 ; Test 6: when/unless with try blocks
 (define-mutable try-when-var 0)
 (try (when (= 1 1)
