@@ -36,7 +36,8 @@ would share that source.
 
 Add max-garbage stat
 
-Port my `infix` and `pipe` macros to Noeval.
+Port my `infix` macro to Noeval. (It isn't in any of my GitHub repositories, so
+it has to come from an archive of an old web site.)
 
 ```scm
 (define-syntax infix

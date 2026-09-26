@@ -1,0 +1,103 @@
+;------------------------------------------------------------------------------
+; pipe and pipe-it tests
+(lndisplayln "pipe tests")
+
+; The message of the error expr raises
+(define pipe-error
+  (vau (expr) env
+    (try (eval expr env)
+         (lambda (e) (second e)))))
+
+; Tests ported from https://github.com/fisherro/pipe
+
+(test-assert (= (pipe it 10) 10)
+  "pipe with one expression should return its value")
+(test-assert (= (pipe it (list 1 2 3)) (list 1 2 3))
+  "pipe should return a list")
+(test-assert (= (let ((it 3)) (pipe it (iota it))) (list 0 1 2))
+  "pipe with one expression shouldn't bind its name")
+(test-assert (= (let ((it 10)) (pipe it 3 (iota it))) (list 0 1 2))
+  "pipe should bind its name for the following expression")
+
+(test-assert
+    (= (pipe s
+             "Hello!"
+             (string->list s)
+             (map (lambda (c) (+ c 1)) s)
+             (list->string s))
+       "Ifmmp\"")
+  "pipe should pipeline a value through several expressions")
+
+; A nested pipe with its own name, which can use the outer one's
+(test-assert
+    (= (pipe this
+             "Hello!"
+             (string->list this)
+             (pipe that
+                   (foldl + 0 this)
+                   (modulo that 256)
+                   (snoc this that))
+             (length this))
+       7)
+  "a nested pipe should be able to use the outer pipe's name")
+
+; Scope
+
+(test-assert
+    (= (let ((x 1)) (pipe x 5 (* x 2)) x) 1)
+  "pipe's name shouldn't be bound after the pipe")
+
+(define-mutable pipe-steps 0)
+(define pipe-step
+  (lambda (n)
+    (do (set! pipe-steps (+ pipe-steps 1))
+        n)))
+(test-assert
+    (and (= (pipe x (pipe-step 1) (pipe-step (+ x x)) (pipe-step (* x x))) 4)
+         (= pipe-steps 3))
+  "pipe should evaluate each expression once")
+
+(test-assert
+    (= (let ((let 1)) (pipe x 2 (* x 3))) 6)
+  "pipe should be unaffected by a local binding of let")
+
+; Errors
+
+(test-assert
+    (= (pipe-error (pipe)) "pipe requires a name and at least one expression")
+  "pipe should require a name")
+(test-assert
+    (= (pipe-error (pipe x)) "pipe requires a name and at least one expression")
+  "pipe should require at least one expression")
+(test-assert
+    (= (pipe-error (pipe 5 1)) "pipe's name must be a symbol")
+  "pipe's name should be a symbol")
+
+;------------------------------------------------------------------------------
+; pipe-it
+
+(test-assert
+    (= (pipe-it (iota 5)
+                (map (lambda (n) (* n 2)) it)
+                (foldl + 0 it))
+       20)
+  "pipe-it should bind it for each expression after the first")
+
+(test-assert
+    (= (pipe-it 7) 7)
+  "pipe-it with one expression should return its value")
+
+(test-assert
+    (= (let ((it 1)) (list (pipe-it 5 (* it 2)) it)) (list 10 1))
+  "pipe-it's it should only be visible inside it")
+
+(test-assert
+    (= (pipe-it (list 1 2 3)
+                (pipe-it (length it) (* it 10))
+                (+ it 1))
+       31)
+  "a nested pipe-it should shadow the outer it")
+
+(test-assert
+    (= (pipe-error (pipe-it)) "pipe-it requires at least one expression")
+  "pipe-it should require an expression")

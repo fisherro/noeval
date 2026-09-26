@@ -583,6 +583,42 @@
                    (rest operands))
           (map second bindings)))))
 
+; (pipe name first-expression expression ...)
+; Pipelines a value through a sequence of expressions: name is bound to the
+; value of the first expression, then to the value of each following
+; expression in turn, and the value of the last expression is returned. It's
+; a macro that expands to nested lets:
+;   (pipe x 10 (+ x 1) (* x 2))
+; becomes
+;   (let ((x 10)) (let ((x (+ x 1))) (* x 2)))
+; which is 22. With only one expression, name isn't bound. Each let is a new
+; scope, so name can be rebound at each step, and it isn't bound afterward.
+; Ported from https://github.com/fisherro/pipe
+(define pipe
+  (macro (vau* operands _
+    (when (nil? operands)
+      (raise "pipe requires a name and at least one expression"))
+    (define name (first operands))
+    (unless (symbol? name)
+      (raise "pipe's name must be a symbol"))
+    (define expressions (rest operands))
+    (when (nil? expressions)
+      (raise "pipe requires a name and at least one expression"))
+    (define reversed (reverse expressions))
+    (foldl (lambda (body expression)
+             (list let (list (list name expression)) body))
+           (first reversed)
+           (rest reversed)))))
+
+; (pipe-it first-expression expression ...)
+; An anaphoric pipe: (pipe-it expression ...) is (pipe it expression ...), so
+; it binds the name it, on purpose, for each expression after the first.
+(define pipe-it
+  (macro (vau* operands _
+    (when (nil? operands)
+      (raise "pipe-it requires at least one expression"))
+    (cons pipe (cons (q it) operands)))))
+
 ; apply: The applicative version of invoke
 ; Takes an applicative and a list of arguments,
 ; applies the applicative to the arguments

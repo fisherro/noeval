@@ -41,6 +41,7 @@ A summary of the language, for working on Noeval code (for example, as context f
 **Core**: `lambda` (single expression), `lambda*` (multiple expressions), `vau*` (multiple expressions), `wrap`, `apply`, and the macros `if`, `let` and `cond` (see [Macros](#macros))
 **Lists**: `append`, `reverse`, `length`, `filter`, `map`, `foldl`, `foldr`, `foldl-until`, `foldr-until`, `unfoldl`, `unfoldr`, `last`, `list`, `snoc`, `iota`, `prepend`, `second`, `third`, `fourth`, `nth` (`(nth list index)`, zero-based), `take` and `drop` (`(take n list)`), `list-index`, `any?` and `all?` (`(any? predicate list)`)
 **Control**: `when` and `unless` (macros), `and`, `or`, `not`
+**Pipelines**: `pipe` and `pipe-it` (macros) pass a value through a sequence of expressions: `(pipe x 10 (+ x 1) (* x 2))` binds `x` to each value in turn and is 22, like nested `let`s. `(pipe-it expression ...)` is `(pipe it expression ...)`, binding `it` on purpose.
 **Predicates**: `odd?`, `even?`, `number?`, `integer?`, `non-negative-integer?`, `string?`, `symbol?`, `list?`, `operative?`, `macro?`, `environment?`, `eof-object?`
 **I/O**: `newline`, `displayln`, `lndisplayln`, `for-each`
 **Meta**: `q`, `get-current-environment`, `unevaluated-list`
