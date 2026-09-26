@@ -150,3 +150,6 @@ convert back. But we may want to reconsider at some point.
 
 Think about how we could "pre-compile" the library to improve the time it
 takes to load it on startup. (And whether that's even worth doing.)
+
+Revisit self hosting and replace the design doc with something more current.
+What is needed? What do we already have? What are the gaps? What would be the implementation strategy?
