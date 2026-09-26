@@ -46,8 +46,10 @@ number `x`, `(numerator x)` is `(* x (denominator x))`. That was checked for
 `numerator` can't give it back without dividing, and `integer?` uses it.
 
 But `numerator` stays a builtin too. It's trivial for the interpreter, and
-moving it gains no flexibility: this is a place where the principle of
-minimizing primitives isn't reason enough to bother.
+moving it gains no flexibility, so it meets neither of the reasons for moving
+something to the library that "Minimize primitives" in
+[CONTRIBUTING.md](../CONTRIBUTING.md) gives: a significant simplification of
+the interpreter, or more expressive library code.
 
 ### nil?
 
