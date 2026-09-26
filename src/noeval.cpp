@@ -1721,17 +1721,11 @@ value_ptr eval_symbol(const symbol& sym, env_ptr env)
     }
 }
 
-continuation_type eval_operation(const cons_cell& cell, env_ptr env)
+// expr is the combination being evaluated, and cell is its cons_cell.
+continuation_type eval_operation(const value_ptr& expr, const cons_cell& cell, env_ptr env)
 {
-    // Convert cons_cell back to value_ptr for easier handling
-    auto expr = value::make(cell);
-    
-    if (is_nil(expr)) {
-        throw evaluation_error("Cannot evaluate empty list", "()", call_stack::format());
-    }
-    
-    auto operator_expr = car(expr);
-    auto operands = cdr(expr);
+    auto operator_expr = cell.car;
+    auto operands = cell.cdr;
     
     // Check if operator is already an operative value
     value_ptr op;
@@ -1997,7 +1991,7 @@ value_ptr eval(value_ptr expr, env_ptr env)
                 } else if constexpr (std::is_same_v<T, symbol>) {
                     return eval_symbol(v, env);
                 } else if constexpr (std::is_same_v<T, cons_cell>) {
-                    return eval_operation(v, env);
+                    return eval_operation(expr, v, env);
                 } else {
                     throw evaluation_error(
                         std::format("Cannot evaluate {}", demangle<T>()),
