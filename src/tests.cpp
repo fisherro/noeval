@@ -1065,6 +1065,11 @@ int test_number_parsing()
     runner.test_eval("0.1(6)", "0.1(6)");
     runner.test_eval("3.(142857)", "3.(142857)");
     runner.test_eval("-0.(9)", "-1");  // 0.999... = 1
+    // A negative number's repeating part is negative too.
+    runner.test_eval("(= -0.(3) -1/3)", "true");
+    runner.test_eval("(= -0.1(6) -1/6)", "true");
+    runner.test_eval("(= -2.(3) -7/3)", "true");
+    runner.test_eval("(= -1.2(34) -611/495)", "true");
     
     // Test edge cases
     runner.test_eval("0.25", "0.25");
