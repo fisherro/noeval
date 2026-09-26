@@ -136,4 +136,9 @@ Consider switching to intrusive reference counting
 
 `string-length`, `string-nth`, and `substring` convert the whole string to a
 list on every call, so indexing a string in a loop is quadratic.
-(Benchmarks: `string-index` and `substring`.)
+(Benchmarks: `string-index` and `substring`.) For now, we'll say that the
+best practice is to convert to a list, do the manipulations there, and then
+convert back. But we may want to reconsider at some point.
+
+Think about how we could "pre-compile" the library to improve the time it
+takes to load it on startup. (And whether that's even worth doing.)
