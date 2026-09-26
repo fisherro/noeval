@@ -158,6 +158,7 @@
 (define symbol? (lambda (x) (= (q symbol) (typeof x))))
 (define list? (lambda (x) (or (nil? x) (= (q cons-cell) (typeof x)))))
 (define operative? (lambda (x) (= (q operative) (typeof x))))
+(define macro? (lambda (x) (= (q macro) (typeof x))))
 (define environment? (lambda (x) (= (q environment) (typeof x))))
 (define eof-object? (lambda (x) (= (q eof-object) (typeof x))))
 

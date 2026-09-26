@@ -114,6 +114,17 @@ struct builtin_operative {
     bool operator==(const builtin_operative&) const { return false; }
 };
 
+// A macro: when it's the operator of a combination, its transformer is
+// called with the unevaluated operands, and the result (the expansion) is
+// evaluated in the calling environment.
+struct macro {
+    value_ptr transformer;
+    explicit macro(value_ptr t): transformer(std::move(t)) {}
+    std::string to_string() const;
+    bool operator==(const macro& that) const
+    { return transformer == that.transformer; }
+};
+
 // Add a mutable wrapper type
 struct mutable_binding {
     value_ptr value;
@@ -145,6 +156,7 @@ struct value: std::enable_shared_from_this<value> {
         cons_cell,
         operative,
         builtin_operative,
+        macro,
         env_ptr,
         mutable_binding,
         eof_object,
@@ -180,6 +192,7 @@ struct typeof_visitor {
     std::string operator()(const cons_cell&) const { return "cons-cell"; }
     std::string operator()(const operative&) const { return "operative"; }
     std::string operator()(const builtin_operative&) const { return "operative"; }
+    std::string operator()(const macro&) const { return "macro"; }
     std::string operator()(env_ptr) const { return "environment"; }
     std::string operator()(const mutable_binding& mb) const;
     std::string operator()(const eof_object&) const { return "eof-object"; }

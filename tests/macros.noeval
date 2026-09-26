@@ -1,0 +1,128 @@
+(lndisplayln "macro tests")
+
+; The message of the error expr raises
+(define error-message
+  (vau (expr) env
+    (try (eval expr env)
+         (lambda (e) (second e)))))
+
+; A when that embeds the if and do values rather than their names
+(define my-when
+  (macro (vau args _ (list if (first args) (cons do (rest args)) ()))))
+
+(test-assert
+    (= (my-when true 1 2) 2)
+  "a macro's expansion should be evaluated")
+
+(test-assert
+    (nil? (my-when false 1))
+  "a macro's expansion should be evaluated for each call")
+
+(define operands-of (macro (vau args _ (list q args))))
+(test-assert
+    (= (operands-of (+ 1 2) x) (q ((+ 1 2) x)))
+  "a macro's transformer should receive the operands unevaluated")
+
+; Evaluating the expansion
+
+(define identity-macro (macro (vau (expr) _ expr)))
+(test-assert
+    (= (let ((x 5)) (identity-macro x)) 5)
+  "an expansion should be evaluated in the calling environment")
+
+(test-assert
+    (= (let ()
+         (my-when true (define defined-in-expansion 1))
+         defined-in-expansion)
+       1)
+  "a definition in an expansion should bind in the calling environment")
+
+; A macro whose expansion calls it again
+(define count-operands
+  (macro (vau args _
+    ((nil? args)
+     0
+     (list + 1 (cons count-operands (rest args)))))))
+(test-assert
+    (= (count-operands a b c) 3)
+  "a macro's expansion can call the macro again")
+
+; The transformer's environment
+
+(define transformer-env (macro (vau _ env (list q env))))
+(test-assert
+    (nil? (environment-names (transformer-env)))
+  "a transformer's environment should have no bindings")
+(test-assert
+    (nil? (environment-parent (transformer-env)))
+  "a transformer's environment should have no parent")
+(test-assert
+    (= (error-message ((macro (vau args env (eval (q +) env)))))
+       "Unbound variable: +")
+  "a transformer can't look up names in its environment")
+
+; Hygiene
+
+(test-assert
+    (= (let ((do 5) (if 6)) (my-when true 1)) 1)
+  "an expansion that embeds values should be unaffected by local bindings")
+
+; Duplicate definitions
+
+(define twice (macro (vau (expr) _ (list do expr expr))))
+(test-assert
+    (= (error-message (let () (twice (define defined-twice 1))))
+       "define: defined-twice is already defined in this environment (use set! to change a mutable binding, or let for a new scope)")
+  "an expansion that defines a name twice should raise define's error")
+
+; Types
+
+(test-assert
+    (= (typeof my-when) (q macro))
+  "typeof should return macro for a macro")
+(test-assert
+    (macro? my-when)
+  "macro? should return true for a macro")
+(test-assert
+    (not (macro? +))
+  "macro? should return false for an operative")
+(test-assert
+    (not (operative? my-when))
+  "operative? should return false for a macro")
+(test-assert
+    (macro? (macro +))
+  "macro should accept a builtin operative")
+
+; Errors
+
+(test-assert
+    (= (error-message (macro 5)) "macro: argument must be an operative, got 5")
+  "macro should reject an argument that isn't an operative")
+(test-assert
+    (= (error-message (macro)) "macro: expected 1 argument, got 0")
+  "macro should reject the wrong number of arguments")
+(test-assert
+    (= (error-message ((macro (vau args _ (raise "transformer failed")))))
+       "transformer failed")
+  "an error raised by a transformer should propagate")
+(test-assert
+    (= (error-message (eval my-when (get-current-environment)))
+       "Cannot evaluate macro")
+  "a macro value can only be evaluated as an operator")
+
+; A macro should give the same results as the equivalent operative that
+; expands its operands on every call. (This one gives the transformer the
+; calling environment, which the transformers here ignore.)
+(define macro-reference
+  (lambda (transformer)
+    (vau operands env
+      (eval (eval (cons transformer operands) env) env))))
+
+(define when-transformer
+  (vau args _ (list if (first args) (cons do (rest args)) ())))
+(define reference-when (macro-reference when-transformer))
+(define macro-when (macro when-transformer))
+(test-assert
+    (all? (lambda (test) (= (macro-when test 1 2) (reference-when test 1 2)))
+          (list true false))
+  "a macro should give the same results as its reference operative")

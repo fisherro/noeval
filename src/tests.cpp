@@ -835,6 +835,25 @@ int test_operative_as_first_element()
     return runner.failures;
 }
 
+int test_macros()
+{
+    std::println("\n--- Macros ---");
+    auto env = create_top_level_environment();
+    test_runner runner(env);
+
+    runner.test_eval("(define m (macro (vau (x) env x)))",
+                     "#<macro:(#<operative> (x) env x)>");
+    runner.test_eval("(typeof m)", "macro");
+    runner.test_eval("(m (+ 1 2))", "3");
+    // A macro value as the operator, and a builtin as the transformer
+    runner.test_eval("((macro (vau args env (cons + args))) 1 2)", "3");
+    runner.test_eval("(macro +)", "#<macro:#<builtin-operative:+>>");
+    runner.test_error("(macro 5)", "macro: argument must be an operative, got 5");
+    runner.test_error("(eval m ((vau () env env)))", "Cannot evaluate macro");
+
+    return runner.failures;
+}
+
 int test_mutable_bindings()
 {
     std::println("\n--- Mutable bindings ---");
@@ -1645,6 +1664,12 @@ int run_gc_tests()
         failures += test_gc_no_leak(builtins_env, "environment bound to itself",
             "(define h (vau () () (do (define self ((vau () e e))) 0)))",
             "(h)", "0");
+
+        // A macro whose transformer closes over the environment it's bound
+        // in: call env -> macro -> transformer -> closure env (the call env).
+        failures += test_gc_no_leak(builtins_env, "local macro",
+            "(define k (vau () () (do (define m (macro (vau args () 0))) 0)))",
+            "(k)", "0");
     }
     {
         // These need wrap and lambda from the library.
@@ -1702,6 +1727,7 @@ bool run_tests()
     failures += test_source_locations();
     failures += test_environments();
     failures += test_operative_as_first_element();
+    failures += test_macros();
     std::println("{}", std::string(60, '='));
     failures += test_parameter_binding();
     std::println("{}", std::string(60, '='));

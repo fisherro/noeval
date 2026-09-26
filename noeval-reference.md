@@ -4,7 +4,7 @@ A summary of the language, for working on Noeval code (for example, as context f
 
 ## Built-in Operatives (C++)
 
-**Control**: `vau`, `eval`, `eval-list`, `define`, `invoke`, `do`, `try`, `raise`, `load`
+**Control**: `vau`, `eval`, `eval-list`, `define`, `invoke`, `do`, `try`, `raise`, `load`, `macro` (see [Macros](#macros))
 **Arithmetic**: `+`, `-`, `*`, `/` (evaluate all arguments)
 **Numeric operations**: `numerator`, `denominator`, `remainder`
 **Numeric comparisons**: `<=>` (evaluate all arguments)
@@ -39,7 +39,7 @@ A summary of the language, for working on Noeval code (for example, as context f
 **Core**: `lambda` (single expression), `lambda*` (multiple expressions), `vau*` (multiple expressions), `wrap`, `apply`, `if`, `let`, `cond`
 **Lists**: `append`, `reverse`, `length`, `filter`, `map`, `foldl`, `foldr`, `foldl-until`, `foldr-until`, `unfoldl`, `unfoldr`, `last`, `list`, `snoc`, `iota`, `prepend`, `second`, `third`, `fourth`, `nth` (`(nth list index)`, zero-based), `take` and `drop` (`(take n list)`), `list-index`, `any?` and `all?` (`(any? predicate list)`)
 **Control**: `when`, `unless`, `and`, `or`, `not`
-**Predicates**: `odd?`, `even?`, `number?`, `integer?`, `non-negative-integer?`, `string?`, `symbol?`, `list?`, `operative?`, `environment?`, `eof-object?`
+**Predicates**: `odd?`, `even?`, `number?`, `integer?`, `non-negative-integer?`, `string?`, `symbol?`, `list?`, `operative?`, `macro?`, `environment?`, `eof-object?`
 **I/O**: `newline`, `displayln`, `lndisplayln`, `for-each`
 **Meta**: `q`, `get-current-environment`, `unevaluated-list`
 **Partial application**: `partiall` and `partialr` fix the leftmost or rightmost arguments: `((partiall - 10) 3)` is 7, `((partialr - 10) 3)` is -7. `partiall-lazy` and `partialr-lazy` don't evaluate the fixed arguments until the resulting function is called, and evaluate them on every call.
@@ -61,6 +61,16 @@ Environments are first-class values that can be inspected.
 - **get-builtins-environment**, **get-top-level-environment**: `(get-builtins-environment)` and `(get-top-level-environment)` return those environments
 - **environment-names**: `(environment-names env)` returns a sorted list of the symbols bound in `env` itself, not in its ancestors
 - **environment-parent**: `(environment-parent env)` returns `env`'s parent environment, or `()` for the builtins environment
+
+## Macros
+
+`(macro operative)` returns a macro (`typeof` gives `macro`). When a macro is the operator of a combination, its transformer (the operative) is called with the unevaluated operands, and the result (the expansion) is evaluated in the calling environment. See `design/macros.md`.
+
+- **Write transformers with `vau`**: a transformer receives the operands unevaluated, so a `lambda` would evaluate them.
+- **Empty environment**: the transformer's environment argument is a new environment with no bindings and no parent, so an expansion can depend only on the operands.
+- **Embed values, not names**: build expansions with `list` and `cons` so that they contain the values of `if`, `do` and so on, not their names, which the calling environment might rebind: `(macro (vau args _ (list if (first args) (cons do (rest args)) ())))`.
+- **No new scope**: the expansion is evaluated in the calling environment, so a `define` in it binds there, and `define`'s usual rule against rebinding applies.
+- **Only as an operator**: a macro value can't be evaluated on its own ("Cannot evaluate macro").
 
 ## Error Handling
 
