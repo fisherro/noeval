@@ -49,7 +49,7 @@ A summary of the language, for working on Noeval code (for example, as context f
 **Keywords**: `define-keyword` (a macro): `(define-keyword :name ...)` defines each keyword to evaluate to itself, does nothing for one already bound to itself, and raises an error for one bound to anything else or for a name that doesn't start with `:` (see Key Language Patterns)
 **Predicates**: `odd?`, `even?`, `number?`, `integer?`, `non-negative-integer?`, `string?`, `symbol?`, `keyword?`, `list?`, `operative?`, `macro?`, `environment?`, `eof-object?`
 **I/O**: `newline`, `displayln`, `lndisplayln`, `for-each`
-**Meta**: `q`, `get-current-environment`, `unevaluated-list`
+**Meta**: `q`, `get-current-environment`, `unevaluated-list`, `gensym` (`(gensym [prefix])` returns a new symbol, `#:g1`, `#:g2`, and so on, for a macro to bind without capturing the user's names; a prefix, a string or symbol, replaces the `g`)
 **Partial application**: `partiall` and `partialr` fix the leftmost or rightmost arguments: `((partiall - 10) 3)` is 7, `((partialr - 10) 3)` is -7. `partiall-lazy` and `partialr-lazy` don't evaluate the fixed arguments until the resulting function is called, and evaluate them on every call.
 **Validation**: `check` (`(check value predicate message)` returns `value` if `(predicate value)` is true and raises `message` otherwise)
 **Examples**: `countdown`, `factorial`, `fibonacci`

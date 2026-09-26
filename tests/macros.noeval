@@ -322,3 +322,42 @@
     (and (not (keyword? (q red))) (not (keyword? (q :))) (not (keyword? ":red"))
          (not (keyword? 5)) (not (keyword? (string->symbol ""))))
   "keyword? should be false for anything else")
+
+; gensym
+
+(define gensym-a (gensym))
+(define gensym-b (gensym))
+(test-assert (and (symbol? gensym-a) (symbol? gensym-b))
+  "gensym should return a symbol")
+(test-assert (not (= gensym-a gensym-b))
+  "gensym should return a different symbol each time")
+(test-assert
+    (pipe-it (string->list (symbol->string (gensym)))
+             (and (= 35 (first it)) (= 58 (second it)) (= 103 (third it))))
+  "gensym's symbols should start with #:g")
+(test-assert
+    (and (= (take 5 (string->list (symbol->string (gensym "tmp"))))
+            (string->list "#:tmp"))
+         (= (take 6 (string->list (symbol->string (gensym (q loop)))))
+            (string->list "#:loop")))
+  "gensym should take a prefix as a string or a symbol")
+(test-assert
+    (= (error-message (gensym 5)) "gensym's prefix must be a string or a symbol")
+  "gensym should reject a prefix that isn't a string or a symbol")
+(test-assert
+    (= (error-message (gensym "a" "b")) "gensym takes at most one argument, a prefix")
+  "gensym should reject more than one argument")
+
+; A swap! that binds a temporary with gensym works even when the user's
+; variable has the name a fixed temporary would have.
+(define gensym-swap!
+  (macro (vau (a b) _
+    (do (define tmp (gensym "tmp"))
+        (list let (list (list tmp a))
+              (list set! a b)
+              (list set! b tmp))))))
+(define-mutable tmp 1)
+(define-mutable swap-other 2)
+(gensym-swap! tmp swap-other)
+(test-assert (and (= tmp 2) (= swap-other 1))
+  "a macro's gensym temporary shouldn't capture the user's names")

@@ -518,8 +518,10 @@ There are no renaming or syntax objects. Capture is avoided by convention:
   receives the user's code as operands and evaluates it in the calling
   environment, so its own names are in its own environment. `cond`, `when`,
   and `unless` introduce no names, and `let` introduces only the user's.
-  There's no `gensym`, but with `string->symbol` it can be written in the
-  library if a macro needs it.
+  When a temporary has to be bound in the same scope as the user's code,
+  as in a `swap!` whose expansion is a `let` around two `set!`s, the library's
+  `gensym` makes a name for it that won't capture the user's: `#:g1`, `#:g2`,
+  and so on.
 
 A drawback is that expansions print as `(#<operative...> ...)`, which is
 harder to read when debugging.
@@ -790,9 +792,9 @@ step 1 (not copying the cell), which isn't specific to macros.
 field doesn't make values bigger. (`library-tests` runs each version's own
 tests, and the final version has more of them.)
 
-Open questions are listed in `TODO.md`: `gensym`, and which other library
-operatives should be macros. (A stale cache is now cleared; see the cache
-section above.)
+Open questions are listed in `TODO.md`: which other library operatives should
+be macros. (A stale cache is now cleared; see the cache section above. And the
+library now has `gensym`; see the hygiene section.)
 
 Since then, every value other than a symbol or a cons cell evaluates to
 itself, as in Kernel, so an expansion no longer needs `(list q value)` to
