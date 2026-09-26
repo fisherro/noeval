@@ -66,10 +66,6 @@ First-class delimited continuations
 
 Open questions about macros (see [design/macros.md](design/macros.md)):
 
-* A combination's cached expansion keeps its transformer, and so the
-  transformer's environment, alive, even when the combination's operator is
-  no longer a macro. Should the cache be cleared then, or kept in a side
-  table keyed by the cell instead of in `cons_cell`?
 * Add `gensym`, if a macro needs a name that can't capture the user's names.
   It can be written in the library with `string->symbol` and a counter.
 * Which other library operatives should be macros?

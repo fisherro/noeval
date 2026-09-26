@@ -482,11 +482,20 @@ Consequences:
 - The cycle collector must scan the cached transformer and expansion. Missing
   them would cause leaks, not corruption, but they have to be counted.
 - A cache keeps its transformer, and so the transformer's closure
-  environment, alive until the combination is freed or expanded with another
-  transformer. A combination whose operator is no longer a macro keeps its
-  stale cache. That's at most one transformer per combination, so it's
-  bounded, but a long-lived combination (in a library operative's body, say)
-  can keep a local macro's environment alive after the call that made it.
+  environment, alive until the combination is freed, expanded with another
+  transformer, or evaluated with an operator that isn't a macro, which clears
+  the cache. (At first the cache was kept in that last case, so a long-lived
+  combination, in a library operative's body, say, could keep a local
+  macro's environment alive after the call that made it. Clearing it costs a
+  null check on each call, which the benchmarks don't show.)
+- A side table keyed by the cell, instead of a field in it, was considered and
+  rejected. It would allow central policies, such as clearing every cache or
+  keeping several expansions per combination, but the table would hold strong
+  references from outside the heap, so the cycle collector would treat every
+  cached transformer and expansion as a root. Fixing that needs entries that
+  live only as long as their key cell (ephemerons), which the trial-deletion
+  collector doesn't support. Lookups would also cost a hash and a weak-pointer
+  check instead of a pointer dereference.
 - Expansions have no source location, but errors inside one are still
   reported at the macro call. The expansion is evaluated as a tail call, and
   `call_stack::guard::tail_call` only replaces a frame's tail expression with
@@ -781,9 +790,9 @@ step 1 (not copying the cell), which isn't specific to macros.
 field doesn't make values bigger. (`library-tests` runs each version's own
 tests, and the final version has more of them.)
 
-Open questions are listed in `TODO.md`: whether a stale cache should be
-cleared or moved to a side table, `gensym`, and which other library
-operatives should be macros.
+Open questions are listed in `TODO.md`: `gensym`, and which other library
+operatives should be macros. (A stale cache is now cleared; see the cache
+section above.)
 
 Since then, every value other than a symbol or a cons cell evaluates to
 itself, as in Kernel, so an expansion no longer needs `(list q value)` to

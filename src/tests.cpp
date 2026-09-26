@@ -960,6 +960,7 @@ int test_macro_cache()
         // An operator that isn't a macro is called normally.
         env->define("m", eval(parser("(vau (x) () x)").parse(), env));
         check("(+ 1 2)" == value_to_string(eval(form, env)), "a non-macro operator ignores the cache");
+        check(not cell.expansion_cache.cache, "a non-macro operator clears the cache");
     } catch (const std::exception& e) {
         println_red("✗ macro expansion cache: threw exception: {}", e.what());
         ++failures;
@@ -1816,6 +1817,15 @@ int run_gc_tests()
             "(define c (vau () () (do (define m (macro (vau args () 0))) "
                 "(define form (cons m ())) (eval form ((vau () e e))))))",
             "(c)", "0");
+
+        // A long-lived combination, in site's body, whose operator is first a
+        // new local macro and then a builtin. The macro's transformer closes
+        // over make-macro's call environment, so a cached expansion left
+        // behind would keep that environment alive.
+        failures += test_gc_no_leak(builtins_env, "stale macro cache",
+            "(do (define site (vau (m) e ((eval m e)))) "
+                "(define make-macro (vau () () (macro (vau args () 0)))))",
+            "(do (site (make-macro)) (site +))", "0");
     }
     {
         // These need wrap and lambda from the library.
