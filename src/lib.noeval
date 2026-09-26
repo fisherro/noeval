@@ -45,17 +45,6 @@
 ; Construct a list from the arguments without evaluating them
 (define unevaluated-list (vau args _ args))
 
-; or operative - short-circuiting logical or
-; Returns the first truthy value, or the last value if all are falsy
-; Uses Church Boolean evaluation for short-circuiting
-(define or
-  (vau operands env
-    ((nil? operands)
-     false  ; Empty or is false
-     ((eval (first operands) env)
-      true
-      (eval (cons or (rest operands)) env)))))
-
 ; eval-list is a builtin. Defining it here created a cycle (through its local
 ; helper operative) on every call, and wrap calls it every time a wrapped
 ; operative is called.
@@ -484,6 +473,19 @@
                ((nil? (rest operands)) true (chain (rest operands)))
                false)))
      (macro (vau operands _ ((nil? operands) true (chain operands)))))))
+
+; (or operand ...) is true when any of its operands is true. It evaluates them
+; in order and stops at the first true one. (or) is false.
+; It's a macro, and (or a b c) expands to (a true (b true (c true false))), so
+; like and, it uses each operand as a Church Boolean.
+(define or
+  ((lambda* ()
+     (define chain
+       (lambda (operands)
+         (list (first operands)
+               true
+               ((nil? (rest operands)) false (chain (rest operands))))))
+     (macro (vau operands _ ((nil? operands) false (chain operands)))))))
 
 ; not operative - logical negation
 ; Returns the Church Boolean opposite of its argument

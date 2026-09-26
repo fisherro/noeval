@@ -661,6 +661,16 @@
 (test-assert (= 0 boolean-test-int)
   "or should short-circuit")
 
+(test-assert
+    (or (= 1 2) (let ((x 2)) (or (= x 3) (= (+ x 1) 3))))
+  "or should evaluate its operands in the calling environment")
+
+(test-assert
+    (= (error-message (or false 1)) "Not an operative: 1")
+  "or should raise an error for a non-Boolean last operand")
+
+(test-assert (macro? or) "or should be a macro")
+
 (test-assert (not (not true))
   "(not true) should return false")
 (test-assert (not false)
