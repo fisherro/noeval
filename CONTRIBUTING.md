@@ -49,7 +49,8 @@ CI runs `make test`, `make test-sanitize`, and each benchmark once.
 ### Built-in operatives
 
 Built-ins follow a consistent pattern: validate the arguments, evaluate
-selectively, and return a value.
+selectively, and return a value. Check the number of arguments with
+`expect_args`, which gives the standard error message.
 
 ### Errors
 

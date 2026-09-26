@@ -537,18 +537,34 @@ size_t call_stack_get_max_depth()   { return call_stack::get_max_depth(); }
 // Built-in operatives
 namespace builtins {
 
+    // The call an operative was given, "(name operand ...)", for error messages
+    std::string call_context(std::string_view name, const std::vector<value_ptr>& args)
+    {
+        auto result = std::format("({}", name);
+        for (const auto& arg: args) {
+            result += " " + expr_context(arg);
+        }
+        return result + ")";
+    }
+
+    // Throw unless an operative was given exactly count operands. params, if
+    // given, describes them for the error message, e.g. "(symbol value)".
+    void expect_args(std::string_view name, const std::vector<value_ptr>& args,
+        size_t count, std::string_view params = "")
+    {
+        if (count == args.size()) return;
+        throw evaluation_error(
+            std::format("{}: expected {} argument{}{}{}, got {}",
+                name, count, (1 == count)? "": "s",
+                params.empty()? "": " ", params, args.size()),
+            call_context(name, args),
+            call_stack::format()
+        );
+    }
+
     continuation_type vau_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (3 != args.size()) {
-            throw evaluation_error(
-                std::format("vau: expected 3 arguments (params env-param body), got {}", args.size()),
-                std::format("(vau {} {} {})", 
-                    args.size() > 0? expr_context(args[0]): "?",
-                    args.size() > 1? expr_context(args[1]): "?",
-                    args.size() > 2? expr_context(args[2]): "?"),
-                call_stack::format()
-            );
-        }
+        expect_args("vau", args, 3, "(params env-param body)");
         
         auto params_expr = args[0];
         auto env_param_expr = args[1];
@@ -596,15 +612,7 @@ namespace builtins {
     // Helper function to validate eval arguments
     void validate_eval_arguments(const std::vector<value_ptr>& args)
     {
-        if (2 != args.size()) {
-            throw evaluation_error(
-                std::format("eval: expected 2 arguments (expr env), got {}", args.size()),
-                args.empty()? "(eval)": 
-                1 == args.size()? std::format("(eval {})", expr_context(args[0])):
-                std::format("(eval {} {} ...)", expr_context(args[0]), expr_context(args[1])),
-                call_stack::format()
-            );
-        }
+        expect_args("eval", args, 2, "(expr env)");
     }
 
     // Helper function to evaluate both arguments in current environment
@@ -694,15 +702,7 @@ namespace builtins {
     continuation_type define_binding(std::string_view op_name, bool allow_rebind,
         const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (2 != args.size()) {
-            throw evaluation_error(
-                std::format("{}: expected 2 arguments (symbol value), got {}", op_name, args.size()),
-                args.empty()? std::format("({})", op_name):
-                1 == args.size()? std::format("({} {})", op_name, expr_context(args[0])):
-                std::format("({} {} {} ...)", op_name, expr_context(args[0]), expr_context(args[1])),
-                call_stack::format()
-            );
-        }
+        expect_args(op_name, args, 2, "(symbol value)");
         
         auto sym_expr = args[0];
         auto val_expr = args[1];
@@ -823,15 +823,7 @@ namespace builtins {
     // Evaluates both arguments
     continuation_type cons_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (2 != args.size()) {
-            throw evaluation_error(
-                std::format("cons: expected 2 arguments (first rest), got {}", args.size()),
-                args.empty()? "(cons)": 
-                1 == args.size()? std::format("(cons {})", expr_context(args[0])):
-                std::format("(cons {} {} ...)", expr_context(args[0]), expr_context(args[1])),
-                call_stack::format()
-            );
-        }
+        expect_args("cons", args, 2, "(first rest)");
         
         auto first_val = eval(args[0], env);
         auto rest_val = eval(args[1], env);
@@ -842,13 +834,7 @@ namespace builtins {
     // Evaluates argument
     continuation_type first_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (1 != args.size()) {
-            throw evaluation_error(
-                std::format("first: expected 1 argument, got {}", args.size()),
-                args.empty()? "(first)": std::format("(first {} ...)", expr_context(args[0])),
-                call_stack::format()
-            );
-        }
+        expect_args("first", args, 1);
         
         auto val = eval(args[0], env);
         return car(val);  // Uses existing helper
@@ -857,13 +843,7 @@ namespace builtins {
     // Evaluates argument
     continuation_type rest_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (1 != args.size()) {
-            throw evaluation_error(
-                std::format("rest: expected 1 argument, got {}", args.size()),
-                args.empty()? "(rest)": std::format("(rest {} ...)", expr_context(args[0])),
-                call_stack::format()
-            );
-        }
+        expect_args("rest", args, 1);
         
         auto val = eval(args[0], env);
         return cdr(val);  // Uses existing helper
@@ -900,13 +880,7 @@ namespace builtins {
     // Returns Church Booleans
     continuation_type nil_p_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (1 != args.size()) {
-            throw evaluation_error(
-                std::format("nil?: expected 1 argument, got {}", args.size()),
-                args.empty()? "(nil?)": std::format("(nil? {} ...)", expr_context(args[0])),
-                call_stack::format()
-            );
-        }
+        expect_args("nil?", args, 1);
         
         auto val = eval(args[0], env);
         return is_nil(val)? church_true(env): church_false(env);
@@ -914,13 +888,7 @@ namespace builtins {
 
     continuation_type invoke_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (2 != args.size()) {
-            throw evaluation_error(
-                std::format("invoke: expected 2 arguments (operative arg-list), got {}", args.size()),
-                "invoke",
-                call_stack::format()
-            );
-        }
+        expect_args("invoke", args, 2, "(operative arg-list)");
 
         auto op_expr = args[0];  // The operative to invoke (unevaluated)
         auto arg_list = eval(args[1], env);  // The list of arguments
@@ -941,13 +909,7 @@ namespace builtins {
     // call, and nearly every call to a wrapped operative goes through it.
     continuation_type eval_list_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (2 != args.size()) {
-            throw evaluation_error(
-                std::format("eval-list: expected 2 arguments (list env), got {}", args.size()),
-                "eval-list",
-                call_stack::format()
-            );
-        }
+        expect_args("eval-list", args, 2, "(list env)");
 
         auto env_val = eval(args[1], env);
         auto list = eval(args[0], env);
@@ -1028,15 +990,7 @@ namespace builtins {
     // All other comparisons between operatives always return false.
     continuation_type equal_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (2 != args.size()) {
-            throw evaluation_error(
-                std::format("=: expected 2 arguments, got {}", args.size()),
-                args.empty()? "(=)": 
-                1 == args.size()? std::format("(= {})", expr_context(args[0])):
-                std::format("(= {} {} ...)", expr_context(args[0]), expr_context(args[1])),
-                call_stack::format()
-            );
-        }
+        expect_args("=", args, 2);
 
         auto val1 = eval(args[0], env);
         auto val2 = eval(args[1], env);
@@ -1046,13 +1000,7 @@ namespace builtins {
 
     continuation_type write_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (1 != args.size()) {
-            throw evaluation_error(
-                std::format("write: expected 1 argument, got {}", args.size()),
-                args.empty()? "(write)": std::format("(write {} ...)", expr_context(args[0])),
-                call_stack::format()
-            );
-        }
+        expect_args("write", args, 1);
         
         try {
             auto val = eval(args[0], env);
@@ -1071,13 +1019,7 @@ namespace builtins {
 
     continuation_type display_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (1 != args.size()) {
-            throw evaluation_error(
-                std::format("display: expected 1 argument, got {}", args.size()),
-                args.empty()? "(display)": std::format("(display {} ...)", expr_context(args[0])),
-                call_stack::format()
-            );
-        }
+        expect_args("display", args, 1);
         
         try {
             auto val = eval(args[0], env);
@@ -1104,13 +1046,7 @@ namespace builtins {
 
     continuation_type flush_operative(const std::vector<value_ptr>& args, env_ptr)
     {
-        if (not args.empty()) {
-            throw evaluation_error(
-                std::format("flush: expected 0 arguments, got {}", args.size()),
-                args.empty()? "(flush)": std::format("(flush {} ...)", expr_context(args[0])),
-                call_stack::format()
-            );
-        }
+        expect_args("flush", args, 0);
         
         // Flush the standard output
         std::fflush(stdout);
@@ -1119,13 +1055,7 @@ namespace builtins {
 
     continuation_type define_mutable_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (2 != args.size()) {
-            throw evaluation_error(
-                std::format("define-mutable: expected 2 arguments (symbol value), got {}", args.size()),
-                "define-mutable",
-                call_stack::format()
-            );
-        }
+        expect_args("define-mutable", args, 2, "(symbol value)");
         
         auto sym_expr = args[0];
         auto val_expr = args[1];
@@ -1161,13 +1091,7 @@ namespace builtins {
 
     continuation_type set_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (2 != args.size()) {
-            throw evaluation_error(
-                std::format("set!: expected 2 arguments (symbol value), got {}", args.size()),
-                "set!",
-                call_stack::format()
-            );
-        }
+        expect_args("set!", args, 2, "(symbol value)");
         
         auto sym_expr = args[0];
         auto val_expr = args[1];
@@ -1287,13 +1211,7 @@ namespace builtins {
 
     continuation_type raise_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (1 != args.size()) {
-            throw evaluation_error(
-                std::format("raise: expected 1 argument (error-message), got {}", args.size()),
-                "raise",
-                call_stack::format()
-            );
-        }
+        expect_args("raise", args, 1, "(error-message)");
         
         auto message_val = eval(args[0], env);
         
@@ -1309,13 +1227,7 @@ namespace builtins {
 
     continuation_type typeof_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (1 != args.size()) {
-            throw evaluation_error(
-                std::format("typeof: expected 1 argument, got {}", args.size()),
-                "typeof",
-                call_stack::format()
-            );
-        }
+        expect_args("typeof", args, 1);
         auto arg = eval(args[0], env);
         std::string type = std::visit(typeof_visitor{}, arg->data);
         return value::make(symbol{type});
@@ -1323,13 +1235,7 @@ namespace builtins {
 
     continuation_type spaceship_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (2 != args.size()) {
-            throw evaluation_error(
-                std::format("<=>: expected 2 arguments, got {}", args.size()),
-                "<=>",
-                call_stack::format()
-            );
-        }
+        expect_args("<=>", args, 2);
 
         auto left_unwrap  = unwrap_mutable_binding(eval(args[0], env));
         auto right_unwrap = unwrap_mutable_binding(eval(args[1], env));
@@ -1355,13 +1261,7 @@ namespace builtins {
 
     continuation_type numerator_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (1 != args.size()) {
-            throw evaluation_error(
-                std::format("numerator: expected 1 argument, got {}", args.size()),
-                "numerator",
-                call_stack::format()
-            );
-        }
+        expect_args("numerator", args, 1);
         auto val = eval(args[0], env);
         auto n = std::get_if<bignum>(&val->data);
         if (not n) {
@@ -1377,13 +1277,7 @@ namespace builtins {
 
     continuation_type denominator_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (1 != args.size()) {
-            throw evaluation_error(
-                std::format("denominator: expected 1 argument, got {}", args.size()),
-                "denominator",
-                call_stack::format()
-            );
-        }
+        expect_args("denominator", args, 1);
         auto val = eval(args[0], env);
         auto n = std::get_if<bignum>(&val->data);
         if (not n) {
@@ -1399,13 +1293,7 @@ namespace builtins {
 
     continuation_type remainder_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (2 != args.size()) {
-            throw evaluation_error(
-                std::format("remainder: expected 2 arguments, got {}", args.size()),
-                "remainder",
-                call_stack::format()
-            );
-        }
+        expect_args("remainder", args, 2);
         
         auto val1 = eval(args[0], env);
         auto val2 = eval(args[1], env);
@@ -1438,13 +1326,7 @@ namespace builtins {
 
     continuation_type string_to_list_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (1 != args.size()) {
-            throw evaluation_error(
-                std::format("string->list: expected 1 argument, got {}", args.size()),
-                "string->list",
-                call_stack::format()
-            );
-        }
+        expect_args("string->list", args, 1);
         
         auto str_val = eval(args[0], env);
         if (not std::holds_alternative<std::string>(str_val->data)) {
@@ -1494,13 +1376,7 @@ namespace builtins {
 
     continuation_type list_to_string_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (1 != args.size()) {
-            throw evaluation_error(
-                std::format("list->string: expected 1 argument, got {}", args.size()),
-                "list->string",
-                call_stack::format()
-            );
-        }
+        expect_args("list->string", args, 1);
         
         auto list_val = eval(args[0], env);
 
@@ -1542,9 +1418,7 @@ namespace builtins {
 
     continuation_type load_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (1 != args.size()) {
-            throw evaluation_error("load: expected 1 argument (filename)", "load", call_stack::format());
-        }
+        expect_args("load", args, 1, "(filename)");
         
         auto filename_val = eval(args[0], env);
         if (not std::holds_alternative<std::string>(filename_val->data)) {
@@ -1568,13 +1442,7 @@ namespace builtins {
 
     continuation_type read_operative(const std::vector<value_ptr>& args, env_ptr)
     {
-        if (0 != args.size()) {
-            throw evaluation_error(
-                std::format("read: expected 0 arguments, got {}", args.size()),
-                "read",
-                call_stack::format()
-            );
-        }
+        expect_args("read", args, 0);
 
         try {
             // The parser reads from stdin lazily, one expression at a time.
@@ -1597,13 +1465,7 @@ namespace builtins {
     env_ptr environment_argument(std::string_view name,
         const std::vector<value_ptr>& args, env_ptr env)
     {
-        if (1 != args.size()) {
-            throw evaluation_error(
-                std::format("{}: expected 1 argument, got {}", name, args.size()),
-                std::string{name},
-                call_stack::format()
-            );
-        }
+        expect_args(name, args, 1);
         auto arg = unwrap_mutable_binding(eval(args[0], env));
         auto target = std::get_if<env_ptr>(&arg->data);
         if (not target) {
@@ -1644,13 +1506,7 @@ namespace builtins {
         return [name, weak = std::weak_ptr<environment>{target}](
             const std::vector<value_ptr>& args, env_ptr) -> continuation_type
         {
-            if (not args.empty()) {
-                throw evaluation_error(
-                    std::format("{}: expected 0 arguments, got {}", name, args.size()),
-                    name,
-                    call_stack::format()
-                );
-            }
+            expect_args(name, args, 0);
             auto target = weak.lock();
             if (not target) {
                 throw evaluation_error(
