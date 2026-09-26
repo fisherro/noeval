@@ -36,12 +36,11 @@
                    (cons env ())))))))
 #end
 
-; A convenience function.
+; A convenience macro.
 ; Since we use Church Booleans, you can essentially just remove the if.
 ; (if (nil? lyst) 0 1) -> ((nil? lyst) 0 1)
-; Which is what this implementation does.
-; Candidate for being replaced by a macro in the future.
-(define if (vau operands env (eval operands env)))
+; Which is what this macro does: its expansion is its operands.
+(define if (macro (vau operands _ operands)))
 
 ; Construct a list from the arguments without evaluating them
 (define unevaluated-list (vau args _ args))
@@ -158,31 +157,20 @@
 (define symbol? (lambda (x) (= (q symbol) (typeof x))))
 (define list? (lambda (x) (or (nil? x) (= (q cons-cell) (typeof x)))))
 (define operative? (lambda (x) (= (q operative) (typeof x))))
+(define macro? (lambda (x) (= (q macro) (typeof x))))
 (define environment? (lambda (x) (= (q environment) (typeof x))))
 (define eof-object? (lambda (x) (= (q eof-object) (typeof x))))
 
-; An example of a macro-like fexpr:
-;($define! $when
-;   ($vau (test . body) env
-;      (eval (list $if test (list* $sequence body) #inert)
-;            env)))
-; Test: (when (nil? ()) (display "true"))
-; Needs more tests
+; (when test body ...) evaluates the body when test is true, and returns ()
+; otherwise. (unless test body ...) is the opposite. They're macros:
+; (when test body ...) expands to (if test (do body ...) ()), with the values
+; of if and do rather than their names, and the body is evaluated in the
+; calling environment.
 (define when
-  (vau args env
-    (do
-      (define test (first args))
-      (define body (rest args))
-      (define if-expr (list if test (cons do body) ()))
-      (eval if-expr env))))
+  (macro (vau args _ (list if (first args) (cons do (rest args)) ()))))
 
 (define unless
-  (vau args env
-    (do
-      (define test (first args))
-      (define body (rest args))
-      (define if-expr (list if test () (cons do body)))
-      (eval if-expr env))))
+  (macro (vau args _ (list if (first args) () (cons do (rest args))))))
 
 ; Partial application from the left
 ; (partiall + 1) creates a function that adds 1 to its argument
@@ -442,96 +430,45 @@
 #end
 
 ; cond evaluates its clauses in order, stopping at the first whose test is
-; true.
+; true. It's a macro that transforms its clauses into a chain of Church
+; Boolean calls, as in the examples above.
 ; (cond) returns ()
 ; Each clause must have a test.
 ; An empty body returns ().
 ; Multiple expressions are allowed in clause bodies.
 ; An else clause must be the last clause.
-; A clause is only checked when evaluation reaches it, so a malformed clause
-; after the one chosen isn't reported.
+; Every clause is checked when the cond is first evaluated, including clauses
+; after the one chosen.
 (define cond
-  (vau clauses env
-    (cond-clauses clauses env)))
+  (macro (vau clauses _ (cond-transformer clauses))))
 
-(define cond-clauses
-  (lambda (clauses env)
-    ((nil? clauses)
-     ()
-     (cond-clause (first clauses) (rest clauses) env))))
-
-(define cond-clause
-  (lambda (clause more env)
-    ((nil? clause)
-     (raise "cond clauses must have a test")
-     ((= (q cons-cell) (typeof clause))
-      ((symbol? (first clause))
-       ((= (q else) (first clause))
-        ((nil? more)
-         (cond-body (rest clause) env)
-         (raise "else clause must be the last clause"))
-        (cond-test clause more env))
-       (cond-test clause more env))
-      (raise "cond clause must be a list")))))
-
-(define cond-test
-  (lambda (clause more env)
-    ((eval (first clause) env)
-     (cond-body (rest clause) env)
-     (cond-clauses more env))))
-
-(define cond-body
-  (lambda (body env)
-    ((nil? body)
-     ()
-     ((nil? (rest body))
-      (eval (first body) env)
-      (eval (cons do body) env)))))
-
-; The previous cond, which transformed its clauses into an if chain and then
-; evaluated that. It ran the transformation every time the cond was
-; evaluated, which made it much slower than the if chain alone. Once we have
-; expansion-time macros, the transformation could be done once, so we'll want
-; to try this again.
-#skip
-; A macro-like transformer for cond clauses
+; Transforms cond's clauses into a chain of Church Boolean calls, checking
+; each clause. It runs once for each cond combination, so its helper can be
+; local.
 (define cond-transformer
   (lambda* (clauses)
-    (foldr
-        (lambda* (clause acc)
-          (unless (list? clause)
-            (raise "cond clause must be a list"))
-          (unless (> (length clause) 0)
-            (raise "cond clauses must have a test"))
-          (define clause-head (first clause))
-          (define body (rest clause))
-          (define body-expr ((> (length body) 1)
-                             (cons (q do) body)
-                             ((nil? body)
-                              ()
-                              (first body))))
-          ((and (symbol? clause-head)
-                (= (q else) clause-head))
-           ((nil? acc)
-            body-expr
-            (raise "else clause must be the last clause"))
-           (list clause-head body-expr acc)))
-      clauses
-      ())))
-
-; This forwards its arguments to cond-transformer to do the syntax
-; transformation. Then it evaluates the transformed syntax.
-; (cond) returns ()
-; Each clause must have a test.
-; An empty body returns ().
-; Multiple expressions are allowed in clause bodies.
-; Validate that there is only one else clause.
-; Validate that any else clause is the last clause.
-(define cond
-  (vau cond-clauses cond-dyn-env
-    (do (define transformed (cond-transformer cond-clauses))
-        (eval transformed cond-dyn-env))))
-#end
+    (define clause-expansion
+      (lambda* (clause more)
+        (unless (list? clause)
+          (raise "cond clause must be a list"))
+        (when (nil? clause)
+          (raise "cond clauses must have a test"))
+        (define test (first clause))
+        (define body (rest clause))
+        (define body-expr
+          ((nil? body)
+           ()
+           ((nil? (rest body))
+            (first body)
+            (cons do body))))
+        ((and (symbol? test) (= (q else) test))
+         ((nil? more)
+          body-expr
+          (raise "else clause must be the last clause"))
+         (list test body-expr (cond-transformer more)))))
+    ((nil? clauses)
+     ()
+     (clause-expansion (first clauses) (rest clauses)))))
 
 ; and operative - short-circuiting logical and
 ; Returns the first falsy value, or the last value if all are truthy
@@ -622,8 +559,11 @@
 
 ; (let ((name expression) ...) body ...)
 ; Each binding must be a list of a symbol and one expression.
+; let is a macro that transforms its operands into a lambda* call, as in the
+; example above, with the value of lambda* rather than its name. The bindings
+; are checked when the let is first evaluated.
 (define let
-  (vau* operands dyn-env
+  (macro (vau* operands _
     (when (nil? operands)
       (raise "let requires a list of bindings"))
     (define bindings (first operands))
@@ -638,11 +578,10 @@
               ((not (symbol? (first binding)))
                (raise "let binding's name must be a symbol"))))
       bindings)
-    (eval (cons (prepend lambda*
-                         (map first bindings)
-                         (rest operands))
-                (map second bindings))
-      dyn-env)))
+    (cons (prepend lambda*
+                   (map first bindings)
+                   (rest operands))
+          (map second bindings)))))
 
 ; apply: The applicative version of invoke
 ; Takes an applicative and a list of arguments,

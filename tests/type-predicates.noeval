@@ -582,12 +582,16 @@
 
 ; Test 8: operative? with library-defined operatives
 (test-assert
-    (= (operative? if) true)
-  "operative? should return true for library-defined operatives like if")
+    (= (operative? and) true)
+  "operative? should return true for library-defined operatives like and")
 
 (test-assert
-    (= (operative? cond) true)
-  "operative? should return true for library-defined operatives like cond")
+    (and (macro? cond) (not (operative? cond)))
+  "cond should be a macro, not an operative")
+
+(test-assert
+    (and (macro? if) (not (operative? if)))
+  "if should be a macro, not an operative")
 
 ; Test 9: operative? with mutable bindings
 (define-mutable mutable-op (lambda (x) x))

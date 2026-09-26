@@ -22,6 +22,10 @@ Run these from the top of the repository. If the default `g++` is older than
 
 - `make test`: build and run all the tests
 - `make test-sanitize`: run the tests under the sanitizers
-- `make bench`: time the benchmarks
+- `make bench`: time the benchmarks. In Claude Code in the cloud, the
+  machine's speed varies widely between runs (an unchanged build has run
+  about 25% faster later in the same session), so results saved earlier
+  aren't a valid baseline. Always compare against the earlier commit built in
+  a worktree and run back to back, as described in CONTRIBUTING.md.
 - `bin/noeval --skip-tests script.noeval`: run a script without running the
   C++ tests first

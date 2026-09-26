@@ -835,6 +835,95 @@ int test_operative_as_first_element()
     return runner.failures;
 }
 
+int test_macros()
+{
+    std::println("\n--- Macros ---");
+    auto env = create_top_level_environment();
+    test_runner runner(env);
+
+    runner.test_eval("(define m (macro (vau (x) env x)))",
+                     "#<macro:(#<operative> (x) env x)>");
+    runner.test_eval("(typeof m)", "macro");
+    runner.test_eval("(m (+ 1 2))", "3");
+    // A macro value as the operator, and a builtin as the transformer
+    runner.test_eval("((macro (vau args env (cons + args))) 1 2)", "3");
+    runner.test_eval("(macro +)", "#<macro:#<builtin-operative:+>>");
+    runner.test_error("(macro 5)", "macro: argument must be an operative, got 5");
+    runner.test_error("(eval m ((vau () env env)))", "Cannot evaluate macro");
+
+    return runner.failures;
+}
+
+int test_macro_cache()
+{
+    std::println("\n--- Macro expansion cache ---");
+    auto env = create_top_level_environment();
+    int failures{0};
+    auto check = [&failures](bool ok, std::string_view description) {
+        if (ok) {
+            std::println("✓ {}", description);
+        } else {
+            println_red("✗ {}", description);
+            ++failures;
+        }
+    };
+
+    try {
+        // Transformers that count their calls and expand to their operand
+        int first_count{0};
+        int second_count{0};
+        auto counting_transformer = [](std::string name, int& count) {
+            return value::make(builtin_operative{name,
+                [&count](const std::vector<value_ptr>& args, env_ptr) -> continuation_type {
+                    ++count;
+                    return args.at(0);
+                }});
+        };
+        auto first_macro = value::make(macro{counting_transformer("first", first_count)});
+        auto second_macro = value::make(macro{counting_transformer("second", second_count)});
+
+        env->define("m", first_macro);
+        auto form = parser("(m (+ 1 2))").parse();
+        auto text = value_to_string(form);
+        auto& cell = std::get<cons_cell>(form->data);
+
+        for (int i = 0; i < 3; ++i) {
+            check("3" == value_to_string(eval(form, env)), "a cached expansion gives the same result");
+        }
+        check(1 == first_count, "a combination is expanded once");
+        check(cell.expansion_cache.cache
+            and cell.expansion_cache.cache->transformer == std::get<macro>(first_macro->data).transformer,
+            "the cache holds the transformer");
+
+        check(text == value_to_string(form), "the cache doesn't change how a combination prints");
+        check(*form == *parser("(m (+ 1 2))").parse(), "the cache doesn't change equality");
+
+        // A copy of the cell doesn't share the cache.
+        auto copy = value::make(cell);
+        check(not std::get<cons_cell>(copy->data).expansion_cache.cache, "a copied cell has no cache");
+
+        // Rebinding the operator to a different macro expands again.
+        env->define("m", second_macro);
+        check("3" == value_to_string(eval(form, env)), "a different macro gives its own expansion");
+        check(1 == second_count, "a different macro expands the combination again");
+        eval(form, env);
+        check(1 == second_count, "the new expansion is cached");
+
+        // A new macro with the same transformer can use the cached expansion.
+        env->define("m", value::make(macro{std::get<macro>(second_macro->data).transformer}));
+        eval(form, env);
+        check(1 == second_count, "a macro with the same transformer uses the cached expansion");
+
+        // An operator that isn't a macro is called normally.
+        env->define("m", eval(parser("(vau (x) () x)").parse(), env));
+        check("(+ 1 2)" == value_to_string(eval(form, env)), "a non-macro operator ignores the cache");
+    } catch (const std::exception& e) {
+        println_red("✗ macro expansion cache: threw exception: {}", e.what());
+        ++failures;
+    }
+    return failures;
+}
+
 int test_mutable_bindings()
 {
     std::println("\n--- Mutable bindings ---");
@@ -1645,6 +1734,20 @@ int run_gc_tests()
         failures += test_gc_no_leak(builtins_env, "environment bound to itself",
             "(define h (vau () () (do (define self ((vau () e e))) 0)))",
             "(h)", "0");
+
+        // A macro whose transformer closes over the environment it's bound
+        // in: call env -> macro -> transformer -> closure env (the call env).
+        failures += test_gc_no_leak(builtins_env, "local macro",
+            "(define k (vau () () (do (define m (macro (vau args () 0))) 0)))",
+            "(k)", "0");
+
+        // A combination built in an environment and cached with a transformer
+        // that closes over that environment: call env -> form -> cache ->
+        // transformer -> closure env (the call env).
+        failures += test_gc_no_leak(builtins_env, "cached macro expansion",
+            "(define c (vau () () (do (define m (macro (vau args () 0))) "
+                "(define form (cons m ())) (eval form ((vau () e e))))))",
+            "(c)", "0");
     }
     {
         // These need wrap and lambda from the library.
@@ -1702,6 +1805,8 @@ bool run_tests()
     failures += test_source_locations();
     failures += test_environments();
     failures += test_operative_as_first_element();
+    failures += test_macros();
+    failures += test_macro_cache();
     std::println("{}", std::string(60, '='));
     failures += test_parameter_binding();
     std::println("{}", std::string(60, '='));

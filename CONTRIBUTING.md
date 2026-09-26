@@ -37,7 +37,23 @@ loads the library and tests by relative path.
   UndefinedBehaviorSanitizer, and with the library tests under GC stress.
 - `make bench` times the benchmarks and reports their peak memory use. To
   measure a change, compare against results saved from before it with
-  `benchmarks/run.bash -c`.
+  `benchmarks/run.bash -c`. A machine's speed can drift between runs, so
+  for a reliable comparison, build the earlier commit in a `git worktree` and
+  run both versions back to back:
+
+  ```bash
+  git worktree add ../noeval-before HEAD~1
+  make -C ../noeval-before
+  ../noeval-before/benchmarks/run.bash > before.txt
+  benchmarks/run.bash -c before.txt
+  ```
+
+  Run them in the other order too (`benchmarks/run.bash > after.txt`, then
+  `../noeval-before/benchmarks/run.bash -c after.txt`), and trust only a
+  difference that shows up both ways. Use each checkout's own `run.bash`
+  rather than `-b`: `run.bash` runs from its own checkout, and noeval loads
+  the library from there, so `-b` would time the earlier binary with the
+  current library.
 
 `./check-reference.bash` lists the builtins and library definitions that
 [noeval-reference.md](noeval-reference.md) doesn't mention. Run it after
@@ -56,6 +72,27 @@ it, as it does for the benchmarks' peak memory (`NOEVAL_REPORT_PEAK_MEMORY`).
 Built-ins follow a consistent pattern: validate the arguments, evaluate
 selectively, and return a value. Check the number of arguments with
 `expect_args`, which gives the standard error message.
+
+### Macros
+
+An operative that only builds code and evaluates it in the calling
+environment should be a macro: `(macro (vau operands _ expansion))`. The
+expansion is built once for each combination and cached (see
+[design/macros.md](design/macros.md)), so checks on the operands are made once
+too.
+
+- **A transformer depends only on its operands.** It gets an empty
+  environment, and it runs once per combination, not once per call, so it
+  shouldn't have side effects.
+- **Embed values, not names.** Build the expansion with `list` and `cons`, so
+  that it contains the values of `if`, `do`, and so on, which a local binding
+  in the calling environment can't change.
+- **Don't introduce bindings in an expansion.** They could capture the names
+  in the user's code. Put temporaries inside an embedded operative instead,
+  which evaluates the user's code in the calling environment.
+- **Don't add a scope.** The expansion is evaluated in the calling
+  environment, so a `define` in it binds there, as it would in `do`. Wrapping
+  the expansion in a `lambda` would change that.
 
 ### Errors
 

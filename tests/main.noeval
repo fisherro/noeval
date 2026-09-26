@@ -101,6 +101,7 @@
 (let () (load "numbers.noeval"))
 (let () (load "strings.noeval"))
 (let () (load "partial-application.noeval"))
+(let () (load "macros.noeval"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Show test results

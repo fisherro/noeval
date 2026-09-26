@@ -1,0 +1,14 @@
+; let, when, and unless in a loop. Before they were macros, each rebuilt its
+; code every time it was evaluated, and let checked its bindings every time.
+(load "common.noeval")
+
+(define-mutable count 0)
+
+(define step
+  (lambda (i)
+    (let ((even (= 0 (remainder i 2)))
+          (small (< i 250)))
+      (when even (set! count (+ count 1)))
+      (unless small (set! count (+ count 1))))))
+
+(repeat 2000 step)

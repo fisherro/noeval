@@ -23,6 +23,7 @@ std::unordered_map<std::string, std::string> debug_categories{
     {"gc", "\033[0m"},           // Reset
     {"tco", "\033[0m"},          // Reset
     {"timer", "\033[0m"},        // Reset
+    {"macro", "\033[94m"},       // Light blue
     {"all", "\033[0m"},          // Reset
     {"none", "\033[0m"},         // Reset
 };

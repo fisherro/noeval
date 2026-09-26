@@ -233,6 +233,9 @@ std::string operative::to_string() const
     );
 }
 
+std::string macro::to_string() const
+{ return "#<macro:" + value_to_string(transformer) + ">"; }
+
 std::string mutable_binding::to_string() const
 { return "#<mutable:" + value_to_string(value) + ">"; }
 
@@ -1226,6 +1229,24 @@ namespace builtins {
         throw evaluation_error(message, "", call_stack::format());
     }
 
+    // Evaluates its argument, which must be an operative, and returns a macro
+    // with it as the transformer.
+    continuation_type macro_operative(const std::vector<value_ptr>& args, env_ptr env)
+    {
+        expect_args("macro", args, 1);
+        auto transformer = unwrap_mutable_binding(eval(args[0], env));
+        if (not (std::holds_alternative<operative>(transformer->data) or
+                 std::holds_alternative<builtin_operative>(transformer->data))) {
+            throw evaluation_error(
+                std::format("macro: argument must be an operative, got {}",
+                    value_to_string(transformer)),
+                call_context("macro", args),
+                call_stack::format()
+            );
+        }
+        return value::make(macro{transformer});
+    }
+
     continuation_type typeof_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         expect_args("typeof", args, 1);
@@ -1566,6 +1587,7 @@ env_ptr create_top_level_environment()
     define_builtin("eval-list", builtins::eval_list_operative);
     define_builtin("define", builtins::define_operative);
     define_builtin("invoke", builtins::invoke_operative);
+    define_builtin("macro", builtins::macro_operative);
     define_builtin("try", builtins::try_operative);
     define_builtin("raise", builtins::raise_operative);
 #define USE_PRIMITIVE_DO
@@ -1721,23 +1743,27 @@ value_ptr eval_symbol(const symbol& sym, env_ptr env)
     }
 }
 
-continuation_type eval_operation(const cons_cell& cell, env_ptr env)
+// Call a macro's transformer with a combination's unevaluated operands and
+// return the expansion. The transformer gets a new, empty environment, so the
+// expansion can depend only on the operands.
+value_ptr expand_macro(const macro& m, value_ptr operands)
 {
-    // Convert cons_cell back to value_ptr for easier handling
-    auto expr = value::make(cell);
+    auto call = value::make(cons_cell{m.transformer, std::move(operands)});
+    return eval(call, environment::make());
+}
+
+// expr is the combination being evaluated, and cell is its cons_cell.
+continuation_type eval_operation(const value_ptr& expr, const cons_cell& cell, env_ptr env)
+{
+    auto operator_expr = cell.car;
+    auto operands = cell.cdr;
     
-    if (is_nil(expr)) {
-        throw evaluation_error("Cannot evaluate empty list", "()", call_stack::format());
-    }
-    
-    auto operator_expr = car(expr);
-    auto operands = cdr(expr);
-    
-    // Check if operator is already an operative value
+    // Check if operator is already an operative or macro value
     value_ptr op;
-    if (std::holds_alternative<operative>(operator_expr->data) or 
-        std::holds_alternative<builtin_operative>(operator_expr->data)) {
-        // Use the operative directly
+    if (std::holds_alternative<operative>(operator_expr->data) or
+        std::holds_alternative<builtin_operative>(operator_expr->data) or
+        std::holds_alternative<macro>(operator_expr->data)) {
+        // Use the operative or macro directly
         op = operator_expr;
     } else {
         // Evaluate the operator expression
@@ -1752,6 +1778,26 @@ continuation_type eval_operation(const cons_cell& cell, env_ptr env)
     // Check if it's a builtin operative
     if (std::holds_alternative<builtin_operative>(op->data)) {
         return operate_builtin(std::get<builtin_operative>(op->data), operands, env);
+    }
+
+    // Check if it's a macro. Use the expansion cached on this combination if
+    // it came from the same transformer.
+    if (auto m = std::get_if<macro>(&op->data)) {
+        value_ptr expansion;
+        auto& cache = cell.expansion_cache.cache;
+        if (cache and cache->transformer == m->transformer) {
+            NOEVAL_DEBUG(macro, "Using cached expansion of {}", expr_context(expr));
+            expansion = cache->expansion;
+        } else {
+            expansion = expand_macro(*m, operands);
+            NOEVAL_DEBUG(macro, "Expanded {} to {}", expr_context(expr), value_to_string(expansion));
+            cache = std::make_unique<macro_cache>(m->transformer, expansion);
+        }
+#if USE_TAIL_CALL
+        return tail_call{expansion, env};
+#else
+        return eval(expansion, env);
+#endif
     }
 
     throw evaluation_error(
@@ -1804,9 +1850,15 @@ struct cycle_collector {
         } else if (auto cell = std::get_if<cons_cell>(&v->data)) {
             if (cell->car) on_value(cell->car.get());
             if (cell->cdr) on_value(cell->cdr.get());
+            if (auto& cache = cell->expansion_cache.cache) {
+                if (cache->transformer) on_value(cache->transformer.get());
+                if (cache->expansion) on_value(cache->expansion.get());
+            }
         } else if (auto op = std::get_if<operative>(&v->data)) {
             if (op->closure_env) on_env(op->closure_env.get());
             if (op->body) on_value(op->body.get());
+        } else if (auto m = std::get_if<macro>(&v->data)) {
+            if (m->transformer) on_value(m->transformer.get());
         } else if (auto mb = std::get_if<mutable_binding>(&v->data)) {
             if (mb->value) on_value(mb->value.get());
         }
@@ -1997,7 +2049,7 @@ value_ptr eval(value_ptr expr, env_ptr env)
                 } else if constexpr (std::is_same_v<T, symbol>) {
                     return eval_symbol(v, env);
                 } else if constexpr (std::is_same_v<T, cons_cell>) {
-                    return eval_operation(v, env);
+                    return eval_operation(expr, v, env);
                 } else {
                     throw evaluation_error(
                         std::format("Cannot evaluate {}", demangle<T>()),
