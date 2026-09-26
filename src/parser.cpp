@@ -719,8 +719,9 @@ bignum parse_number_string(const std::string& num_str)
 
         bignum repeating_value(rep_numerator, rep_denominator);
         
-        // Handle negative numbers for repeating part
-        if ('-' == non_repeating[0] and 0 == base_value) {
+        // The repeating part has the same sign as the rest of the number:
+        // -2.(3) is -(2 + 1/3), not -2 + 1/3.
+        if ('-' == non_repeating[0]) {
             repeating_value = -repeating_value;
         }
         

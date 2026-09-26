@@ -799,3 +799,101 @@
 (test-assert (and (= (+ 5) 5) (= (* 5) 5)) "(+ x) and (* x) should be x")
 (test-assert (= (apply + ()) 0) "applying + to no arguments should be 0")
 (test-assert (= (infix - 5) -5) "infix's unary minus should negate")
+
+;------------------------------------------------------------------------------
+; Repeating decimal literals
+(lndisplayln "repeating decimal literal tests")
+
+(test-assert (= 0.(3) 1/3) "0.(3) should be 1/3")
+(test-assert (= 0.1(6) 1/6) "0.1(6) should be 1/6")
+(test-assert (= -0.(3) -1/3) "-0.(3) should be -1/3")
+(test-assert (= -0.1(6) -1/6) "-0.1(6) should be -1/6")
+(test-assert (= -2.(3) -7/3) "-2.(3) should be -7/3")
+(test-assert (= -1.2(34) -611/495) "-1.2(34) should be -611/495")
+(test-assert (= (+ -1.2(34) 1.2(34)) 0)
+  "a negative repeating decimal should be the negation of the positive one")
+
+;------------------------------------------------------------------------------
+; number->string and string->number
+(lndisplayln "number->string/string->number tests")
+
+; The message of the error expr raises
+(define number-string-error
+  (vau (expr) env
+    (try (eval expr env)
+         (lambda (e) (second e)))))
+
+(test-assert (= (number->string 42) "42") "number->string should write an integer")
+(test-assert (= (number->string -42) "-42") "number->string should write a negative integer")
+(test-assert (= (number->string 1/4) "0.25")
+  "number->string should write a terminating decimal by default")
+(test-assert (= (number->string 1/6) "1/6")
+  "number->string should write a fraction when the decimal doesn't terminate")
+(test-assert (= (number->string 1/6 :decimal) "0.1(6)")
+  "number->string should write a repeating decimal with :decimal")
+(test-assert (= (number->string 1/4 :fraction) "1/4")
+  "number->string should write a fraction with :fraction")
+(test-assert (= (number->string 1/6 :auto) "1/6")
+  ":auto should be the default style")
+(test-assert (= (number->string 255 16) "ff")
+  "number->string should write in a radix, with lowercase letters")
+(test-assert
+    (and (= (number->string 1/3 2 :decimal) "0.(01)")
+         (= (number->string 1/3 :decimal 2) "0.(01)"))
+  "number->string should take a radix and a style in either order")
+(test-assert (= (number->string 1/3 3) "0.1")
+  ":auto should decide whether a decimal terminates in the radix")
+
+(test-assert (= (string->number "1/6") 1/6) "string->number should read a fraction")
+(test-assert (= (string->number "0.1(6)") 1/6) "string->number should read a repeating decimal")
+(test-assert (= (string->number "-2.(3)") -7/3) "string->number should read a negative repeating decimal")
+(test-assert (and (= (string->number "ff" 16) 255) (= (string->number "FF" 16) 255))
+  "string->number should read in a radix, with letters in either case")
+(test-assert
+    (all? (lambda (s) (nil? (string->number s)))
+          (list "" "abc" "1/0" ".5" "1." "#x10" "1 2"))
+  "string->number should return () for a string that isn't a number")
+(test-assert (nil? (string->number "12" 2))
+  "string->number should return () for digits that aren't in the radix")
+
+; Everything number->string writes, string->number reads back.
+(test-assert
+    (all? (lambda (x)
+            (all? (lambda (radix)
+                    (all? (lambda (style)
+                            (= (string->number (number->string x radix style) radix) x))
+                          (list :decimal :fraction :auto)))
+                  (list 2 3 10 16 36)))
+          (list 0 1 -1 255 1/2 -1/3 22/7 -611/495 1/1000))
+  "string->number should read back what number->string writes")
+
+(test-assert
+    (= (number-string-error (number->string 5 16 2)) "number->string: more than one radix")
+  "number->string should reject two radixes")
+(test-assert
+    (= (number-string-error (number->string 5 :fraction :auto)) "number->string: more than one style")
+  "number->string should reject two styles")
+(test-assert
+    (= (number-string-error (number->string 5 (q :hex)))
+       "number->string: style must be :decimal, :fraction, or :auto, got :hex")
+  "number->string should reject an unknown style")
+(test-assert
+    (= (number-string-error (number->string 5 37))
+       "number->string: radix must be an integer from 2 to 36, got 37")
+  "number->string should reject a radix out of range")
+(test-assert
+    (= (number-string-error (number->string 5 "x"))
+       "number->string: expected a radix or a style, got \"x\"")
+  "number->string should reject an option that isn't a radix or a style")
+(test-assert
+    (= (number-string-error (number->string "5"))
+       "number->string: argument must be a number, got \"5\"")
+  "number->string should reject a value that isn't a number")
+(test-assert
+    (= (number-string-error (string->number 5))
+       "string->number: argument must be a string, got 5")
+  "string->number should reject a value that isn't a string")
+(test-assert
+    (= (number-string-error (string->number "5" 1))
+       "string->number: radix must be an integer from 2 to 36, got 1")
+  "string->number should reject a radix out of range")

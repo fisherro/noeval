@@ -11,6 +11,7 @@ A summary of the language, for working on Noeval code (for example, as context f
 **Lists**: `cons`, `first`, `rest`, `nil?` (evaluate all arguments)
 **Strings**: `string->list` and `list->string` convert to/from lists of Unicode codepoints as Noeval numbers
 **Symbols**: `string->symbol` returns the symbol with a string as its name (any string, even one that wouldn't read back as that symbol), and `symbol->string` returns a symbol's name
+**Numbers and strings**: `number->string` and `string->number`. `(number->string number [radix] [style])` writes a number in a radix from 2 to 36 (10 by default, with lowercase letters for digits above 9) in a style: `:decimal` (repeating digits in parentheses, as in `0.1(6)`), `:fraction` (`1/6`), or `:auto` (the default, which is how numbers print: a decimal if it terminates and a fraction otherwise). The radix and style can be given in either order. `(string->number string [radix])` reads any form `number->string` writes, with letters in either case, and returns `()` for a string that isn't a number.
 **Predicates**: `=` (evaluate all arguments)
 **I/O**: `write`, `display`, `flush` (evaluate all arguments), `read` (reads the next expression from standard input, or returns an eof object at the end)
 **Mutation**: `define-mutable`, `set!`
@@ -31,7 +32,8 @@ A summary of the language, for working on Noeval code (for example, as context f
 - **Nil representation**: `()` not `nil`
 - **Mutation restrictions**: Only variables created with `define-mutable` can be modified with `set!` - attempting to `set!` a variable created with `define` will raise an error
 - **Environment transparency**: `do` and `try` do not create new environments - definitions made within them persist in the current environment
-- **Numbers**: Arbitrary precision rationals (fractions) - all arithmetic preserves exact precision
+- **Numbers**: Arbitrary precision rationals (fractions) - all arithmetic preserves exact precision. A number prints as a decimal when its decimal terminates and as a fraction otherwise: `1/4` prints as `0.25` and `1/3` as `1/3`.
+- **Keywords**: By convention, a symbol whose name starts with `:`, such as `:auto`, is a keyword, and is defined to evaluate to itself so that it can be passed as an option without quoting. `(define-keyword :name ...)` (a macro) defines keywords, and `keyword?` tests for one. Declaring a keyword more than once is fine: `define-keyword` does nothing for a keyword already bound to itself, in the calling environment or an enclosing one, but raises an error for one bound to anything else. `define` still can't rebind a keyword.
 - **Rational decomposition**: `numerator` and `denominator` extract parts of fractions
 - **Error handling**: `try` catches exceptions and passes them to handler as error lists with structure `(error message context stack-trace)`
 - **Testing**: `test-assert` and `test-error` for writing tests; test results tracked globally
@@ -44,7 +46,8 @@ A summary of the language, for working on Noeval code (for example, as context f
 **Logic**: `and`, `or`, and `not` (operatives; `and` and `or` short-circuit). `nand` and `nor` are macros: `(nand x ...)` is `(not (and x ...))` and `(nor x ...)` is `(not (or x ...))`, so they short-circuit the same way. `xor` and `xnor` are functions, which evaluate every operand: `xor` is true when an odd number of its operands are true, so `(xor a b c)` is `(xor (xor a b) c)`, and `(xnor ...)` is `(not (xor ...))`. `(xor)` is false and `(xnor)` is true.
 **Pipelines**: `pipe` and `pipe-it` (macros) pass a value through a sequence of expressions: `(pipe x 10 (+ x 1) (* x 2))` binds `x` to each value in turn and is 22, like nested `let`s. `(pipe-it expression ...)` is `(pipe it expression ...)`, binding `it` on purpose.
 **Infix**: `infix` (a macro) allows infix notation, with parentheses for grouping and no precedence: `(infix (1 + 2) * (10 - 4))` is `(* (+ 1 2) (- 10 4))`. An expression has one element (a value, or a parenthesized expression), two (`op x`, which is `(op x)`), or three (`x op y`, which is `(op x y)`).
-**Predicates**: `odd?`, `even?`, `number?`, `integer?`, `non-negative-integer?`, `string?`, `symbol?`, `list?`, `operative?`, `macro?`, `environment?`, `eof-object?`
+**Keywords**: `define-keyword` (a macro): `(define-keyword :name ...)` defines each keyword to evaluate to itself, does nothing for one already bound to itself, and raises an error for one bound to anything else or for a name that doesn't start with `:` (see Key Language Patterns)
+**Predicates**: `odd?`, `even?`, `number?`, `integer?`, `non-negative-integer?`, `string?`, `symbol?`, `keyword?`, `list?`, `operative?`, `macro?`, `environment?`, `eof-object?`
 **I/O**: `newline`, `displayln`, `lndisplayln`, `for-each`
 **Meta**: `q`, `get-current-environment`, `unevaluated-list`
 **Partial application**: `partiall` and `partialr` fix the leftmost or rightmost arguments: `((partiall - 10) 3)` is 7, `((partialr - 10) 3)` is -7. `partiall-lazy` and `partialr-lazy` don't evaluate the fixed arguments until the resulting function is called, and evaluate them on every call.

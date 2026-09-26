@@ -267,3 +267,58 @@
          (list (point-x (list 3 4)) (point-y (list 3 4))))
        (list 3 4))
   "a defining macro should be able to make new names with string->symbol")
+
+; define-keyword
+
+(define-keyword :test-red :test-green)
+(test-assert
+    (and (= :test-red (q :test-red)) (= :test-green (q :test-green)))
+  "define-keyword should define keywords that evaluate to themselves")
+(test-assert
+    (= (let () (define-keyword :test-local) (list :test-local)) (list (q :test-local)))
+  "define-keyword should define keywords in the calling environment")
+(test-assert
+    (= (error-message (define-keyword test-blue))
+       "define-keyword's names must be symbols starting with :")
+  "define-keyword should reject a name that doesn't start with :")
+(test-assert
+    (= (error-message (define-keyword :))
+       "define-keyword's names must be symbols starting with :")
+  "define-keyword should reject : on its own")
+(test-assert
+    (= (error-message (define-keyword 5))
+       "define-keyword's names must be symbols starting with :")
+  "define-keyword should reject a name that isn't a symbol")
+(define-keyword :test-red)
+(define-keyword :test-red :test-green)
+(test-assert (= :test-red (q :test-red))
+  "define-keyword should do nothing for a keyword already defined as itself")
+(define-keyword :auto)
+(test-assert (= :auto (q :auto))
+  "define-keyword should accept a keyword an enclosing environment defines")
+(test-assert
+    (= (error-message (do (define :test-bob 10) (define-keyword :test-bob)))
+       "define-keyword: :test-bob is already defined as something else")
+  "define-keyword should reject a keyword bound to something else")
+(define :test-outer 5)
+(test-assert
+    (= (error-message (let () (define-keyword :test-outer)))
+       "define-keyword: :test-outer is already defined as something else")
+  "define-keyword should reject a keyword an enclosing environment binds to something else")
+(test-assert
+    (= (error-message (define :test-red (q :test-red)))
+       "define: :test-red is already defined in this environment (use set! to change a mutable binding, or let for a new scope)")
+  "define should still reject rebinding a keyword")
+(define define-keyword-twice (lambda () (define-keyword :test-in-call)))
+(define-keyword-twice)
+(define-keyword-twice)
+(test-assert (not (any? (lambda (name) (= name (q :test-in-call)))
+                        (environment-names (get-current-environment))))
+  "define-keyword should define a keyword in the calling environment only")
+(test-assert
+    (and (keyword? (q :test-red)) (keyword? (q :undefined-keyword)))
+  "keyword? should be true for a symbol starting with :")
+(test-assert
+    (and (not (keyword? (q red))) (not (keyword? (q :))) (not (keyword? ":red"))
+         (not (keyword? 5)) (not (keyword? (string->symbol ""))))
+  "keyword? should be false for anything else")

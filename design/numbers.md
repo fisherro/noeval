@@ -12,8 +12,17 @@ While it would be elegant...
 ## Serialization
 
 Fractional Noeval rationals can be represented in string form by either a
-numerator and a denominator or by a—possibly repeating—decimal. The decimal
-form will be the default.
+numerator and a denominator or by a—possibly repeating—decimal. Printing
+writes a decimal when it terminates and a fraction otherwise, so 1/4 prints
+as 0.25 and 1/3 as 1/3. (It used to write a decimal every time, but a
+repeating part can be almost as long as the denominator: 1/1000003 printed as
+166,671 characters, and a larger denominator could take effectively forever.)
+Whether a decimal terminates doesn't need any division: it does when the
+denominator, in lowest terms, has no prime factors but 2 and 5.
+
+`number->string` can ask for either form explicitly (`:decimal` or
+`:fraction`, or `:auto` for the printing rule), in any radix from 2 to 36.
+`string->number` reads all of these forms back, in the same radix.
 
 Note that fractional decimal form requires at least a single digit before the
 decimal point.
