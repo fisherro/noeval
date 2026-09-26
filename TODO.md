@@ -76,10 +76,6 @@ Include a (weak) reference to the environment?
 
 First-class delimited continuations
 
-Open questions about macros (see [design/macros.md](design/macros.md)):
-
-* Which other library operatives should be macros?
-
 Argument-count checks in the builtin operatives share `expect_args`, but
 there's more common code that could be refactored, such as the blocks that
 rethrow evaluation errors and wrap other exceptions.
