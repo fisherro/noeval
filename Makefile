@@ -88,7 +88,7 @@ test-sanitize: sanitize
 	NOEVAL_GC_STRESS=1 $(sanitize_TARGET) --gc-tests
 
 # Time the benchmarks. (Run benchmarks/run.bash directly for its options,
-# such as comparing against earlier results.)
+# such as comparing against another checkout.)
 bench: release
 	benchmarks/run.bash
 
