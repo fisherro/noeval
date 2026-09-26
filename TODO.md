@@ -57,6 +57,8 @@ Attempt to implement `syntax-rules` and `syntax-case` on top of our macro system
 
 Questions, things to consider, and open-ended design work.
 
+Consider `digamma` as an alias for `vau`. And a Unicode alias too?
+
 Implement transducers (See Clojure and SRFI-171)
 
 Prioritize RRB trees in order to improve performance.
