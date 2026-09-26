@@ -287,14 +287,14 @@
   "string? should return false for environments")
 
 ; Test 5: string? with mutable bindings
-(define-mutable mutable-string "world")
+(define-mutable mutable-string-2 "world")
 (test-assert
-    (= (string? mutable-string) true)
+    (= (string? mutable-string-2) true)
   "string? should work with mutable string bindings")
 
-(define-mutable mutable-number 456)
+(define-mutable mutable-number-2 456)
 (test-assert
-    (= (string? mutable-number) false)
+    (= (string? mutable-number-2) false)
   "string? should work with mutable non-string bindings")
 
 ; Test 6: string? error conditions
@@ -468,9 +468,9 @@
     (= (list? mutable-list) true)
   "list? should work with mutable list bindings")
 
-(define-mutable mutable-number 789)
+(define-mutable mutable-number-3 789)
 (test-assert
-    (= (list? mutable-number) false)
+    (= (list? mutable-number-3) false)
   "list? should work with mutable non-list bindings")
 
 ; Test 10: list? error conditions
@@ -540,9 +540,9 @@
   "operative? should return true for Church Boolean false")
 
 ; Test 4: Wrapped operatives are still operatives
-(define wrapped-plus (wrap +))
+(define wrapped-plus-2 (wrap +))
 (test-assert
-    (= (operative? wrapped-plus) true)
+    (= (operative? wrapped-plus-2) true)
   "operative? should return true for wrapped operatives")
 
 ; Test 5: Non-operatives should return false
@@ -636,9 +636,9 @@
   "environment? should return true for current environment")
 
 ; Test 2: Captured environments are environments
-(define captured-env ((vau () env env)))
+(define captured-env-2 ((vau () env env)))
 (test-assert
-    (= (environment? captured-env) true)
+    (= (environment? captured-env-2) true)
   "environment? should return true for captured environments")
 
 ; Test 3: Non-environments should return false

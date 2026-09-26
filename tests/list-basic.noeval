@@ -120,9 +120,9 @@
   "foldl and foldr should give different results for non-associative operations")
 
 ; Test 8: foldl with wrapped operatives
-(define wrapped-mult (wrap *))
+(define wrapped-mult-2 (wrap *))
 (test-assert
-    (= (foldl wrapped-mult 1 (list 2 3 4)) 24)
+    (= (foldl wrapped-mult-2 1 (list 2 3 4)) 24)
   "foldl should work with wrapped operatives")
 
 ; Test 9: foldl with different init values
@@ -131,9 +131,9 @@
   "foldl should include init value in accumulation")
 
 ; Test 10: foldl with complex functions
-(define double-and-add (lambda (acc x) (+ acc (* x 2))))
+(define double-and-add-2 (lambda (acc x) (+ acc (* x 2))))
 (test-assert
-    (= (foldl double-and-add 0 (list 1 2 3)) 12)
+    (= (foldl double-and-add-2 0 (list 1 2 3)) 12)
   "foldl should work with complex functions")
 
 ; Test 11: foldl building a reversed list (classic use case)
@@ -416,9 +416,9 @@
   "apply with map should process all elements")
 
 ; Test 15: apply preserves function behavior
-(define test-func (lambda (a b c) (+ a (* b c))))
-(define direct-call (test-func 2 3 4))  ; 2 + (3*4) = 14
-(define applied-call (apply test-func (list 2 3 4)))
+(define test-func-2 (lambda (a b c) (+ a (* b c))))
+(define direct-call (test-func-2 2 3 4))  ; 2 + (3*4) = 14
+(define applied-call (apply test-func-2 (list 2 3 4)))
 (test-assert
     (= direct-call applied-call)
   "apply should preserve function behavior compared to direct calls")

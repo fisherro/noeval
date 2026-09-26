@@ -246,10 +246,10 @@
 
 ; Test 9: when should not evaluate body on false (side effect test)
 (define-mutable side-effect-counter 0)
-(define increment-counter (lambda () (set! side-effect-counter (+ side-effect-counter 1))))
+(define increment-counter-2 (lambda () (set! side-effect-counter (+ side-effect-counter 1))))
 (when false
-  (increment-counter)
-  (increment-counter))
+  (increment-counter-2)
+  (increment-counter-2))
 (test-assert
     (= side-effect-counter 0)
   "when should not evaluate body expressions when condition is false")

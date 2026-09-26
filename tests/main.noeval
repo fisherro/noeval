@@ -79,25 +79,28 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Load and run tests
 
-(load "equals.noeval")
-(load "try.noeval")
-(load "exceptions.noeval")
-(load "raise.noeval")
-(load "core.noeval")
-(load "type-predicates.noeval")
-(load "evaluation.noeval")
-(load "functions.noeval")
-(load "list-basic.noeval")
-(load "list-transformation.noeval")
-(load "list-access.noeval")
-(load "list-subsequence.noeval")
-(load "list-generation.noeval")
-(load "predicates.noeval")
-(load "control-flow.noeval")
-(load "environments.noeval")
-(load "numbers.noeval")
-(load "strings.noeval")
-(load "partial-application.noeval")
+; Each file is loaded in its own scope, so that files can use the same names
+; (define can't rebind a name in the same environment). The test counters and
+; helpers above are still visible, and set! updates the counters here.
+(let () (load "equals.noeval"))
+(let () (load "try.noeval"))
+(let () (load "exceptions.noeval"))
+(let () (load "raise.noeval"))
+(let () (load "core.noeval"))
+(let () (load "type-predicates.noeval"))
+(let () (load "evaluation.noeval"))
+(let () (load "functions.noeval"))
+(let () (load "list-basic.noeval"))
+(let () (load "list-transformation.noeval"))
+(let () (load "list-access.noeval"))
+(let () (load "list-subsequence.noeval"))
+(let () (load "list-generation.noeval"))
+(let () (load "predicates.noeval"))
+(let () (load "control-flow.noeval"))
+(let () (load "environments.noeval"))
+(let () (load "numbers.noeval"))
+(let () (load "strings.noeval"))
+(let () (load "partial-application.noeval"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Show test results

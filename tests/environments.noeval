@@ -8,12 +8,11 @@
     (= do-defined-var 1)
   "a definition made in do should remain after it")
 
-(define test-env-var 100)
-(try (do (define test-env-var 200)
+(try (do (define defined-before-error 200)
          (rest "invalid"))
   (lambda* (error) "caught"))
 (test-assert
-    (= test-env-var 200)
+    (= defined-before-error 200)
   "a definition made in try before an error should remain after it")
 
 (test-assert
@@ -25,6 +24,50 @@
 ; Test exception in environment parameter usage
 (define env-error-vau (vau (expr) _ (eval expr "not-an-env")))
 (test-error (env-error-vau (+ 1 2)) "invalid environment usage should throw")
+
+;------------------------------------------------------------------------------
+; Rebinding tests
+(lndisplayln "rebinding tests")
+
+; The message of the error expr raises
+(define rebind-error
+  (vau (expr) env
+    (try (eval expr env)
+         (lambda (e) (second e)))))
+
+(define bound-once 1)
+(test-assert
+    (= (rebind-error (define bound-once 2))
+       "define: bound-once is already defined in this environment (use set! to change a mutable binding, or let for a new scope)")
+  "define should not rebind a name in the same environment")
+
+(test-assert
+    (= bound-once 1)
+  "a failed define should leave the binding as it was")
+
+(test-assert
+    (= (rebind-error (define-mutable bound-once 2))
+       "define-mutable: bound-once is already defined in this environment (use set! to change a mutable binding, or let for a new scope)")
+  "define-mutable should not rebind a name in the same environment")
+
+(define-mutable mutable-bound-once 1)
+(test-assert
+    (= (rebind-error (define mutable-bound-once 2))
+       "define: mutable-bound-once is already defined in this environment (use set! to change a mutable binding, or let for a new scope)")
+  "define should not rebind a mutable name in the same environment")
+
+(set! mutable-bound-once 2)
+(test-assert
+    (= mutable-bound-once 2)
+  "set! should still change a mutable binding")
+
+(test-assert
+    (= (let () (define bound-once 3) bound-once) 3)
+  "define should shadow a name bound in an enclosing environment")
+
+(test-assert
+    (= (rebind-error redefine) "Unbound variable: redefine")
+  "redefine should only be available in the REPL")
 
 ;------------------------------------------------------------------------------
 ; Environment introspection tests
@@ -60,10 +103,13 @@
        builtins-names)
   "the top-level environment's parent should be the builtins environment")
 
+; Each test file is loaded in its own scope, within the library tests'
+; environment, within the top-level environment.
 (test-assert
-    (= (environment-names (environment-parent (get-current-environment)))
+    (= (environment-names
+         (environment-parent (environment-parent (get-current-environment))))
        top-level-names)
-  "the library tests' environment's parent should be the top-level environment")
+  "the library tests should run within the top-level environment")
 
 (test-assert
     (= ((lambda* (b a)

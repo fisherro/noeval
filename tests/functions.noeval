@@ -220,9 +220,9 @@
     (define result (func x))
     (set! log-var (+ log-var result))
     result))
-(define double (lambda (n) (* n 2)))
+(define double-2 (lambda (n) (* n 2)))
 (test-assert
-    (= (apply-with-logging double 7) 14)
+    (= (apply-with-logging double-2 7) 14)
   "lambda* should work as higher-order function")
 
 ; Test 8: lambda* with recursive helper
@@ -425,10 +425,10 @@
 
 ; Test 10: vau* used in higher-order context
 (define test-vau* (vau* (x) env (eval x env)))
-(define higher-order-test (lambda (op arg) (op arg)))
+(define higher-order-test-2 (lambda (op arg) (op arg)))
 
 (test-assert
-    (= (higher-order-test test-vau* 123) 123)
+    (= (higher-order-test-2 test-vau* 123) 123)
   "vau* should work when passed to and called from other functions")
 
 ; Test 11: vau* with recursive pattern (simplified)

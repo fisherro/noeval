@@ -377,9 +377,9 @@
   "Multiple partial functions should work independently")
 
 ; Test 2: Chaining partial applications
-(define add-five (partiall + 5))
+(define add-five-2 (partiall + 5))
 (define multiply-by-three (partiall * 3))
-(define chain-operations (lambda (x) (multiply-by-three (add-five x))))
+(define chain-operations (lambda (x) (multiply-by-three (add-five-2 x))))
 
 (test-assert (= (chain-operations 2) 21)
   "Partial applications should chain properly: (2 + 5) * 3")

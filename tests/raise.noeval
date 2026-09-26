@@ -187,12 +187,11 @@
 
 ; Test 18: try doesn't create an environment, so a definition made before a
 ; raise remains after it
-(define pre-raise-var 100)
-(try (do (define pre-raise-var 200)
+(try (do (define defined-before-raise 200)
          (raise "environment test"))
   (lambda (error) "handled"))
 (test-assert
-    (= pre-raise-var 200)
+    (= defined-before-raise 200)
   "a definition made before a raise should remain after it")
 
 ; Test 19: raise in conditional expressions

@@ -244,6 +244,8 @@ public:
     // The names bound in this environment itself, sorted
     std::vector<std::string> get_own_symbols() const;
     env_ptr get_parent() const { return parent; }
+    // Whether name is bound in this environment itself
+    bool binds(const std::string& name) const { return bindings.contains(name); }
     std::string dump_chain() const;
 };
 
@@ -308,6 +310,8 @@ env_ptr reload_top_level_environment(bool test_the_library = true);
 // last one. A relative filename is resolved against the directory of the file
 // currently being loaded, if there is one.
 value_ptr load_file(const std::string& filename, env_ptr env);
+// Add the bindings only the REPL provides, such as redefine, to env.
+void add_repl_bindings(env_ptr env);
 
 // String conversion functions
 std::string to_string(const bignum& value);

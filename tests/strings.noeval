@@ -560,14 +560,14 @@
   "round-trip should work with Unicode content")
 
 ; Test 10: Longer string
-(define long-string "The quick brown fox jumps over the lazy dog")
-(define long-chars (string->codepoint-strings long-string))
+(define long-string-2 "The quick brown fox jumps over the lazy dog")
+(define long-chars (string->codepoint-strings long-string-2))
 (test-assert
-    (= (length long-chars) (string-length long-string))
+    (= (length long-chars) (string-length long-string-2))
   "string->codepoint-strings length should match string-length")
 
 (test-assert
-    (= (strings->string long-chars) long-string)
+    (= (strings->string long-chars) long-string-2)
   "round-trip should work with longer strings")
 
 ; Test 11: string->codepoint-strings with library functions
@@ -610,15 +610,15 @@
   "string->codepoint-strings should be consistent with string-nth")
 
 ; Test 17: Edge case - very long Unicode string
-(define unicode-test "😀😃😄😁🤣😂🙂🙃😉😊😇")
+(define unicode-test-2 "😀😃😄😁🤣😂🙂🙃😉😊😇")
 (test-assert
-    (= (strings->string (string->codepoint-strings unicode-test)) unicode-test)
+    (= (strings->string (string->codepoint-strings unicode-test-2)) unicode-test-2)
   "string->codepoint-strings should handle long Unicode strings")
 
 ; Test 18: Special Unicode categories
-(define mixed-unicode "Café naïve résumé")
+(define mixed-unicode-2 "Café naïve résumé")
 (test-assert
-    (> (length (string->codepoint-strings mixed-unicode)) 0)
+    (> (length (string->codepoint-strings mixed-unicode-2)) 0)
   "string->codepoint-strings should handle accented characters")
 
 ; Test 19: Performance test with moderate string
@@ -908,12 +908,12 @@
   "Boundary values should round-trip correctly")
 
 ; Test 7: String integration round-trip
-(define test-string "Hello, 世界! 🌍")
-(define string-codepoints (string->list test-string))
+(define test-string-2 "Hello, 世界! 🌍")
+(define string-codepoints (string->list test-string-2))
 (define utf8-bytes (codepoints->utf8 string-codepoints))
 (define recovered-codepoints (utf8->codepoints utf8-bytes))
 (define recovered-string (list->string recovered-codepoints))
-(test-assert (= recovered-string test-string)
+(test-assert (= recovered-string test-string-2)
   "String should round-trip through UTF-8 conversion")
 
 #skip
