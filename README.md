@@ -62,14 +62,19 @@ The library tests take a while, so they don't run at startup. Use `--tests`, or
 If the C++ tests fail at startup, noeval asks whether to continue. It only asks
 when stdin is a terminal. Otherwise it exits with a failure status.
 
-`make bench` times the programs in `benchmarks/`. To measure a change, save
-the results from before it and compare against them afterward:
+`make bench` times the programs in `benchmarks/` and reports each one's peak
+memory use. To measure a change, save the results from before it and compare
+against them afterward:
 
     benchmarks/run.bash > before.txt
     # make the change and rebuild
     benchmarks/run.bash -c before.txt
 
 See `benchmarks/run.bash` for its other options.
+
+Setting `NOEVAL_REPORT_PEAK_MEMORY` (to anything) makes noeval print its peak
+memory use (resident set size) to stderr as it exits, as `peak memory: N kB`.
+The benchmarks use it.
 
 Setting `NOEVAL_GC_STRESS=n` makes the garbage collector run every `n`
 environment creations, which is useful for finding GC bugs. See

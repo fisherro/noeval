@@ -404,6 +404,10 @@ esac
 
 The **shell + Python one-liner** approach might be fastest to implement:
 
+> Note: The repository doesn't use Python (see `CONTRIBUTING.md`), so this
+> route, or any of the other Python-based options above, would have to be an
+> exception to that rule.
+
 ````cpp
 value call(const value& operands, const value& env) override 
 {
