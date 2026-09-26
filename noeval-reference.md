@@ -5,7 +5,7 @@ A summary of the language, for working on Noeval code (for example, as context f
 ## Built-in Operatives (C++)
 
 **Control**: `vau`, `eval`, `eval-list`, `define`, `invoke`, `do`, `try`, `raise`, `load`, `macro` (see [Macros](#macros))
-**Arithmetic**: `+`, `-`, `*`, `/` (evaluate all arguments)
+**Arithmetic**: `+`, `-`, `*`, `/` (evaluate all arguments). As in Scheme: `(+)` is 0 and `(*)` is 1, while `(-)` and `(/)` are errors; `(- x)` negates `x` and `(/ x)` is its reciprocal; with more arguments, the operator is applied from the left, so `(- 10 3 2)` is 5.
 **Numeric operations**: `numerator`, `denominator`, `remainder`
 **Numeric comparisons**: `<=>` (evaluate all arguments)
 **Lists**: `cons`, `first`, `rest`, `nil?` (evaluate all arguments)
@@ -42,7 +42,7 @@ A summary of the language, for working on Noeval code (for example, as context f
 **Lists**: `append`, `reverse`, `length`, `filter`, `map`, `foldl`, `foldr`, `foldl-until`, `foldr-until`, `unfoldl`, `unfoldr`, `last`, `list`, `snoc`, `iota`, `prepend`, `second`, `third`, `fourth`, `nth` (`(nth list index)`, zero-based), `take` and `drop` (`(take n list)`), `list-index`, `any?` and `all?` (`(any? predicate list)`)
 **Control**: `when` and `unless` (macros), `and`, `or`, `not`
 **Pipelines**: `pipe` and `pipe-it` (macros) pass a value through a sequence of expressions: `(pipe x 10 (+ x 1) (* x 2))` binds `x` to each value in turn and is 22, like nested `let`s. `(pipe-it expression ...)` is `(pipe it expression ...)`, binding `it` on purpose.
-**Infix**: `infix` (a macro) allows infix notation, with parentheses for grouping and no precedence: `(infix (1 + 2) * (10 - 4))` is `(* (+ 1 2) (- 10 4))`. An expression has one element (a value, or a parenthesized expression), two (`op x`, which is `(op x)`), or three (`x op y`, which is `(op x y)`). Note that `(- x)` is `x` in Noeval, so `(infix - x)` doesn't negate.
+**Infix**: `infix` (a macro) allows infix notation, with parentheses for grouping and no precedence: `(infix (1 + 2) * (10 - 4))` is `(* (+ 1 2) (- 10 4))`. An expression has one element (a value, or a parenthesized expression), two (`op x`, which is `(op x)`), or three (`x op y`, which is `(op x y)`).
 **Predicates**: `odd?`, `even?`, `number?`, `integer?`, `non-negative-integer?`, `string?`, `symbol?`, `list?`, `operative?`, `macro?`, `environment?`, `eof-object?`
 **I/O**: `newline`, `displayln`, `lndisplayln`, `for-each`
 **Meta**: `q`, `get-current-environment`, `unevaluated-list`

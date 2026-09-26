@@ -782,3 +782,20 @@
   "modulo should give the same result as remainder for negative values")
 
 
+
+;------------------------------------------------------------------------------
+; Arithmetic with no arguments or one, as in Scheme
+(lndisplayln "arithmetic identity tests")
+
+(test-assert (= (+) 0) "(+) should be 0")
+(test-assert (= (*) 1) "(*) should be 1")
+(test-error (-) "(-) should be an error")
+(test-error (/) "(/) should be an error")
+(test-assert (= (- 5) -5) "(- x) should negate x")
+(test-assert (= (- (- 5)) 5) "negating twice should give the original number")
+(test-assert (= (/ 4) 1/4) "(/ x) should be the reciprocal of x")
+(test-assert (= (/ (/ 2/3)) 2/3) "the reciprocal of a reciprocal should be the original number")
+(test-error (/ 0) "(/ 0) should be an error")
+(test-assert (and (= (+ 5) 5) (= (* 5) 5)) "(+ x) and (* x) should be x")
+(test-assert (= (apply + ()) 0) "applying + to no arguments should be 0")
+(test-assert (= (infix - 5) -5) "infix's unary minus should negate")
