@@ -1796,7 +1796,10 @@ continuation_type eval_operation(const value_ptr& expr, const cons_cell& cell, e
     auto operator_expr = cell.car;
     auto operands = cell.cdr;
     
-    // Check if operator is already an operative or macro value
+    // Check if operator is already an operative or macro value. Evaluating it
+    // would return it anyway, so this is only a shortcut, but it's taken by
+    // every embedded operator, such as those in macro expansions and wrap's
+    // calls.
     value_ptr op;
     if (std::holds_alternative<operative>(operator_expr->data) or
         std::holds_alternative<builtin_operative>(operator_expr->data) or
@@ -2080,20 +2083,23 @@ value_ptr eval(value_ptr expr, env_ptr env)
             continuation_type k = std::visit([&](const auto& v) -> continuation_type {
                 using T = std::decay_t<decltype(v)>;
                 
-                if constexpr (std::is_same_v<T, bignum> or 
-                            std::is_same_v<T, std::string> or 
-                            std::is_same_v<T, std::nullptr_t>) {
-                    return expr;
-                } else if constexpr (std::is_same_v<T, symbol>) {
+                // As in Kernel, symbols and cons cells are evaluated, and
+                // everything else evaluates to itself, so code built at
+                // runtime can contain any value. The exception is
+                // mutable_binding, which symbol lookup always unwraps, so
+                // reaching it here would be an interpreter bug.
+                if constexpr (std::is_same_v<T, symbol>) {
                     return eval_symbol(v, env);
                 } else if constexpr (std::is_same_v<T, cons_cell>) {
                     return eval_operation(expr, v, env);
-                } else {
+                } else if constexpr (std::is_same_v<T, mutable_binding>) {
                     throw evaluation_error(
                         std::format("Cannot evaluate {}", demangle<T>()),
                         expr_context(expr),
                         call_stack::format()
                     );
+                } else {
+                    return expr;
                 }
             }, expr->data);
             if (auto tc{std::get_if<tail_call>(&k)}) {

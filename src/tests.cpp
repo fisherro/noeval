@@ -849,9 +849,52 @@ int test_macros()
     runner.test_eval("((macro (vau args env (cons + args))) 1 2)", "3");
     runner.test_eval("(macro +)", "#<macro:#<builtin-operative:+>>");
     runner.test_error("(macro 5)", "macro: argument must be an operative, got 5");
-    runner.test_error("(eval m ((vau () env env)))", "Cannot evaluate macro");
+    runner.test_eval("(eval m ((vau () env env)))", "#<macro:(#<operative> (x) env x)>");
 
     return runner.failures;
+}
+
+// Symbols and cons cells are evaluated, and every other value evaluates to
+// itself, except the internal mutable_binding wrapper.
+int test_self_evaluation()
+{
+    std::println("\n--- Values that evaluate to themselves ---");
+    auto env = create_top_level_environment();
+    test_runner runner(env);
+
+    runner.test_eval("(eval + ((vau () env env)))", "#<builtin-operative:+>");
+    runner.test_eval("(eval (vau (x) () x) ((vau () env env)))", "(#<operative> (x)  x)");
+    runner.test_eval("(eval (macro +) ((vau () env env)))", "#<macro:#<builtin-operative:+>>");
+    runner.test_eval("(typeof (eval ((vau () env env)) ((vau () env env))))", "environment");
+    // An operative embedded in argument position
+    runner.test_eval("(eval (cons (vau (x) env (eval x env)) (cons + ())) ((vau () env env)))",
+                     "#<builtin-operative:+>");
+
+    int failures = runner.failures;
+    auto check_eval_is_self = [&](std::string_view name, const value_ptr& v) {
+        if (eval(v, env) == v) {
+            std::println("✓ {} evaluates to itself", name);
+        } else {
+            println_red("✗ {} should evaluate to itself", name);
+            ++failures;
+        }
+    };
+    check_eval_is_self("an environment", value::make(env));
+    check_eval_is_self("the eof object", value::make(eof_object{}));
+
+    try {
+        eval(value::make(mutable_binding{value::make(bignum{1})}), env);
+        println_red("✗ a mutable_binding should not be evaluable");
+        ++failures;
+    } catch (const evaluation_error& e) {
+        if (std::string::npos != std::string{e.what()}.find("Cannot evaluate mutable_binding")) {
+            std::println("✓ a mutable_binding can't be evaluated");
+        } else {
+            println_red("✗ a mutable_binding gave the wrong error: {}", e.what());
+            ++failures;
+        }
+    }
+    return failures;
 }
 
 int test_macro_cache()
@@ -1816,6 +1859,7 @@ bool run_tests()
     failures += test_operative_as_first_element();
     failures += test_macros();
     failures += test_macro_cache();
+    failures += test_self_evaluation();
     std::println("{}", std::string(60, '='));
     failures += test_parameter_binding();
     std::println("{}", std::string(60, '='));

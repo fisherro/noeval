@@ -144,3 +144,34 @@
   "wrap should preserve environment context for user-defined operatives")
 
 
+
+;------------------------------------------------------------------------------
+; Values that evaluate to themselves
+(lndisplayln "self-evaluation tests")
+
+; Symbols and cons cells are evaluated, and every other value evaluates to
+; itself, so code built at runtime can contain any value in any position.
+(define self-eval-env (get-current-environment))
+
+(test-assert
+    (= ((eval + self-eval-env) 1 2) 3)
+  "a builtin operative should evaluate to itself")
+(test-assert
+    (= ((eval (lambda (x) (* x 2)) self-eval-env) 4) 8)
+  "an operative should evaluate to itself")
+(test-assert
+    (= (eval self-eval-env self-eval-env) self-eval-env)
+  "an environment should evaluate to itself")
+(test-assert
+    (macro? (eval when self-eval-env))
+  "a macro should evaluate to itself")
+
+(define built-with-value (eval (list list 1 first) self-eval-env))
+(test-assert
+    (= ((second built-with-value) (list 7 8)) 7)
+  "an operative embedded in argument position should evaluate to itself")
+
+(define-mutable self-eval-mutable 5)
+(test-assert
+    (= (eval (list + (q self-eval-mutable) 1) self-eval-env) 6)
+  "a mutable binding should still evaluate to its value")
