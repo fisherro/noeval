@@ -688,7 +688,11 @@
 ; By convention, a keyword is a symbol whose name starts with : and that
 ; evaluates to itself, such as :auto, so that it can be passed as an option
 ; without quoting. define-keyword defines each :name as itself in the calling
-; environment. It raises an error for a name that doesn't start with :.
+; environment, unless it's already bound, there or in an enclosing
+; environment. If it's bound to itself, define-keyword does nothing, so
+; declaring a keyword more than once is fine. If it's bound to anything
+; else, that's an error. It's also an error for a name that doesn't start
+; with :.
 (define define-keyword
   (macro (vau names _
     (do
@@ -698,7 +702,17 @@
            ()
            (raise "define-keyword's names must be symbols starting with :")))
         names)
-      (cons do (map (lambda (name) (list define name (list q name))) names))))))
+      ; Declares one keyword in the environment it's called from. Evaluating
+      ; a symbol can only fail if it's unbound.
+      (define declare
+        (vau (name) env
+          ((try (do (eval name env) true) (lambda (e) false))
+           ((and (symbol? (eval name env)) (= name (eval name env)))
+            ()
+            (raise (string-append "define-keyword: " (symbol->string name)
+                                  " is already defined as something else")))
+           (eval (list define name (list q name)) env))))
+      (cons do (map (lambda (name) (list declare name)) names))))))
 
 ; Whether x is a keyword: a symbol whose name is a : followed by at least one
 ; character. (Whether it has been defined to evaluate to itself doesn't
