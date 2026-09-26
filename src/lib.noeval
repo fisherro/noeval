@@ -531,6 +531,20 @@
 ; operands are true. With two operands, that's equivalence. (xnor) is true.
 (define xnor (lambda operands (not (apply xor operands))))
 
+; and, or, and not are macros, so they can't be passed to a higher-order
+; function such as map or apply. and-fn, or-fn, and not-fn are functions that
+; do the same, for when that's wanted: (map not-fn flags), (apply and-fn flags).
+; As functions, they evaluate all their arguments, so and-fn and or-fn don't
+; short-circuit, but they give the same results as the macros, including
+; returning the last argument as it is: (and-fn true 5) is 5.
+(define and-fn
+  (lambda operands
+    (foldl (lambda (result operand) (and result operand)) true operands)))
+(define or-fn
+  (lambda operands
+    (foldl (lambda (result operand) (or result operand)) false operands)))
+(define not-fn (lambda (operand) (not operand)))
+
 (define λ lambda)
 (define ∧ and)
 (define ∨ or)

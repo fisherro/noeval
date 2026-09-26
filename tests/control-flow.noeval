@@ -709,6 +709,41 @@
 
 (test-assert (macro? not) "not should be a macro")
 
+; A macro can't be passed to a higher-order function, so and-fn, or-fn and
+; not-fn are functions that do the same.
+(test-assert
+    (and (= (error-message (map not (list true)))
+            "map's first argument must be callable")
+         (= (error-message (apply and (list true)))
+            "apply's first argument must be an applicative"))
+  "and, or and not shouldn't be accepted as functions")
+
+(test-assert
+    (and (= (map not-fn (list true false)) (list false true))
+         (= (filter not-fn (list true false false)) (list false false)))
+  "not-fn should be a function version of not")
+
+(test-assert
+    (and (apply and-fn (list true true true))
+         (not (apply and-fn (list true false true)))
+         (and-fn)
+         (= (and-fn true 5) 5)
+         (not (and-fn false 5)))
+  "and-fn should be a function version of and")
+
+(test-assert
+    (and (apply or-fn (list false true false))
+         (not (apply or-fn (list false false)))
+         (not (or-fn))
+         (= (or-fn false 5) 5)
+         (or-fn true 5))
+  "or-fn should be a function version of or")
+
+(test-assert
+    (and (= (foldl and-fn true (list true true)) true)
+         (= (foldl or-fn false (list false true)) true))
+  "and-fn and or-fn should work with foldl")
+
 ; nand and nor
 (test-assert (not (nand)) "(nand) should return false")
 (test-assert (not (nand true)) "(nand true) should return false")

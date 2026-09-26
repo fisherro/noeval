@@ -828,6 +828,14 @@ so a recursion through `and` or `or` crashed the interpreter somewhere between
 as it is, in tail position, and `(and true 5)` is 5. That also saves 3-6% of
 executed instructions on `cond`, `fib`, `lists`, and `substring`.
 
+One thing is lost: an operative could be passed to a higher-order function,
+and before, `(map not flags)`, `(filter not ...)`, `(apply and ...)`, and
+`(foldl or false ...)` worked, since the operands they passed were Booleans or
+local names, which evaluated correctly. A macro isn't callable, so those are
+errors now, as `and` and `or` are in Scheme. The library has function versions
+instead, `and-fn`, `or-fn`, and `not-fn`, which evaluate all their arguments
+but otherwise give the same results.
+
 The other library operatives can't be macros or wouldn't gain from it:
 `get-current-environment`, `q`, and `unevaluated-list` return their
 environment or operands, so their result isn't code to evaluate; `wrap`
