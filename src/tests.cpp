@@ -261,9 +261,9 @@ int test_arithmetic_operations()
     runner.test_eval("(/ 24 4 2)", "3");
 
     // Test rational arithmetic that produces fractions
-    runner.test_eval("(/ 1 3)", "0.(3)");
-    runner.test_eval("(/ 22 7)", "3.(142857)");
-    runner.test_eval("(/ 1 6)", "0.1(6)");
+    runner.test_eval("(/ 1 3)", "1/3");
+    runner.test_eval("(/ 22 7)", "22/7");
+    runner.test_eval("(/ 1 6)", "1/6");
     runner.test_eval("(/ 5 4)", "1.25");
     runner.test_eval("(/ 1 2)", "0.5");
 
@@ -968,6 +968,65 @@ int test_macro_cache()
     return failures;
 }
 
+int test_number_formatting()
+{
+    std::println("\n--- Number formatting ---");
+    int failures{0};
+    auto check = [&failures](const bignum& value, number_style style, unsigned radix,
+                             std::string_view expected) {
+        auto actual = format_number(value, style, radix);
+        if (actual == expected) {
+            std::println("✓ {} (radix {}) => {}", format_number(value), radix, actual);
+        } else {
+            println_red("✗ {} (radix {}): expected {}, got {}",
+                format_number(value), radix, expected, actual);
+            ++failures;
+        }
+    };
+    using enum number_style;
+    auto rational = [](int n, int d) { return bignum(n, d); };
+
+    // Integers are the same in every style.
+    check(0, automatic, 10, "0");
+    check(-42, fraction, 10, "-42");
+    check(-42, decimal, 10, "-42");
+
+    // The styles in radix 10
+    check(rational(1, 4), automatic, 10, "0.25");
+    check(rational(1, 6), automatic, 10, "1/6");
+    check(rational(1, 6), decimal, 10, "0.1(6)");
+    check(rational(1, 6), fraction, 10, "1/6");
+    check(rational(1, 4), fraction, 10, "1/4");
+    check(rational(-7, 3), automatic, 10, "-7/3");
+    check(rational(-7, 3), decimal, 10, "-2.(3)");
+    check(rational(3, 2), decimal, 10, "1.5");
+    check(rational(1, 7), decimal, 10, "0.(142857)");
+
+    // Other radixes
+    check(255, automatic, 16, "ff");
+    check(-255, automatic, 16, "-ff");
+    check(255, automatic, 2, "11111111");
+    check(255, automatic, 36, "73");
+    check(bignum{boost::multiprecision::pow(boost::multiprecision::cpp_int{2}, 100)},
+          automatic, 16, "1" + std::string(25, '0'));
+    check(rational(1, 3), automatic, 3, "0.1");   // terminates in base 3
+    check(rational(1, 2), automatic, 3, "1/2");   // but 1/2 doesn't
+    check(rational(1, 3), decimal, 2, "0.(01)");
+    check(rational(1, 3), fraction, 2, "1/11");
+    check(rational(1, 10), automatic, 16, "1/a");
+
+    for (unsigned radix: {0u, 1u, 37u}) {
+        try {
+            format_number(1, automatic, radix);
+            println_red("✗ radix {} should be rejected", radix);
+            ++failures;
+        } catch (const std::invalid_argument&) {
+            std::println("✓ radix {} is rejected", radix);
+        }
+    }
+    return failures;
+}
+
 int test_mutable_bindings()
 {
     std::println("\n--- Mutable bindings ---");
@@ -1055,15 +1114,15 @@ int test_number_parsing()
     
     // Test fraction parsing  
     runner.test_eval("1/2", "0.5");
-    runner.test_eval("1/3", "0.(3)");
-    runner.test_eval("22/7", "3.(142857)");
-    runner.test_eval("-5/6", "-0.8(3)");
+    runner.test_eval("1/3", "1/3");
+    runner.test_eval("22/7", "22/7");
+    runner.test_eval("-5/6", "-5/6");
     runner.test_eval("7/1", "7");
     
     // Test repeating decimal parsing
-    runner.test_eval("0.(3)", "0.(3)");
-    runner.test_eval("0.1(6)", "0.1(6)");
-    runner.test_eval("3.(142857)", "3.(142857)");
+    runner.test_eval("0.(3)", "1/3");
+    runner.test_eval("0.1(6)", "1/6");
+    runner.test_eval("3.(142857)", "22/7");
     runner.test_eval("-0.(9)", "-1");  // 0.999... = 1
     // A negative number's repeating part is negative too.
     runner.test_eval("(= -0.(3) -1/3)", "true");
@@ -1898,6 +1957,7 @@ bool run_tests()
     std::println("{}", std::string(60, '='));
     failures += test_number_parsing();
     failures += test_number_operations();
+    failures += test_number_formatting();
     failures += test_based_number_parsing();
     failures += test_based_number_errors();
     failures += test_based_number_lexer();

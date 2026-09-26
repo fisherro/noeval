@@ -267,3 +267,34 @@
          (list (point-x (list 3 4)) (point-y (list 3 4))))
        (list 3 4))
   "a defining macro should be able to make new names with string->symbol")
+
+; define-keyword
+
+(define-keyword :test-red :test-green)
+(test-assert
+    (and (= :test-red (q :test-red)) (= :test-green (q :test-green)))
+  "define-keyword should define keywords that evaluate to themselves")
+(test-assert
+    (= (let () (define-keyword :test-local) (list :test-local)) (list (q :test-local)))
+  "define-keyword should define keywords in the calling environment")
+(test-assert
+    (= (error-message (define-keyword test-blue))
+       "define-keyword's names must be symbols starting with :")
+  "define-keyword should reject a name that doesn't start with :")
+(test-assert
+    (= (error-message (define-keyword :))
+       "define-keyword's names must be symbols starting with :")
+  "define-keyword should reject : on its own")
+(test-assert
+    (= (error-message (define-keyword 5))
+       "define-keyword's names must be symbols starting with :")
+  "define-keyword should reject a name that isn't a symbol")
+(test-error (define-keyword :test-red)
+  "define-keyword should follow define's rule against rebinding")
+(test-assert
+    (and (keyword? (q :test-red)) (keyword? (q :undefined-keyword)))
+  "keyword? should be true for a symbol starting with :")
+(test-assert
+    (and (not (keyword? (q red))) (not (keyword? (q :))) (not (keyword? ":red"))
+         (not (keyword? 5)) (not (keyword? (string->symbol ""))))
+  "keyword? should be false for anything else")

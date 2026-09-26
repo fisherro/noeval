@@ -354,6 +354,17 @@ value_ptr load_file(const std::string& filename, env_ptr env);
 // Add the bindings only the REPL provides, such as redefine, to env.
 void add_repl_bindings(env_ptr env);
 
+// How format_number writes a number that isn't an integer: as a decimal,
+// with any repeating digits in parentheses (1/6 is 0.1(6)); as a fraction
+// (1/6); or automatically, as a decimal if it terminates and a fraction
+// otherwise (1/4 is 0.25, and 1/6 is 1/6).
+enum class number_style { decimal, fraction, automatic };
+
+// Write value in radix (2 to 36, with lowercase letters for digits above 9)
+// in the given style. Printing uses the automatic style in radix 10.
+std::string format_number(const bignum& value,
+    number_style style = number_style::automatic, unsigned radix = 10);
+
 // String conversion functions
 std::string to_string(const bignum& value);
 std::string to_string(const std::string& value);

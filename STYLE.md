@@ -28,5 +28,9 @@
 - Nil is spelt `()`.
 - Avoid `q` (quote) where it isn't needed. In a fexpr-based language, an
   operative can take its operands unevaluated instead.
+- Name an option that's passed as a symbol with a keyword: a symbol starting
+  with `:`, such as `:auto`, defined with `define-keyword` so that it
+  evaluates to itself and doesn't need quoting. The `:` also keeps keywords
+  from colliding with names users define.
 - Comments start with `;`. To disable a block of code temporarily, wrap it in
   `#skip` and `#end`.

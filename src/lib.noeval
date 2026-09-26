@@ -684,6 +684,33 @@
            element)))
       (infix-list operands)))))
 
+; (define-keyword :name ...)
+; By convention, a keyword is a symbol whose name starts with : and that
+; evaluates to itself, such as :auto, so that it can be passed as an option
+; without quoting. define-keyword defines each :name as itself in the calling
+; environment. It raises an error for a name that doesn't start with :.
+(define define-keyword
+  (macro (vau names _
+    (do
+      (for-each
+        (lambda (name)
+          ((keyword? name)
+           ()
+           (raise "define-keyword's names must be symbols starting with :")))
+        names)
+      (cons do (map (lambda (name) (list define name (list q name))) names))))))
+
+; Whether x is a keyword: a symbol whose name is a : followed by at least one
+; character. (Whether it has been defined to evaluate to itself doesn't
+; matter.)
+(define keyword?
+  (lambda (x)
+    (and (symbol? x)
+         (pipe-it (string->list (symbol->string x))
+                  (and (not (nil? it))
+                       (= 58 (first it))
+                       (not (nil? (rest it))))))))
+
 ; apply: The applicative version of invoke
 ; Takes an applicative and a list of arguments,
 ; applies the applicative to the arguments

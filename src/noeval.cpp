@@ -32,84 +32,81 @@
 
 #define USE_TAIL_CALL 1
 
-std::string to_slash_string(const bignum& value)
-{
-    return value.str();
+namespace {
+    using cpp_int = boost::multiprecision::cpp_int;
+
+    constexpr std::string_view digit_chars{"0123456789abcdefghijklmnopqrstuvwxyz"};
+
+    // The digits of a non-negative integer in radix
+    std::string integer_digits(cpp_int n, unsigned radix)
+    {
+        if (10 == radix) return n.str();
+        if (0 == n) return "0";
+        std::string digits;
+        while (n > 0) {
+            digits += digit_chars[(n % radix).convert_to<unsigned>()];
+            n /= radix;
+        }
+        std::ranges::reverse(digits);
+        return digits;
+    }
+
+    // Whether a fraction with this denominator (in lowest terms) has a
+    // terminating expansion in radix: whether every prime factor of the
+    // denominator divides radix.
+    bool terminates(cpp_int denominator, unsigned radix)
+    {
+        for (cpp_int g = gcd(denominator, cpp_int{radix}); g > 1;
+             g = gcd(denominator, cpp_int{radix})) {
+            denominator /= g;
+        }
+        return 1 == denominator;
+    }
+
+    // The digits after the point of numerator/denominator, where numerator is
+    // less than denominator, with any repeating digits in parentheses.
+    std::string fraction_digits(cpp_int numerator, const cpp_int& denominator, unsigned radix)
+    {
+        // Where each remainder was first seen, to find where the digits repeat
+        std::unordered_map<cpp_int, size_t> remainder_positions;
+        std::string digits;
+        while (0 != numerator) {
+            if (auto seen = remainder_positions.find(numerator); seen != remainder_positions.end()) {
+                return digits.substr(0, seen->second) + "(" + digits.substr(seen->second) + ")";
+            }
+            remainder_positions[numerator] = digits.length();
+            numerator *= radix;
+            digits += digit_chars[(numerator / denominator).convert_to<unsigned>()];
+            numerator %= denominator;
+        }
+        return digits;
+    }
 }
 
-// Converts a boost::multiprecision::cpp_rational to a decimal string,
-// possibly with repeating digits.
-// There is always at least one digit before the decimal point.
-// Repeating digits are enclosed in parentheses.
-std::string to_decimal_string(const bignum& value)
+std::string format_number(const bignum& value, number_style style, unsigned radix)
 {
-    using cpp_int = boost::multiprecision::cpp_int;
-    
-    // Extract numerator and denominator
+    if (radix < 2 or radix > 36) {
+        throw std::invalid_argument(std::format("radix must be from 2 to 36, got {}", radix));
+    }
     cpp_int numerator = boost::multiprecision::numerator(value);
     cpp_int denominator = boost::multiprecision::denominator(value);
-    
-    // Handle sign
-    bool is_negative = (numerator < 0);
-    if (is_negative) {
-        numerator = -numerator;
-    }
-    
-    std::string result;
-    if (is_negative) {
-        result += "-";
-    }
-    
-    // Integer part
-    cpp_int integer_part = numerator / denominator;
-    result += integer_part.str();
-    
-    // Check if we're done (exact division)
-    cpp_int remainder = numerator % denominator;
-    if (0 == remainder) {
-        return result;
-    }
-    
-    result += ".";
-    
-    // Track remainders to detect cycles
-    std::unordered_map<cpp_int, size_t> remainder_positions;
-    std::string decimal_part;
-    
-    while (0 != remainder) {
-        // Check if we've seen this remainder before
-        if (remainder_positions.contains(remainder)) {
-            // Found repeating cycle
-            size_t cycle_start = remainder_positions[remainder];
-            std::string non_repeating = decimal_part.substr(0, cycle_start);
-            std::string repeating = decimal_part.substr(cycle_start);
-            
-            result += non_repeating;
-            if (not repeating.empty()) {
-                result += "(" + repeating + ")";
-            }
-            return result;
-        }
-        
-        // Record this remainder's position
-        remainder_positions[remainder] = decimal_part.length();
-        
-        // Perform long division step
-        remainder *= 10;
-        cpp_int digit = remainder / denominator;
-        decimal_part += digit.str();
-        remainder = remainder % denominator;
-    }
-    
-    // No repeating cycle found (terminating decimal)
-    result += decimal_part;
-    return result;
-}
+    std::string result = (numerator < 0)? "-": "";
+    numerator = abs(numerator);
 
+    if (1 == denominator) {
+        return result + integer_digits(numerator, radix);
+    }
+    if (number_style::fraction == style
+        or (number_style::automatic == style and not terminates(denominator, radix))) {
+        return result + integer_digits(numerator, radix) + "/" + integer_digits(denominator, radix);
+    }
+    return result + integer_digits(numerator / denominator, radix) + "."
+        + fraction_digits(numerator % denominator, denominator, radix);
+}
 
 std::string to_string(const bignum& value)
 {
-    return to_decimal_string(value);
+    return format_number(value);
 }
 
 std::string to_string(const std::string& value)
