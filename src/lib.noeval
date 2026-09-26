@@ -489,6 +489,13 @@
       (define val (eval operand env))
       (val false true))))
 
+; (nand operand ...) is (not (and operand ...)), and (nor operand ...) is
+; (not (or operand ...)). They're macros that expand to exactly that, so they
+; short-circuit in the same way: nand stops at the first false operand and
+; nor at the first true one. (nand) is false and (nor) is true.
+(define nand (macro (vau operands _ (list not (cons and operands)))))
+(define nor (macro (vau operands _ (list not (cons or operands)))))
+
 (define λ lambda)
 (define ∧ and)
 (define ∨ or)

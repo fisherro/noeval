@@ -656,6 +656,51 @@
 (test-assert (not false)
   "(not false) should return true")
 
+; nand and nor
+(test-assert (not (nand)) "(nand) should return false")
+(test-assert (not (nand true)) "(nand true) should return false")
+(test-assert (nand false) "(nand false) should return true")
+(test-assert (not (nand true true true))
+  "(nand true true true) should return false")
+(test-assert (nand true false true)
+  "(nand true false true) should return true")
+(test-assert (nand false false false)
+  "(nand false false false) should return true")
+
+(test-assert (nor) "(nor) should return true")
+(test-assert (not (nor true)) "(nor true) should return false")
+(test-assert (nor false) "(nor false) should return true")
+(test-assert (nor false false false)
+  "(nor false false false) should return true")
+(test-assert (not (nor false true false))
+  "(nor false true false) should return false")
+(test-assert (not (nor true true true))
+  "(nor true true true) should return false")
+
+(set! boolean-test-int 0)
+(nand false (boolean-test-set! 1))
+(test-assert (= 0 boolean-test-int)
+  "nand should short-circuit")
+
+(set! boolean-test-int 0)
+(nor true (boolean-test-set! 1))
+(test-assert (= 0 boolean-test-int)
+  "nor should short-circuit")
+
+(test-assert
+    (and (nand (= 1 1) (= 2 3)) (nor (= 1 2) (= 2 3)))
+  "nand and nor should evaluate their operands in the calling environment")
+
+(test-assert
+    (and (macro? nand) (macro? nor))
+  "nand and nor should be macros")
+
+(test-assert
+    (= (let ((not 1) (and 2) (or 3))
+         ((nand true false) ((nor false false) "both" "only nand") "not nand"))
+       "both")
+  "nand and nor should be unaffected by local bindings of not, and, and or")
+
 ; Nested operations
 (test-assert (and (or true false) (not false))
   "nested boolean operations should work")

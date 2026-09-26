@@ -40,7 +40,7 @@ A summary of the language, for working on Noeval code (for example, as context f
 
 **Core**: `lambda` (single expression), `lambda*` (multiple expressions), `vau*` (multiple expressions), `wrap`, `apply`, and the macros `if`, `let` and `cond` (see [Macros](#macros))
 **Lists**: `append`, `reverse`, `length`, `filter`, `map`, `foldl`, `foldr`, `foldl-until`, `foldr-until`, `unfoldl`, `unfoldr`, `last`, `list`, `snoc`, `iota`, `prepend`, `second`, `third`, `fourth`, `nth` (`(nth list index)`, zero-based), `take` and `drop` (`(take n list)`), `list-index`, `any?` and `all?` (`(any? predicate list)`)
-**Control**: `when` and `unless` (macros), `and`, `or`, `not`
+**Control**: `when` and `unless` (macros), `and`, `or`, `not`, and `nand` and `nor` (macros: `(nand x ...)` is `(not (and x ...))` and `(nor x ...)` is `(not (or x ...))`, so they short-circuit the same way)
 **Pipelines**: `pipe` and `pipe-it` (macros) pass a value through a sequence of expressions: `(pipe x 10 (+ x 1) (* x 2))` binds `x` to each value in turn and is 22, like nested `let`s. `(pipe-it expression ...)` is `(pipe it expression ...)`, binding `it` on purpose.
 **Infix**: `infix` (a macro) allows infix notation, with parentheses for grouping and no precedence: `(infix (1 + 2) * (10 - 4))` is `(* (+ 1 2) (- 10 4))`. An expression has one element (a value, or a parenthesized expression), two (`op x`, which is `(op x)`), or three (`x op y`, which is `(op x y)`).
 **Predicates**: `odd?`, `even?`, `number?`, `integer?`, `non-negative-integer?`, `string?`, `symbol?`, `list?`, `operative?`, `macro?`, `environment?`, `eof-object?`
