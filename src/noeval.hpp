@@ -64,11 +64,39 @@ struct source_location {
 // point to one without owning it.
 const std::string* intern_file_name(std::string_view name);
 
+// A macro expansion cached on the combination it expanded, with the
+// transformer that produced it. An expansion depends only on the transformer
+// and the operands, and operands can't be changed, so the cache is valid
+// whenever the operator's value is a macro with the same transformer.
+struct macro_cache {
+    value_ptr transformer;
+    value_ptr expansion;
+};
+
+// Holds a cons_cell's macro_cache, if it has one. A copy starts empty, so
+// copies of a cell never share a cache.
+struct macro_cache_slot {
+    std::unique_ptr<macro_cache> cache;
+
+    macro_cache_slot() = default;
+    macro_cache_slot(const macro_cache_slot&) {}
+    macro_cache_slot(macro_cache_slot&&) = default;
+    macro_cache_slot& operator=(const macro_cache_slot&)
+    {
+        cache.reset();
+        return *this;
+    }
+    macro_cache_slot& operator=(macro_cache_slot&&) = default;
+};
+
 struct cons_cell {
     value_ptr car;
     value_ptr cdr;
     // Not part of the cell's value, so operator== ignores it.
     source_location location;
+    // Also not part of the cell's value. It's mutable because evaluating a
+    // combination fills it in, and evaluation sees the cell as const.
+    mutable macro_cache_slot expansion_cache;
     cons_cell(value_ptr a, value_ptr d, source_location loc = {}):
         car(std::move(a)), cdr(std::move(d)), location(loc) {}
     std::string to_string() const;

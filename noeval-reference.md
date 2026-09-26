@@ -71,6 +71,7 @@ Environments are first-class values that can be inspected.
 - **Embed values, not names**: build expansions with `list` and `cons` so that they contain the values of `if`, `do` and so on, not their names, which the calling environment might rebind: `(macro (vau args _ (list if (first args) (cons do (rest args)) ())))`.
 - **No new scope**: the expansion is evaluated in the calling environment, so a `define` in it binds there, and `define`'s usual rule against rebinding applies.
 - **Only as an operator**: a macro value can't be evaluated on its own ("Cannot evaluate macro").
+- **Expanded once**: a combination's expansion is cached, invisibly, on the combination, and reused each time the combination is evaluated with a macro that has the same transformer. So a transformer runs once per combination, not once per call, and it shouldn't have side effects. A combination built at runtime (`(eval (cons m args) env)`) is expanded each time it's evaluated.
 
 ## Error Handling
 
@@ -103,7 +104,7 @@ Environments are first-class values that can be inspected.
 
 - **Tail call optimization**: Enabled with `USE_TAIL_CALL`
 - **Garbage collection**: Reference counting plus a cycle collector for environments, which runs automatically as environments are created (see `design/env-gc.md`)
-- **Debug categories**: `eval`, `builtin`, `env_binding`, `tco`, `timer`, `library`
+- **Debug categories**: `eval`, `builtin`, `env_binding`, `tco`, `timer`, `library`, `macro` (expansions and cache hits)
 - **Call stack tracking**: Maintains call stack for error reporting
 - **Environment chaining**: Environments form chains for lexical scoping
 

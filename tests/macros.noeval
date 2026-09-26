@@ -110,6 +110,64 @@
        "Cannot evaluate macro")
   "a macro value can only be evaluated as an operator")
 
+; Caching
+
+; A when that counts how many times it has been expanded
+(define-mutable expansion-count 0)
+(define counted-when
+  (macro (vau args _
+    (do (set! expansion-count (+ expansion-count 1))
+        (list if (first args) (cons do (rest args)) ())))))
+
+(define use-counted-when (lambda (x) (counted-when x 1)))
+(use-counted-when true)
+(use-counted-when false)
+(use-counted-when true)
+(test-assert
+    (= expansion-count 1)
+  "a combination should be expanded only once")
+
+(define use-counted-when-again (lambda (x) (counted-when x 2)))
+(use-counted-when-again true)
+(test-assert
+    (= expansion-count 2)
+  "each combination should be expanded separately")
+
+; One combination whose operator is a parameter
+(define call-with-true (lambda (m) (m true 1)))
+(define my-unless
+  (macro (vau args _ (list if (first args) () (cons do (rest args))))))
+(test-assert
+    (= (call-with-true my-when) 1)
+  "a combination should expand with the macro its operator evaluates to")
+(test-assert
+    (nil? (call-with-true my-unless))
+  "a combination should expand again when its operator is a different macro")
+(test-assert
+    (= (call-with-true (vau args _ (q called))) (q called))
+  "a combination should be called normally when its operator isn't a macro")
+(test-assert
+    (= (call-with-true my-when) 1)
+  "a combination should expand again when its operator is a macro again")
+
+; The same combination evaluated where its operator is bound differently
+(define rebound-form (q (rebound true 1)))
+(test-assert
+    (= (let ((rebound my-when)) (eval rebound-form (get-current-environment))) 1)
+  "a combination should expand with its operator's binding")
+(test-assert
+    (nil? (let ((rebound my-unless)) (eval rebound-form (get-current-environment))))
+  "a combination should expand again where its operator is bound to another macro")
+
+; Caching mustn't change the forms that code sees as data
+(define eval-and-return (vau (x) env (do (eval x env) x)))
+(test-assert
+    (= (eval-and-return (my-when true 1)) (q (my-when true 1)))
+  "a combination should be unchanged after it's expanded")
+(test-assert
+    (= (first (q (my-when true 1))) (q my-when))
+  "a quoted combination shouldn't be expanded")
+
 ; A macro should give the same results as the equivalent operative that
 ; expands its operands on every call. (This one gives the transformer the
 ; calling environment, which the transformers here ignore.)

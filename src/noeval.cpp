@@ -1780,9 +1780,19 @@ continuation_type eval_operation(const value_ptr& expr, const cons_cell& cell, e
         return operate_builtin(std::get<builtin_operative>(op->data), operands, env);
     }
 
-    // Check if it's a macro
+    // Check if it's a macro. Use the expansion cached on this combination if
+    // it came from the same transformer.
     if (auto m = std::get_if<macro>(&op->data)) {
-        auto expansion = expand_macro(*m, operands);
+        value_ptr expansion;
+        auto& cache = cell.expansion_cache.cache;
+        if (cache and cache->transformer == m->transformer) {
+            NOEVAL_DEBUG(macro, "Using cached expansion of {}", expr_context(expr));
+            expansion = cache->expansion;
+        } else {
+            expansion = expand_macro(*m, operands);
+            NOEVAL_DEBUG(macro, "Expanded {} to {}", expr_context(expr), value_to_string(expansion));
+            cache = std::make_unique<macro_cache>(m->transformer, expansion);
+        }
 #if USE_TAIL_CALL
         return tail_call{expansion, env};
 #else
@@ -1840,6 +1850,10 @@ struct cycle_collector {
         } else if (auto cell = std::get_if<cons_cell>(&v->data)) {
             if (cell->car) on_value(cell->car.get());
             if (cell->cdr) on_value(cell->cdr.get());
+            if (auto& cache = cell->expansion_cache.cache) {
+                if (cache->transformer) on_value(cache->transformer.get());
+                if (cache->expansion) on_value(cache->expansion.get());
+            }
         } else if (auto op = std::get_if<operative>(&v->data)) {
             if (op->closure_env) on_env(op->closure_env.get());
             if (op->body) on_value(op->body.get());

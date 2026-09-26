@@ -451,17 +451,20 @@ kept in a hidden field of the combination's `cons_cell`, like `location`.
 copies the cell with `value::make(cell)`, so it will need the original
 `value_ptr` to write the cache.)
 
-The cache holds the macro value it was expanded with, as well as the
-expansion. Operatives are first-class, so the same combination can be
+The cache holds the transformer the combination was expanded with, as well as
+the expansion. Operatives are first-class, so the same combination can be
 evaluated with different values for its operator: the same `vau` body closed
 over different environments, a parameter bound to different macros,
 `redefine` at the REPL, or `eval` in a different environment. So each
 evaluation still evaluates the operator (the lookup a call pays anyway). If
-the result is the same macro object as the cached one, the cached expansion is
-evaluated. Otherwise the combination is expanded again if the operator is a
-macro, or called normally if it isn't. Since operands can't be mutated and
-expansions depend only on the operands, the same combination and the same
-macro always give the same expansion.
+the result is a macro with the same transformer object as the cached one, the
+cached expansion is evaluated. Otherwise the combination is expanded again if
+the operator is a macro, or called normally if it isn't. Since operands can't
+be mutated and expansions depend only on the transformer and the operands,
+the same combination and the same transformer always give the same
+expansion. (Comparing transformers rather than macro values means that
+`((macro t) ...)`, which makes a new macro each time it's evaluated, still
+uses the cache.)
 
 Consequences:
 
@@ -474,8 +477,14 @@ Consequences:
   bytes), so no value gets bigger. The cache itself is allocated only for
   combinations whose operator is a macro. (A side table keyed by cell address
   was the alternative; it may be revisited.)
-- The cycle collector must scan the cached macro and expansion. Missing them
-  would cause leaks, not corruption, but they have to be counted.
+- The cycle collector must scan the cached transformer and expansion. Missing
+  them would cause leaks, not corruption, but they have to be counted.
+- A cache keeps its transformer, and so the transformer's closure
+  environment, alive until the combination is freed or expanded with another
+  transformer. A combination whose operator is no longer a macro keeps its
+  stale cache. That's at most one transformer per combination, so it's
+  bounded, but a long-lived combination (in a library operative's body, say)
+  can keep a local macro's environment alive after the call that made it.
 - Expansions have no source location, but errors inside one are still
   reported at the macro call. The expansion is evaluated as a tail call, and
   `call_stack::guard::tail_call` only replaces a frame's tail expression with
@@ -629,13 +638,14 @@ its own. No change in behavior.
 #### Step 3: The call-site cache
 
 - Add the hidden field to `cons_cell`: a `mutable` `std::unique_ptr` to a
-  `macro_cache` holding the macro and the expansion, in a small wrapper whose
-  copy is empty, so `cons_cell` stays copyable and copies never share a cache.
-  `operator==` and `to_string` ignore it.
-- In `eval_operation`, if the operator is the cached macro, evaluate the cached
-  expansion. If it's a different macro, expand and replace the cache. If it
-  isn't a macro, call it normally and ignore the cache.
-- The cycle collector visits the cache's macro and expansion, each exactly
+  `macro_cache` holding the transformer and the expansion, in a small wrapper
+  whose copy is empty, so `cons_cell` stays copyable and copies never share a
+  cache. `operator==` and `to_string` ignore it.
+- In `eval_operation`, if the operator is a macro with the cached
+  transformer, evaluate the cached expansion. If it's a different macro,
+  expand and replace the cache. If it isn't a macro, call it normally and
+  ignore the cache.
+- The cycle collector visits the cache's transformer and expansion, each exactly
   once.
 - Add a `macro` debug category that logs expansions and cache hits.
 - Tests: the cache tests listed under Testing. A counter can be reached through
