@@ -470,16 +470,20 @@
      ()
      (clause-expansion (first clauses) (rest clauses)))))
 
-; and operative - short-circuiting logical and
-; Returns the first falsy value, or the last value if all are truthy
-; Uses Church Boolean evaluation for short-circuiting
+; (and operand ...) is true when all its operands are true. It evaluates them
+; in order and stops at the first false one. (and) is true.
+; It's a macro, and (and a b c) expands to (a (b (c true false) false) false).
+; Each operand, including the last, is used as a Church Boolean, so a
+; non-Boolean operand raises an error wherever it is. That means no operand is
+; in tail position.
 (define and
-  (vau operands env
-    ((nil? operands)
-     true  ; Empty and is true
-     ((eval (first operands) env)
-      (eval (cons and (rest operands)) env)
-      false))))
+  ((lambda* ()
+     (define chain
+       (lambda (operands)
+         (list (first operands)
+               ((nil? (rest operands)) true (chain (rest operands)))
+               false)))
+     (macro (vau operands _ ((nil? operands) true (chain operands)))))))
 
 ; not operative - logical negation
 ; Returns the Church Boolean opposite of its argument
