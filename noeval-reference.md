@@ -18,7 +18,7 @@ A summary of the language, for working on Noeval code (for example, as context f
 **REPL only**: `redefine` (like `define`, but may rebind a name that's already bound)
 **Church Booleans**: `true`, `false` (built-in operatives)
 **Reflection**: `typeof`
-**Environments**: `environment-names`, `environment-parent`, `get-builtins-environment`, `get-top-level-environment` (see [Environments](#environments))
+**Environments**: `environment-names`, `environment-parent`, `get-builtins-environment`, `get-library-environment`, `get-top-level-environment` (see [Environments](#environments))
 
 ## Key Language Patterns
 
@@ -65,8 +65,8 @@ A summary of the language, for working on Noeval code (for example, as context f
 
 Environments are first-class values that can be inspected.
 
-- **Builtins and the top level**: The builtins are in their own environment. Its child, the top-level environment, is where the library is loaded, and the REPL and scripts evaluate in it too. A definition at the top level can shadow a builtin but doesn't replace it.
-- **get-builtins-environment**, **get-top-level-environment**: `(get-builtins-environment)` and `(get-top-level-environment)` return those environments
+- **Builtins, library, and top level**: The builtins are in their own environment. Its child, the library environment, is where the library is loaded, and the library environment's child, the top-level environment, is where the REPL and scripts evaluate. A definition at the top level can shadow a builtin or a library name but doesn't replace it, so the library keeps working: library code looks names up from the library environment, which never sees top-level definitions.
+- **get-builtins-environment**, **get-library-environment**, **get-top-level-environment**: `(get-builtins-environment)`, `(get-library-environment)` and `(get-top-level-environment)` return those environments
 - **environment-names**: `(environment-names env)` returns a sorted list of the symbols bound in `env` itself, not in its ancestors
 - **environment-parent**: `(environment-parent env)` returns `env`'s parent environment, or `()` for the builtins environment
 

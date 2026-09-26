@@ -212,6 +212,13 @@ The REPL is the exception: it provides `redefine`, which works like `define`
 but may rebind a name, so that you can redefine things as you work. Scripts
 and the library don't have it.
 
+The builtins and the library are in environments of their own, the
+top-level environment's ancestors, so a script or the REPL can define a name
+the library or a builtin already uses. That shadows it at the top level, but
+library code still sees the original: after `(define first 1)`, `map` still
+works. Likewise, using `redefine` on a library function in the REPL changes
+what your code calls, not what the library calls.
+
 Kernel uses an interesting trick with `unwrap` and `define` to implement `set!`
 by modifying the dynamic environment. I'm not sure whether I think this is a
 good idea or not.

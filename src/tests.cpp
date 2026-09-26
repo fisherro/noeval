@@ -681,13 +681,16 @@ int test_environments()
         }
     };
 
-    // The top-level environment's parent holds the builtins
+    // The top-level environment's parent is the library environment, and its
+    // parent holds the builtins
     auto env = create_top_level_environment();
-    auto builtins_env = env->get_parent();
+    auto library_env = env->get_parent();
+    auto builtins_env = library_env? library_env->get_parent(): env_ptr{nullptr};
     check(builtins_env and (not builtins_env->get_parent())
           and env->get_own_symbols().empty()
+          and library_env->get_own_symbols().empty()
           and std::ranges::contains(builtins_env->get_own_symbols(), "vau"),
-          "The builtins are in the top-level environment's parent");
+          "The library environment is between the top level and the builtins");
 
     // Defining a builtin's name at the top level shadows it rather than
     // replacing it
@@ -722,6 +725,20 @@ int test_environments()
     for (const auto& expr: p3.parse_all()) redefined = eval(expr, repl_env);
     check((not plain_env->binds("redefine")) and "2" == value_to_string(redefined),
           "redefine is only in the REPL, and rebinds a name");
+
+    // Top-level definitions that shadow builtins and library names don't
+    // change what the library sees
+    {
+        auto top_level = create_top_level_environment();
+        parser library("(define pair-up (vau (a b) e (cons (eval a e) (eval b e)))) "
+                       "(define pair-one (vau (a) e (pair-up (eval a e) ())))");
+        for (const auto& expr: library.parse_all()) eval(expr, top_level->get_parent());
+        parser p4("(define cons 1) (define pair-up 2) (pair-one 5)");
+        value_ptr result;
+        for (const auto& expr: p4.parse_all()) result = eval(expr, top_level);
+        check("(5)" == value_to_string(result),
+              "Shadowing builtins and library names at the top level doesn't change the library");
+    }
 
     if (0 != failures) {
         println_red("✗ {} environment test(s) failed", failures);

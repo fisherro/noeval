@@ -74,6 +74,7 @@
 (lndisplayln "environment introspection tests")
 
 (define builtins-names (environment-names (get-builtins-environment)))
+(define library-names (environment-names (get-library-environment)))
 (define top-level-names (environment-names (get-top-level-environment)))
 (define names-include?
   (lambda (names name)
@@ -86,29 +87,37 @@
   "the builtins environment should hold the builtins but not the library")
 
 (test-assert
-    (and (names-include? top-level-names (q map))
-         (not (names-include? top-level-names (q vau))))
-  "the top-level environment should hold the library but not the builtins")
+    (and (names-include? library-names (q map))
+         (not (names-include? library-names (q vau))))
+  "the library environment should hold the library but not the builtins")
 
 (test-assert
-    (not (names-include? top-level-names (q recurse)))
-  "prepend's recurse helper should not be bound in the top-level environment")
+    (not (names-include? top-level-names (q map)))
+  "the top-level environment shouldn't hold the library")
+
+(test-assert
+    (not (names-include? library-names (q recurse)))
+  "prepend's recurse helper should not be bound in the library environment")
 
 (test-assert
     (nil? (environment-parent (get-builtins-environment)))
   "the builtins environment should have no parent")
 
 (test-assert
-    (= (environment-names (environment-parent (get-top-level-environment)))
-       builtins-names)
-  "the top-level environment's parent should be the builtins environment")
+    (= (environment-parent (get-library-environment))
+       (get-builtins-environment))
+  "the library environment's parent should be the builtins environment")
+
+(test-assert
+    (= (environment-parent (get-top-level-environment))
+       (get-library-environment))
+  "the top-level environment's parent should be the library environment")
 
 ; Each test file is loaded in its own scope, within the library tests'
 ; environment, within the top-level environment.
 (test-assert
-    (= (environment-names
-         (environment-parent (environment-parent (get-current-environment))))
-       top-level-names)
+    (= (environment-parent (environment-parent (get-current-environment)))
+       (get-top-level-environment))
   "the library tests should run within the top-level environment")
 
 (test-assert
@@ -137,6 +146,11 @@
     (= (try (get-builtins-environment 1) (lambda (e) (second e)))
        "get-builtins-environment: expected 0 arguments, got 1")
   "get-builtins-environment should take no arguments")
+
+(test-assert
+    (= (try (get-library-environment 1) (lambda (e) (second e)))
+       "get-library-environment: expected 0 arguments, got 1")
+  "get-library-environment should take no arguments")
 
 
 ;------------------------------------------------------------------------------
