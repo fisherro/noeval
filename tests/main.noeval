@@ -103,6 +103,7 @@
 (let () (load "partial-application.noeval"))
 (let () (load "macros.noeval"))
 (let () (load "pipe.noeval"))
+(let () (load "infix.noeval"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Show test results

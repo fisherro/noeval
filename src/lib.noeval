@@ -619,6 +619,46 @@
       (raise "pipe-it requires at least one expression"))
     (cons pipe (cons (q it) operands)))))
 
+; (infix expression ...)
+; Infix notation, with parentheses for grouping and no precedence:
+;   (infix x op y) is (op x y)
+;   (infix op x) is (op x), so it can also call a one-argument function
+;   (infix x) is x, and (infix (e ...)) is (infix e ...)
+; Each operand is handled the same way, so (infix (1 + 2) * (10 - 4)) is
+; (* (+ 1 2) (- 10 4)). Anything else, such as 1 + 2 + 3, is an error. The
+; whole expression is transformed once, when it's first evaluated.
+; Ported from this Scheme macro:
+;   (define-syntax infix
+;     (syntax-rules ()
+;       ((_ (x . y)) (infix x . y))
+;       ((_ x op y) (op (infix x) (infix y)))
+;       ((_ op x) (op (infix x)))
+;       ((_ x) x)))
+(define infix
+  (macro (vau operands _
+    (do
+      (define infix-list
+        (lambda (elements)
+          (cond ((nil? elements)
+                 (raise "infix expression must have 1, 2, or 3 elements"))
+                ((nil? (rest elements))
+                 (infix-element (first elements)))
+                ((nil? (rest (rest elements)))
+                 (list (first elements) (infix-element (second elements))))
+                ((nil? (rest (rest (rest elements))))
+                 (list (second elements)
+                       (infix-element (first elements))
+                       (infix-element (third elements))))
+                (else
+                 (raise "infix expression must have 1, 2, or 3 elements")))))
+      ; A parenthesized element is an infix expression of its own.
+      (define infix-element
+        (lambda (element)
+          ((= (q cons-cell) (typeof element))
+           (infix-list element)
+           element)))
+      (infix-list operands)))))
+
 ; apply: The applicative version of invoke
 ; Takes an applicative and a list of arguments,
 ; applies the applicative to the arguments

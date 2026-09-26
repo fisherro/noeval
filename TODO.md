@@ -36,22 +36,6 @@ would share that source.
 
 Add max-garbage stat
 
-Port my `infix` macro to Noeval. (It isn't in any of my GitHub repositories, so
-it has to come from an archive of an old web site.)
-
-```scm
-(define-syntax infix
-  (syntax-rules ()
-     ((_ (x . y))
-      (infix x . y))
-     ((_ x op y)
-      (op (infix x) (infix y)))
-     ((_ op x) 
-      (op (infix x)))
-     ((_ x)
-      x)))
-```
-
 Attempt to implement `syntax-rules` and `syntax-case` on top of our macro system.
 
 ## Ideas
