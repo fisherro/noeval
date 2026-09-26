@@ -1079,6 +1079,22 @@ int test_number_operations()
     auto env = create_top_level_environment();
     test_runner runner(env);
     
+    // Arithmetic with no arguments or one, as in Scheme
+    runner.test_eval("(+)", "0");
+    runner.test_eval("(*)", "1");
+    runner.test_error("(-)", "-: requires at least one argument");
+    runner.test_error("(/)", "/: requires at least one argument");
+    runner.test_eval("(+ 5)", "5");
+    runner.test_eval("(* 5)", "5");
+    runner.test_eval("(- 5)", "-5");
+    runner.test_eval("(- -5)", "5");
+    runner.test_eval("(/ 4)", "0.25");
+    runner.test_eval("(/ -2/3)", "-1.5");
+    runner.test_error("(/ 0)", "division by zero");
+    runner.test_error("(- \"x\")", "-: argument must be a number");
+    runner.test_eval("(- 10 3 2)", "5");
+    runner.test_eval("(/ 12 2 3)", "2");
+
     // Test numerator/denominator extraction
     runner.test_eval("(numerator 22/7)", "22");
     runner.test_eval("(denominator 22/7)", "7");

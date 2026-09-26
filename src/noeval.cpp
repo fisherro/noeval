@@ -788,19 +788,31 @@ namespace builtins {
         return context;
     }
 
-    auto make_arithmetic_operative(const std::string& op_name, std::function<bignum(bignum, bignum)> op)
+    // Arithmetic follows Scheme. With no arguments, + and * return their
+    // identity (0 and 1), and - and / raise an error. With one argument, the
+    // result is (op identity x), so (- x) negates and (/ x) is the reciprocal.
+    // Otherwise, op is folded over the arguments from the left.
+    auto make_arithmetic_operative(const std::string& op_name,
+        std::function<bignum(bignum, bignum)> op, bignum identity,
+        bool identity_without_arguments)
     {
-        return [op_name, op](const std::vector<value_ptr>& args, env_ptr env) {
+        return [op_name, op, identity, identity_without_arguments](
+            const std::vector<value_ptr>& args, env_ptr env)
+        {
             if (args.empty()) {
+                if (identity_without_arguments) return value::make(identity);
                 throw evaluation_error(
                     std::format("{}: requires at least one argument", op_name),
                     std::format("({})", op_name),
                     call_stack::format()
                 );
             }
-            
+
             try {
                 bignum initial_value = evaluate_first_argument(args[0], op_name, env);
+                if (1 == args.size()) {
+                    return value::make(op(identity, initial_value));
+                }
 
                 bignum result = std::ranges::fold_left(args | std::views::drop(1),
                     initial_value,
@@ -1610,10 +1622,12 @@ env_ptr create_top_level_environment()
         builtins_env->define(name, value::make(builtin_operative{name, std::move(func)}));
     };
 
-    auto define_arithmetic = [define_builtin](const std::string& name, 
-                    std::function<bignum(bignum, bignum)> op)
+    auto define_arithmetic = [define_builtin](const std::string& name,
+                    std::function<bignum(bignum, bignum)> op, int identity,
+                    bool identity_without_arguments)
     {
-        define_builtin(name, builtins::make_arithmetic_operative(name, op));
+        define_builtin(name, builtins::make_arithmetic_operative(name, op,
+            bignum{identity}, identity_without_arguments));
     };
 
     // Control
@@ -1632,10 +1646,10 @@ env_ptr create_top_level_environment()
     define_builtin("load", builtins::load_operative);
     define_builtin("read", builtins::read_operative);
     // Arithmetic
-    define_arithmetic("+", std::plus<bignum>{});
-    define_arithmetic("-", std::minus<bignum>{});
-    define_arithmetic("*", std::multiplies<bignum>{});
-    define_arithmetic("/", std::divides<bignum>{});
+    define_arithmetic("+", std::plus<bignum>{}, 0, true);
+    define_arithmetic("-", std::minus<bignum>{}, 0, false);
+    define_arithmetic("*", std::multiplies<bignum>{}, 1, true);
+    define_arithmetic("/", std::divides<bignum>{}, 1, false);
     define_builtin("numerator", builtins::numerator_operative);
     define_builtin("denominator", builtins::denominator_operative);
     define_builtin("remainder", builtins::remainder_operative);

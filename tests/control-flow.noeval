@@ -656,6 +656,100 @@
 (test-assert (not false)
   "(not false) should return true")
 
+; nand and nor
+(test-assert (not (nand)) "(nand) should return false")
+(test-assert (not (nand true)) "(nand true) should return false")
+(test-assert (nand false) "(nand false) should return true")
+(test-assert (not (nand true true true))
+  "(nand true true true) should return false")
+(test-assert (nand true false true)
+  "(nand true false true) should return true")
+(test-assert (nand false false false)
+  "(nand false false false) should return true")
+
+(test-assert (nor) "(nor) should return true")
+(test-assert (not (nor true)) "(nor true) should return false")
+(test-assert (nor false) "(nor false) should return true")
+(test-assert (nor false false false)
+  "(nor false false false) should return true")
+(test-assert (not (nor false true false))
+  "(nor false true false) should return false")
+(test-assert (not (nor true true true))
+  "(nor true true true) should return false")
+
+(set! boolean-test-int 0)
+(nand false (boolean-test-set! 1))
+(test-assert (= 0 boolean-test-int)
+  "nand should short-circuit")
+
+(set! boolean-test-int 0)
+(nor true (boolean-test-set! 1))
+(test-assert (= 0 boolean-test-int)
+  "nor should short-circuit")
+
+(test-assert
+    (and (nand (= 1 1) (= 2 3)) (nor (= 1 2) (= 2 3)))
+  "nand and nor should evaluate their operands in the calling environment")
+
+(test-assert
+    (and (macro? nand) (macro? nor))
+  "nand and nor should be macros")
+
+(test-assert
+    (and (⊼ true false) (not (⊼ true true)) (⊽ false false) (not (⊽ false true)))
+  "⊼ and ⊽ should work like nand and nor")
+
+(set! boolean-test-int 0)
+(⊼ false (boolean-test-set! 1))
+(⊽ true (boolean-test-set! 1))
+(test-assert (= 0 boolean-test-int)
+  "⊼ and ⊽ should short-circuit like nand and nor")
+
+; xor and xnor
+(test-assert
+    (and (not (xor true true)) (xor true false) (xor false true) (not (xor false false)))
+  "xor of two operands should be true when exactly one is true")
+(test-assert
+    (and (xnor true true) (not (xnor true false)) (not (xnor false true)) (xnor false false))
+  "xnor of two operands should be true when they're equal")
+(test-assert (not (xor)) "(xor) should return false")
+(test-assert (xnor) "(xnor) should return true")
+(test-assert (and (xor true) (not (xor false)))
+  "xor of one operand should be that operand")
+(test-assert (xor true true true)
+  "xor should be true when an odd number of operands are true")
+(test-assert (not (xor true true false false))
+  "xor should be false when an even number of operands are true")
+(test-assert (not (xnor true true true))
+  "xnor should be false when an odd number of operands are true")
+(test-assert
+    (and (xor (= 1 1) (= 2 3)) (xnor (= 1 2) (= 2 3)))
+  "xor and xnor should evaluate their operands")
+
+; Every operand has to be evaluated, so neither short-circuits.
+(set! boolean-test-int 0)
+(define count-boolean
+  (lambda* (b)
+    (set! boolean-test-int (+ boolean-test-int 1))
+    b))
+(xor (count-boolean true) (count-boolean true) (count-boolean false))
+(xnor (count-boolean true) (count-boolean false))
+(test-assert (= 5 boolean-test-int)
+  "xor and xnor should evaluate every operand")
+
+(test-assert
+    (and (operative? xor) (operative? xnor))
+  "xor and xnor should be functions")
+(test-assert
+    (and (⊻ true false) (not (⊻ true true)))
+  "⊻ should work like xor")
+
+(test-assert
+    (= (let ((not 1) (and 2) (or 3))
+         ((nand true false) ((nor false false) "both" "only nand") "not nand"))
+       "both")
+  "nand and nor should be unaffected by local bindings of not, and, and or")
+
 ; Nested operations
 (test-assert (and (or true false) (not false))
   "nested boolean operations should work")

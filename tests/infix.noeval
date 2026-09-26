@@ -1,0 +1,38 @@
+;------------------------------------------------------------------------------
+; infix tests
+(lndisplayln "infix tests")
+
+; The message of the error expr raises
+(define infix-error
+  (vau (expr) env
+    (try (eval expr env)
+         (lambda (e) (second e)))))
+
+(test-assert (= (infix 1 + 2) 3)
+  "infix should apply a binary operator")
+(test-assert (= (infix (1 + 2)) 3)
+  "infix should unwrap a parenthesized expression")
+(test-assert (= (infix (1 + 2) * (10 - 4)) 18)
+  "infix should handle parenthesized operands")
+(test-assert (= (infix ((1 + 2) * ((10 - 4) / 2))) 9)
+  "infix should handle nested groups")
+(test-assert (= (infix abs (0 - 5)) 5)
+  "infix should apply a unary operator")
+(test-assert (= (infix 7) 7)
+  "infix of a single value should be that value")
+(test-assert (= ((infix (1 + 2) = 3) "yes" "no") "yes")
+  "infix should work with comparisons")
+
+(test-assert
+    (= (let ((a 2) (b 3)) (infix a * (b + 1))) 8)
+  "infix should evaluate its operands in the calling environment")
+(test-assert
+    (= (let ((plus +)) (infix 1 plus 2)) 3)
+  "infix should look up its operators in the calling environment")
+
+(test-assert
+    (= (infix-error (infix 1 + 2 + 3)) "infix expression must have 1, 2, or 3 elements")
+  "infix should reject an expression with more than three elements")
+(test-assert
+    (= (infix-error (infix)) "infix expression must have 1, 2, or 3 elements")
+  "infix should reject an empty expression")

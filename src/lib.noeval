@@ -489,10 +489,35 @@
       (define val (eval operand env))
       (val false true))))
 
+; (nand operand ...) is (not (and operand ...)), and (nor operand ...) is
+; (not (or operand ...)). They're macros that expand to exactly that, so they
+; short-circuit in the same way: nand stops at the first false operand and
+; nor at the first true one. (nand) is false and (nor) is true.
+(define nand (macro (vau operands _ (list not (cons and operands)))))
+(define nor (macro (vau operands _ (list not (cons or operands)))))
+
+; (xor operand ...) is true when an odd number of its operands are true. That's
+; what chaining two-operand xor from the left gives: (xor a b c) is
+; (xor (xor a b) c). (xor) is false. The result depends on every operand, so
+; all of them are evaluated, and xor is an ordinary function rather than a
+; macro.
+(define xor
+  (lambda operands
+    (foldl (lambda (result operand) (operand (not result) result))
+           false
+           operands)))
+
+; (xnor operand ...) is (not (xor operand ...)): true when an even number of its
+; operands are true. With two operands, that's equivalence. (xnor) is true.
+(define xnor (lambda operands (not (apply xor operands))))
+
 (define λ lambda)
 (define ∧ and)
 (define ∨ or)
 (define ¬ not)
+(define ⊼ nand)
+(define ⊽ nor)
+(define ⊻ xor)
 (define × *)
 (define ÷ /)
 
@@ -582,6 +607,82 @@
                    (map first bindings)
                    (rest operands))
           (map second bindings)))))
+
+; (pipe name first-expression expression ...)
+; Pipelines a value through a sequence of expressions: name is bound to the
+; value of the first expression, then to the value of each following
+; expression in turn, and the value of the last expression is returned. It's
+; a macro that expands to nested lets:
+;   (pipe x 10 (+ x 1) (* x 2))
+; becomes
+;   (let ((x 10)) (let ((x (+ x 1))) (* x 2)))
+; which is 22. With only one expression, name isn't bound. Each let is a new
+; scope, so name can be rebound at each step, and it isn't bound afterward.
+; Ported from https://github.com/fisherro/pipe
+(define pipe
+  (macro (vau* operands _
+    (when (nil? operands)
+      (raise "pipe requires a name and at least one expression"))
+    (define name (first operands))
+    (unless (symbol? name)
+      (raise "pipe's name must be a symbol"))
+    (define expressions (rest operands))
+    (when (nil? expressions)
+      (raise "pipe requires a name and at least one expression"))
+    (define reversed (reverse expressions))
+    (foldl (lambda (body expression)
+             (list let (list (list name expression)) body))
+           (first reversed)
+           (rest reversed)))))
+
+; (pipe-it first-expression expression ...)
+; An anaphoric pipe: (pipe-it expression ...) is (pipe it expression ...), so
+; it binds the name it, on purpose, for each expression after the first.
+(define pipe-it
+  (macro (vau* operands _
+    (when (nil? operands)
+      (raise "pipe-it requires at least one expression"))
+    (cons pipe (cons (q it) operands)))))
+
+; (infix expression ...)
+; Infix notation, with parentheses for grouping and no precedence:
+;   (infix x op y) is (op x y)
+;   (infix op x) is (op x), so it can also call a one-argument function
+;   (infix x) is x, and (infix (e ...)) is (infix e ...)
+; Each operand is handled the same way, so (infix (1 + 2) * (10 - 4)) is
+; (* (+ 1 2) (- 10 4)). Anything else, such as 1 + 2 + 3, is an error. The
+; whole expression is transformed once, when it's first evaluated.
+; Ported from this Scheme macro:
+;   (define-syntax infix
+;     (syntax-rules ()
+;       ((_ (x . y)) (infix x . y))
+;       ((_ x op y) (op (infix x) (infix y)))
+;       ((_ op x) (op (infix x)))
+;       ((_ x) x)))
+(define infix
+  (macro (vau operands _
+    (do
+      (define infix-list
+        (lambda (elements)
+          (cond ((nil? elements)
+                 (raise "infix expression must have 1, 2, or 3 elements"))
+                ((nil? (rest elements))
+                 (infix-element (first elements)))
+                ((nil? (rest (rest elements)))
+                 (list (first elements) (infix-element (second elements))))
+                ((nil? (rest (rest (rest elements))))
+                 (list (second elements)
+                       (infix-element (first elements))
+                       (infix-element (third elements))))
+                (else
+                 (raise "infix expression must have 1, 2, or 3 elements")))))
+      ; A parenthesized element is an infix expression of its own.
+      (define infix-element
+        (lambda (element)
+          ((= (q cons-cell) (typeof element))
+           (infix-list element)
+           element)))
+      (infix-list operands)))))
 
 ; apply: The applicative version of invoke
 ; Takes an applicative and a list of arguments,
