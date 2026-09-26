@@ -1750,9 +1750,12 @@ void add_church_boleans(env_ptr env)
     env->define("false", false_value);
 }
 
-// Create a top-level environment, for the library and the code that uses it.
-// Its parent holds the builtins, so the library and user code can shadow a
-// builtin but can't replace it.
+// Create a top-level environment, for scripts and the REPL. Its parent is the
+// library environment, which starts out empty and is where the library is
+// loaded (see reload_top_level_environment), and the library environment's
+// parent holds the builtins. So a top-level definition can shadow a builtin or
+// a library name without changing what the library sees, since library code
+// looks names up from the library environment.
 env_ptr create_top_level_environment()
 {
     auto builtins_env = environment::make();
@@ -1827,9 +1830,12 @@ env_ptr create_top_level_environment()
 
     add_church_boleans(builtins_env);
 
-    auto top_level = environment::make(builtins_env);
+    auto library_env = environment::make(builtins_env);
+    auto top_level = environment::make(library_env);
     define_builtin("get-builtins-environment",
         builtins::make_environment_getter("get-builtins-environment", builtins_env));
+    define_builtin("get-library-environment",
+        builtins::make_environment_getter("get-library-environment", library_env));
     define_builtin("get-top-level-environment",
         builtins::make_environment_getter("get-top-level-environment", top_level));
     return top_level;
@@ -2404,9 +2410,10 @@ env_ptr reload_top_level_environment(bool test_the_library)
     auto env = create_top_level_environment();
     environment::collect();
 
-    // Load standard library
+    // Load the standard library into the library environment, the top-level
+    // environment's parent
     std::println("Loading standard library...");
-    bool library_ok = load_library_file("src/lib.noeval", env);
+    bool library_ok = load_library_file("src/lib.noeval", env->get_parent());
     if (not library_ok) {
         std::println("Loading the library failed!");
         return env_ptr{nullptr};

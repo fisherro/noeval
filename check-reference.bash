@@ -10,7 +10,7 @@ trap 'rm -f "$script"' EXIT
 cat > "$script" <<'NOEVAL'
 (for-each (lambda (name) (displayln "name: " name))
           (append (environment-names (get-builtins-environment))
-                  (environment-names (get-top-level-environment))))
+                  (environment-names (get-library-environment))))
 NOEVAL
 
 missing=0
