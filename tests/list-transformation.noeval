@@ -468,17 +468,17 @@
   "append multiple lists - fourth element from third list")
 
 ; Test 6: Single element lists
-(define single-result (append (list 10) (list 20) (list 30)))
+(define single-result-2 (append (list 10) (list 20) (list 30)))
 (test-assert
-    (= (first single-result) 10)
+    (= (first single-result-2) 10)
   "append single element lists - first")
 
 (test-assert
-    (= (first (rest single-result)) 20)
+    (= (first (rest single-result-2)) 20)
   "append single element lists - second")
 
 (test-assert
-    (= (first (rest (rest single-result))) 30)
+    (= (first (rest (rest single-result-2))) 30)
   "append single element lists - third")
 
 ; Test 7: Mixed data types
@@ -537,9 +537,9 @@
   "append with many empty lists - second non-empty element")
 
 ; Test 11: append with library-generated lists
-(define mapped-list (map (lambda (x) (* x 2)) (list 1 2 3)))
+(define mapped-list-2 (map (lambda (x) (* x 2)) (list 1 2 3)))
 (define filtered-list (filter even? (list 2 4 6 8)))
-(define lib-result (append mapped-list filtered-list))
+(define lib-result (append mapped-list-2 filtered-list))
 (test-assert
     (= (first lib-result) 2)  ; 1*2 from mapped list
   "append with library lists - first from map")
@@ -813,17 +813,17 @@
 
 ; Test 10: Filter with complex predicate
 (define greater-than-two (lambda (x) (not (or (= x 1) (= x 2)))))
-(define complex-result (filter greater-than-two (list 1 2 3 4 1 5 2)))
+(define complex-result-2 (filter greater-than-two (list 1 2 3 4 1 5 2)))
 (test-assert
-    (= (first complex-result) 3)
+    (= (first complex-result-2) 3)
   "filter with complex predicate - first")
 
 (test-assert
-    (= (first (rest complex-result)) 4)
+    (= (first (rest complex-result-2)) 4)
   "filter with complex predicate - second")
 
 (test-assert
-    (= (first (rest (rest complex-result))) 5)
+    (= (first (rest (rest complex-result-2))) 5)
   "filter with complex predicate - third")
 
 ; Test 11: Filter with Church Boolean predicate returning functions
@@ -839,13 +839,13 @@
 
 ; Test 12: Filter with wrapped operative predicate
 (define wrapped-equal-three (wrap (vau (x) env (= (eval x env) 3))))
-(define wrapped-result (filter wrapped-equal-three (list 1 3 2 3 4)))
+(define wrapped-result-2 (filter wrapped-equal-three (list 1 3 2 3 4)))
 (test-assert
-    (= (first wrapped-result) 3)
+    (= (first wrapped-result-2) 3)
   "filter should work with wrapped operatives - first")
 
 (test-assert
-    (= (first (rest wrapped-result)) 3)
+    (= (first (rest wrapped-result-2)) 3)
   "filter should work with wrapped operatives - second")
 
 ; Test 13: Filter with predicate that has side effects
@@ -854,13 +854,13 @@
   (lambda* (x)
     (set! filter-side-counter (+ filter-side-counter 1))
     (even? x)))
-(define side-effect-result (filter counting-predicate (list 1 2 3 4)))
+(define side-effect-result-2 (filter counting-predicate (list 1 2 3 4)))
 (test-assert
     (= filter-side-counter 4)
   "filter should call predicate exactly once per element")
 
 (test-assert
-    (= (first side-effect-result) 2)
+    (= (first side-effect-result-2) 2)
   "filter with side effects should still produce correct results")
 
 ; Test 14: Filter with different data types
@@ -880,8 +880,8 @@
   "filter result should be properly nil-terminated")
 
 ; Test 16: Filter with longer list
-(define long-list (list 1 2 3 4 5 6 7 8 9 10))
-(define long-evens (filter even? long-list))
+(define long-list-2 (list 1 2 3 4 5 6 7 8 9 10))
+(define long-evens (filter even? long-list-2))
 (test-assert
     (= (length long-evens) 5)
   "filter should work with longer lists - correct count")

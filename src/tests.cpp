@@ -713,6 +713,16 @@ int test_environments()
     check(std::string::npos != error.find("the environment no longer exists"),
           "get-top-level-environment fails once the environment is gone");
 
+    // Only the REPL provides redefine, which can rebind a name
+    auto plain_env = create_top_level_environment();
+    auto repl_env = create_top_level_environment();
+    add_repl_bindings(repl_env);
+    parser p3("(define y 1) (redefine y 2) y");
+    value_ptr redefined;
+    for (const auto& expr: p3.parse_all()) redefined = eval(expr, repl_env);
+    check((not plain_env->binds("redefine")) and "2" == value_to_string(redefined),
+          "redefine is only in the REPL, and rebinds a name");
+
     if (0 != failures) {
         println_red("✗ {} environment test(s) failed", failures);
     }

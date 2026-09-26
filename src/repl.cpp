@@ -403,6 +403,7 @@ bool handle_special_command(const std::string& input)
         std::println("  :help          - Show this help");
         std::println("  :reload        - Recreate the global environment and reload the library (with tests)");
         std::println("  :reload fast   - Recreate the global environment and reload the library (skip tests)");
+        std::println("  (redefine name value) - Like define, but may rebind a name (REPL only)");
         std::println("  :debug ...     - Debug control commands (:debug help for details)");
         std::println("  quit, exit     - Exit the REPL");
         std::println("");
@@ -452,6 +453,8 @@ void print_error(const std::exception& e)
 // Simple REPL with multi-line support
 void repl(env_ptr env)
 {
+    // Only the REPL may rebind a name, with redefine
+    add_repl_bindings(env);
     completion_env = env;
 #if 0
     // I'm not ready to enable saving the history yet.

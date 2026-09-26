@@ -185,6 +185,15 @@ Unlike Kernel, all objects (or perhaps more precisely, all bindings) are
 immutable by default. The `define-mutable` form can be used to create a mutable
 binding, which can then be modified with the `set!` primitive.
 
+Neither `define` nor `define-mutable` can rebind a name that's already bound
+in the same environment, whether the binding is mutable or not. Use `set!` to
+change a mutable binding, or `let` to bind the name in a new scope. (A name
+bound in an enclosing environment can still be shadowed.)
+
+The REPL is the exception: it provides `redefine`, which works like `define`
+but may rebind a name, so that you can redefine things as you work. Scripts
+and the library don't have it.
+
 Kernel uses an interesting trick with `unwrap` and `define` to implement `set!`
 by modifying the dynamic environment. I'm not sure whether I think this is a
 good idea or not.

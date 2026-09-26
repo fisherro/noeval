@@ -13,6 +13,7 @@ A summary of the language, for working on Noeval code (for example, as context f
 **Predicates**: `=` (evaluate all arguments)
 **I/O**: `write`, `display`, `flush` (evaluate all arguments), `read` (reads the next expression from standard input, or returns an eof object at the end)
 **Mutation**: `define-mutable`, `set!`
+**REPL only**: `redefine` (like `define`, but may rebind a name that's already bound)
 **Church Booleans**: `true`, `false` (built-in operatives)
 **Reflection**: `typeof`
 **Environments**: `environment-names`, `environment-parent`, `get-builtins-environment`, `get-top-level-environment` (see [Environments](#environments))
@@ -103,6 +104,8 @@ Environments are first-class values that can be inspected.
 - `(define x 42)` creates an **immutable** binding - `(set! x 99)` will fail
 - `(define-mutable x 42)` creates a **mutable** binding - `(set! x 99)` will succeed
 - `set!` can only modify variables that were explicitly created as mutable
+- `define` and `define-mutable` can't rebind a name already bound in the same environment, mutable or not. Use `set!` for a mutable binding or `let` for a new scope. Shadowing a name from an enclosing environment is allowed.
+- In the REPL, `redefine` can rebind a name
 
 ### Body Expression Limits
 

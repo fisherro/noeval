@@ -675,14 +675,31 @@ namespace builtins {
     }
 
     // Does not evaluate first argument, but evaluates the second
-    continuation_type define_operative(const std::vector<value_ptr>& args, env_ptr env)
+    // define and define-mutable can't rebind a name in the same environment.
+    // (A binding in an ancestor environment can be shadowed.)
+    void check_not_bound(std::string_view op_name, const env_ptr& env, const std::string& name)
+    {
+        if (env->binds(name)) {
+            throw evaluation_error(
+                std::format("{}: {} is already defined in this environment "
+                            "(use set! to change a mutable binding, or let for a new scope)",
+                            op_name, name),
+                std::string{op_name},
+                call_stack::format()
+            );
+        }
+    }
+
+    // define, and the REPL's redefine, which may rebind a name
+    continuation_type define_binding(std::string_view op_name, bool allow_rebind,
+        const std::vector<value_ptr>& args, env_ptr env)
     {
         if (2 != args.size()) {
             throw evaluation_error(
-                std::format("define: expected 2 arguments (symbol value), got {}", args.size()),
-                args.empty()? "(define)":
-                1 == args.size()? std::format("(define {})", expr_context(args[0])):
-                std::format("(define {} {} ...)", expr_context(args[0]), expr_context(args[1])),
+                std::format("{}: expected 2 arguments (symbol value), got {}", op_name, args.size()),
+                args.empty()? std::format("({})", op_name):
+                1 == args.size()? std::format("({} {})", op_name, expr_context(args[0])):
+                std::format("({} {} {} ...)", op_name, expr_context(args[0]), expr_context(args[1])),
                 call_stack::format()
             );
         }
@@ -692,14 +709,16 @@ namespace builtins {
         
         if (not std::holds_alternative<symbol>(sym_expr->data)) {
             throw evaluation_error(
-                std::format("define: first argument must be a symbol, got {}", expr_context(sym_expr)),
-                std::format("(define {} {})", expr_context(sym_expr), expr_context(val_expr)),
+                std::format("{}: first argument must be a symbol, got {}", op_name, expr_context(sym_expr)),
+                std::format("({} {} {})", op_name, expr_context(sym_expr), expr_context(val_expr)),
                 call_stack::format()
             );
         }
         
+        auto sym_name = std::get<symbol>(sym_expr->data).name;
+        if (not allow_rebind) check_not_bound(op_name, env, sym_name);
+
         try {
-            auto sym_name = std::get<symbol>(sym_expr->data).name;
             auto val = eval(val_expr, env);
             
             env->define(sym_name, val);
@@ -708,11 +727,21 @@ namespace builtins {
             throw; // Re-throw evaluation errors as-is
         } catch (const std::exception& e) {
             throw evaluation_error(
-                std::format("define: {}", e.what()),
-                std::format("(define {} {})", expr_context(sym_expr), expr_context(val_expr)),
+                std::format("{}: {}", op_name, e.what()),
+                std::format("({} {} {})", op_name, expr_context(sym_expr), expr_context(val_expr)),
                 call_stack::format()
             );
         }
+    }
+
+    continuation_type define_operative(const std::vector<value_ptr>& args, env_ptr env)
+    {
+        return define_binding("define", false, args, env);
+    }
+
+    continuation_type redefine_operative(const std::vector<value_ptr>& args, env_ptr env)
+    {
+        return define_binding("redefine", true, args, env);
     }
 
     // Helper function to validate and extract number from value
@@ -1109,8 +1138,10 @@ namespace builtins {
             );
         }
         
+        auto sym_name = std::get<symbol>(sym_expr->data).name;
+        check_not_bound("define-mutable", env, sym_name);
+
         try {
-            auto sym_name = std::get<symbol>(sym_expr->data).name;
             auto val = eval(val_expr, env);
             
             // Wrap the value in a mutable_binding
@@ -1727,6 +1758,12 @@ env_ptr create_top_level_environment()
     define_builtin("get-top-level-environment",
         builtins::make_environment_getter("get-top-level-environment", top_level));
     return top_level;
+}
+
+void add_repl_bindings(env_ptr env)
+{
+    env->define("redefine",
+        value::make(builtin_operative{"redefine", builtins::redefine_operative}));
 }
 
 // Bind parameters to operands in target environment

@@ -21,7 +21,8 @@ rules for C++ and Noeval code.
   need an environment of its own, and a helper that shouldn't be visible
   outside a definition belongs inside a `lambda*` or `let`.
 - **Immutable by default.** Mutation is explicit: only bindings created with
-  `define-mutable` can be changed with `set!`.
+  `define-mutable` can be changed with `set!`, and `define` can't rebind a
+  name in the same environment.
 
 ## Building and testing
 
