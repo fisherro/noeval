@@ -392,7 +392,16 @@ bool is_special_command(const std::string& input)
 }
 
 // Handle special commands (returns true if command was handled)
-bool handle_special_command(const std::string& input)
+// Give the REPL a new environment, with the bindings only it provides
+void use_environment(env_ptr& env, env_ptr new_env)
+{
+    env = std::move(new_env);
+    add_repl_bindings(env);
+    completion_env = env;
+}
+
+// env is the REPL's environment, which :reload replaces.
+bool handle_special_command(const std::string& input, env_ptr& env)
 {
     if (handle_debug_command(input)) {
         return true;
@@ -417,12 +426,13 @@ bool handle_special_command(const std::string& input)
         iss >> command >> option;
         
         bool test_the_library = ("fast" != option);
-        bool ok = static_cast<bool>(reload_top_level_environment(test_the_library));
-        if (ok) {
+        auto new_env = reload_top_level_environment(test_the_library);
+        if (new_env) {
+            use_environment(env, std::move(new_env));
             std::println("Environment reloaded successfully{}", 
                         test_the_library? " (with tests)": " (skipping tests)");
         } else {
-            std::println("Failed to reload environment");
+            std::println("Failed to reload environment; keeping the current one");
         }
         return true;
     }
@@ -454,8 +464,7 @@ void print_error(const std::exception& e)
 void repl(env_ptr env)
 {
     // Only the REPL may rebind a name, with redefine
-    add_repl_bindings(env);
-    completion_env = env;
+    use_environment(env, env);
 #if 0
     // I'm not ready to enable saving the history yet.
     auto history_file = get_history_file();
@@ -480,7 +489,7 @@ void repl(env_ptr env)
         
         // Handle special commands first
         if (is_special_command(input)) {
-            if (handle_special_command(input)) {
+            if (handle_special_command(input, env)) {
                 continue; // Command was handled
             }
             
