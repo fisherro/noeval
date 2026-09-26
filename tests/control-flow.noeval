@@ -923,8 +923,16 @@
 (test-error (wrap 42) "wrap should reject non-operative arguments")
 (test-error (wrap "string") "wrap should reject non-operative arguments")
 
+; Test invoke
+(test-assert (= (invoke + (list 1 2 3)) 6)
+  "invoke should call an operative with the list's elements as its operands")
+(test-assert (= (let ((x 5)) (invoke + (list (q x) 1))) 6)
+  "invoke should let an applicative evaluate the operands in the calling environment")
+(test-assert (= (invoke q (list (q x))) (q x))
+  "invoke should pass the operands to an operative unevaluated")
+
 ; Test invoke errors
-(test-error (invoke) "invoke should require at least 1 argument")
+(test-error (invoke) "invoke should require exactly 2 arguments")
 (test-error (invoke 42 (list 1 2)) "invoke should reject non-operative first argument")
 (test-error (invoke + "not-list") "invoke should reject non-list second argument")
 

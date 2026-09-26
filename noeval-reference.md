@@ -4,7 +4,7 @@ A summary of the language, for working on Noeval code (for example, as context f
 
 ## Built-in Operatives (C++)
 
-**Control**: `vau`, `eval`, `eval-list`, `define`, `invoke`, `do`, `try`, `raise`, `load`, `macro` (see [Macros](#macros))
+**Control**: `vau`, `eval`, `eval-list`, `define`, `do`, `try`, `raise`, `load`, `macro` (see [Macros](#macros))
 **Arithmetic**: `+`, `-`, `*`, `/` (evaluate all arguments). As in Scheme: `(+)` is 0 and `(*)` is 1, while `(-)` and `(/)` are errors; `(- x)` negates `x` and `(/ x)` is its reciprocal; with more arguments, the operator is applied from the left, so `(- 10 3 2)` is 5.
 **Numeric operations**: `numerator`, `denominator`, `remainder`
 **Numeric comparisons**: `<=>` (evaluate all arguments)
@@ -40,7 +40,7 @@ A summary of the language, for working on Noeval code (for example, as context f
 
 ## Standard Library (lib.noeval)
 
-**Core**: `wrap`, `apply`, and the macros `lambda` (single expression), `lambda*` (multiple expressions), `vau*` (multiple expressions), `if`, `let` and `cond` (see [Macros](#macros))
+**Core**: `wrap`, `apply`, `invoke` (`(invoke operative operand-list)` calls `operative` with the list's elements as its operands, unevaluated), and the macros `lambda` (single expression), `lambda*` (multiple expressions), `vau*` (multiple expressions), `if`, `let` and `cond` (see [Macros](#macros))
 **Lists**: `append`, `reverse`, `length`, `filter`, `map`, `foldl`, `foldr`, `foldl-until`, `foldr-until`, `unfoldl`, `unfoldr`, `last`, `list`, `snoc`, `iota`, `prepend`, `second`, `third`, `fourth`, `nth` (`(nth list index)`, zero-based), `take` and `drop` (`(take n list)`), `list-index`, `any?` and `all?` (`(any? predicate list)`)
 **Control**: `when` and `unless` (macros)
 **Logic**: `and`, `or`, and `not` (macros). `and` and `or` short-circuit, and as in Scheme, return their last operand as it is, in tail position, so `(and true 5)` is 5. Their other operands, and `not`'s, must be Church Booleans. Being macros, they can't be passed to a higher-order function such as `map` or `apply`; `and-fn`, `or-fn`, and `not-fn` are function versions for that, as in `(map not-fn flags)` or `(apply and-fn flags)`, which evaluate all their arguments but otherwise give the same results. `nand` and `nor` are macros: `(nand x ...)` is `(not (and x ...))` and `(nor x ...)` is `(not (or x ...))`, so they short-circuit the same way. `xor` and `xnor` are functions, which evaluate every operand: `xor` is true when an odd number of its operands are true, so `(xor a b c)` is `(xor (xor a b) c)`, and `(xnor ...)` is `(not (xor ...))`. `(xor)` is false and `(xnor)` is true.

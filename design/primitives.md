@@ -10,8 +10,8 @@ benchmarks. The counts are relative to the builtin version.
 
 | Builtin | Verdict |
 | --- | --- |
-| `invoke` | Can move to the library, at no measurable cost |
-| `numerator` | Can move to the library: `(* x (denominator x))` |
+| `invoke` | Moved to the library, at no measurable cost |
+| `numerator` | Keep: it could move, but there's nothing to gain |
 | `nil?` | Can move, but costs up to 17% on list-heavy code |
 | `do` | Keep: a library version runs about 3 times as many instructions |
 | `write`, `display` | Keep for now; see the TODO item about consolidating them |
@@ -21,8 +21,9 @@ benchmarks. The counts are relative to the builtin version.
 
 ### invoke
 
-`(invoke operative arg-list)` builds `(operative . arg-list)` and evaluates it
-in the calling environment, which the library can do directly:
+`(invoke operative arg-list)` built `(operative . arg-list)` and evaluated it
+in the calling environment, which the library can do directly, so it's now
+defined there:
 
 ```scheme
 (define invoke
@@ -30,15 +31,12 @@ in the calling environment, which the library can do directly:
     (eval (cons operative (eval operands env)) env)))
 ```
 
-The library tests pass with this definition, and the instruction counts
-didn't change (within 0.2%), since only `prepend` uses `invoke`. The C++
-tests that call it (`test_invoke_operative`) would move to the library tests,
-since the C++ tests run without the library. The builtin also converts its
-argument list to a vector that it never uses.
+The instruction counts didn't change (within 0.2%), since only `prepend`
+uses `invoke`. Its C++ tests moved to the library tests, since the C++ tests
+run without the library.
 
-`invoke` is close to `apply`, which evaluates its arguments. Once it's in the
-library, it could also be dropped, with `prepend` using `eval` and `cons`
-itself.
+`invoke` is close to `apply`. Now that it's in the library, it could also be
+dropped, with `prepend` using `eval` and `cons` itself.
 
 ### numerator
 
@@ -46,6 +44,10 @@ Nothing in the library or the library tests uses `numerator`, and for any
 number `x`, `(numerator x)` is `(* x (denominator x))`. That was checked for
 0, integers, and negative and positive fractions. `denominator` stays, since
 `numerator` can't give it back without dividing, and `integer?` uses it.
+
+But `numerator` stays a builtin too. It's trivial for the interpreter, and
+moving it gains no flexibility: this is a place where the principle of
+minimizing primitives isn't reason enough to bother.
 
 ### nil?
 
@@ -73,8 +75,8 @@ since 8 of them use `nil?` without the library.
 
 A library `do` has to evaluate its last expression as a tail call, as the
 builtin does, or loops written with `lambda*` would grow the stack. The
-version in `src/lib.noeval` (skipped with `#skip`) doesn't. This one does,
-using `cons` to sequence two evaluations, since there's no `do` yet to
+version that was in `src/lib.noeval` (skipped with `#skip`) didn't. This one
+does, using `cons` to sequence two evaluations, since there's no `do` yet to
 sequence them:
 
 ```scheme
@@ -102,8 +104,9 @@ The library tests pass and a 100,000-iteration loop runs, but every body of a
 
 Errors still report the same locations. (Eight C++ tests fail, but only
 because they use `do` without loading the library.) So `do` stays a builtin,
-for speed. The skipped library version, and the `USE_PRIMITIVE_DO` switch
-that goes with it, could be removed, with this section as the record of why.
+for speed. The skipped library version, which didn't make tail calls, and the
+`USE_PRIMITIVE_DO` switch that went with it have been removed, with this
+section as the record of why.
 
 ### write and display
 
@@ -125,11 +128,12 @@ is, with both `write` and `display` in the library.
   `eval_list_operative`).
 - **Data**: `cons`, `first`, `rest`, `=`, `typeof`, `string->list`,
   `list->string`, `string->symbol`, `symbol->string`.
-- **Numbers**: `+`, `-`, `*`, `/`, `<=>`, `denominator`, and `remainder`,
-  which `quotient` and `modulo` are built on. (Integer division can't be made
-  from the others without looping.) `number->string` and `string->number`
-  could be written in the library, but they read and write the same forms as
-  the reader and printer, which they share code with.
+- **Numbers**: `+`, `-`, `*`, `/`, `<=>`, `numerator` (see above),
+  `denominator`, and `remainder`, which `quotient` and `modulo` are built on.
+  (Integer division can't be made from the others without looping.)
+  `number->string` and `string->number` could be written in the library, but
+  they read and write the same forms as the reader and printer, which they
+  share code with.
 - **Mutation**: `define-mutable`, `set!`.
 - **I/O**: `load`, `read`, `flush`.
 - **Environments**: `environment-names`, `environment-parent`, and the

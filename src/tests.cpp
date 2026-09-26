@@ -415,20 +415,6 @@ int test_eval_operative()
     return runner.failures;
 }
 
-int test_invoke_operative()
-{
-    std::println("\n--- Invoke operative ---");
-    auto env = create_top_level_environment();
-    test_runner runner(env);
-    
-    env->define("nil-val", value::make(nullptr));
-
-    runner.test_eval("(invoke + (cons 1 (cons 2 (cons 3 nil-val))))", "6");
-    runner.test_eval("(invoke * (cons 2 (cons 3 (cons 4 nil-val))))", "24");
-
-    return runner.failures;
-}
-
 int test_error_conditions()
 {
     std::println("\n--- Error conditions ---");
@@ -458,7 +444,6 @@ int test_eval_comprehensive()
     total_failures += test_church_booleans();
     total_failures += test_vau_operatives();
     total_failures += test_eval_operative();
-    total_failures += test_invoke_operative();
     total_failures += test_error_conditions();
     
     std::println("\nComprehensive eval tests completed: {} failures", total_failures);
