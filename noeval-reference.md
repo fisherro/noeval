@@ -55,7 +55,7 @@ A summary of the language, for working on Noeval code (for example, as context f
 **String operations**: `string-length`, `string-nth`, `substring`, `string-append`, `strings->string`, `string->codepoint-strings`, `codepoints->utf8` and `utf8->codepoints` (convert between lists of codepoints and lists of UTF-8 byte values)
 **Testing**: `test-assert`, `test-error` (for library test suite)
 **Internal helpers**: `cond-transformer` (`cond`'s transformer)
-**Unicode support**: `λ` (alias for `lambda`), `∧` (alias for `and`), `∨` (alias for `or`), `¬` (alias for `not`), `×` (alias for `*`), `÷` (alias for `/`)
+**Unicode support**: `λ` (alias for `lambda`), `∧` (alias for `and`), `∨` (alias for `or`), `¬` (alias for `not`), `⊼` (alias for `nand`), `⊽` (alias for `nor`), `×` (alias for `*`), `÷` (alias for `/`)
 
 ## Environments
 

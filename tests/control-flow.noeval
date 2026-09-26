@@ -696,6 +696,16 @@
   "nand and nor should be macros")
 
 (test-assert
+    (and (⊼ true false) (not (⊼ true true)) (⊽ false false) (not (⊽ false true)))
+  "⊼ and ⊽ should work like nand and nor")
+
+(set! boolean-test-int 0)
+(⊼ false (boolean-test-set! 1))
+(⊽ true (boolean-test-set! 1))
+(test-assert (= 0 boolean-test-int)
+  "⊼ and ⊽ should short-circuit like nand and nor")
+
+(test-assert
     (= (let ((not 1) (and 2) (or 3))
          ((nand true false) ((nor false false) "both" "only nand") "not nand"))
        "both")
