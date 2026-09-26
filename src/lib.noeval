@@ -617,9 +617,24 @@
  10 2)
 #end
 
+; (let ((name expression) ...) body ...)
+; Each binding must be a list of a symbol and one expression.
 (define let
   (vau* operands dyn-env
+    (when (nil? operands)
+      (raise "let requires a list of bindings"))
     (define bindings (first operands))
+    (unless (list? bindings)
+      (raise "let's bindings must be a list"))
+    (for-each
+      (lambda (binding)
+        (cond ((or (not (= (q cons-cell) (typeof binding)))
+                   (nil? (rest binding))
+                   (not (nil? (rest (rest binding)))))
+               (raise "let binding must be a list of a name and an expression"))
+              ((not (symbol? (first binding)))
+               (raise "let binding's name must be a symbol"))))
+      bindings)
     (eval (cons (prepend lambda*
                          (map first bindings)
                          (rest operands))

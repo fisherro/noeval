@@ -244,4 +244,38 @@
          (op a b)) 12)
   "let should work with wrapped operatives")
 
+;------------------------------------------------------------------------------
+; let binding validation
 
+; The message of the error expr raises
+(define let-error
+  (vau (expr) env
+    (try (eval expr env)
+         (lambda (e) (second e)))))
+
+(test-assert
+    (= (let-error (let)) "let requires a list of bindings")
+  "let should require a list of bindings")
+
+(test-assert
+    (= (let-error (let 5 1)) "let's bindings must be a list")
+  "let should reject bindings that aren't a list")
+
+(test-assert
+    (= (let-error (let (x) x))
+       "let binding must be a list of a name and an expression")
+  "let should reject a binding that isn't a list")
+
+(test-assert
+    (= (let-error (let ((x)) x))
+       "let binding must be a list of a name and an expression")
+  "let should reject a binding without an expression")
+
+(test-assert
+    (= (let-error (let ((x 1 2)) x))
+       "let binding must be a list of a name and an expression")
+  "let should reject a binding with more than one expression")
+
+(test-assert
+    (= (let-error (let ((1 2)) 3)) "let binding's name must be a symbol")
+  "let should reject a binding whose name isn't a symbol")
