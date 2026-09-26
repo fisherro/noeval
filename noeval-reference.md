@@ -40,7 +40,7 @@ A summary of the language, for working on Noeval code (for example, as context f
 
 ## Standard Library (lib.noeval)
 
-**Core**: `lambda` (single expression), `lambda*` (multiple expressions), `vau*` (multiple expressions), `wrap`, `apply`, and the macros `if`, `let` and `cond` (see [Macros](#macros))
+**Core**: `wrap`, `apply`, and the macros `lambda` (single expression), `lambda*` (multiple expressions), `vau*` (multiple expressions), `if`, `let` and `cond` (see [Macros](#macros))
 **Lists**: `append`, `reverse`, `length`, `filter`, `map`, `foldl`, `foldr`, `foldl-until`, `foldr-until`, `unfoldl`, `unfoldr`, `last`, `list`, `snoc`, `iota`, `prepend`, `second`, `third`, `fourth`, `nth` (`(nth list index)`, zero-based), `take` and `drop` (`(take n list)`), `list-index`, `any?` and `all?` (`(any? predicate list)`)
 **Control**: `when` and `unless` (macros)
 **Logic**: `and`, `or`, and `not` (macros). `and` and `or` short-circuit. All three treat every operand, including the last, as a Church Boolean, so a non-Boolean operand is an error. `nand` and `nor` are macros: `(nand x ...)` is `(not (and x ...))` and `(nor x ...)` is `(not (or x ...))`, so they short-circuit the same way. `xor` and `xnor` are functions, which evaluate every operand: `xor` is true when an odd number of its operands are true, so `(xor a b c)` is `(xor (xor a b) c)`, and `(xnor ...)` is `(not (xor ...))`. `(xor)` is false and `(xnor)` is true.
