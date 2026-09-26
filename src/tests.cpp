@@ -1568,7 +1568,16 @@ int test_string_primitives()
     runner.test_error("(list->string (cons 0.5 ()))", "must be an integer");
     runner.test_error("(list->string (cons 1114112 ()))", "Invalid Unicode codepoint");  // 0x110000
     runner.test_error("(list->string (cons 55296 ()))", "surrogate");  // 0xD800
-    
+
+    // Symbols
+    runner.test_eval("(string->symbol \"abc\")", "abc");
+    runner.test_eval("(typeof (string->symbol \"abc\"))", "symbol");
+    runner.test_eval("(symbol->string ((vau (x) () x) abc))", "\"abc\"");
+    runner.test_eval("(symbol->string ((vau (x) () x) é))", "\"é\"");
+    runner.test_error("(string->symbol)", "expected 1 argument");
+    runner.test_error("(string->symbol 42)", "string->symbol: argument must be a string");
+    runner.test_error("(symbol->string \"abc\")", "symbol->string: argument must be a symbol");
+
     return runner.failures;
 }
 

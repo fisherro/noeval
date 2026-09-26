@@ -248,3 +248,23 @@
          (let () (define-pair lo hi (list 1 9)) (define-pair lo hi (list 2 8))))
        "define: lo is already defined in this environment (use set! to change a mutable binding, or let for a new scope)")
   "a defining macro should follow define's rule against rebinding")
+
+; A defining macro can make new names from its operands with string->symbol.
+; (define-accessors point x y) defines point-x and point-y, which return the
+; first and second elements of a list.
+(define define-accessors
+  (macro (vau (prefix a b) _
+    (do
+      (define accessor-name
+        (lambda (field)
+          (string->symbol
+            (string-append (symbol->string prefix) "-" (symbol->string field)))))
+      (list do
+            (list define (accessor-name a) (list q first))
+            (list define (accessor-name b) (list q second)))))))
+(test-assert
+    (= (let ()
+         (define-accessors point x y)
+         (list (point-x (list 3 4)) (point-y (list 3 4))))
+       (list 3 4))
+  "a defining macro should be able to make new names with string->symbol")

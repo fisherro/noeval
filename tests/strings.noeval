@@ -939,3 +939,38 @@
   "4-byte character should round-trip")
 
 
+
+;------------------------------------------------------------------------------
+; string->symbol/symbol->string tests
+(lndisplayln "string->symbol/symbol->string tests")
+
+; The message of the error expr raises
+(define symbol-error
+  (vau (expr) env
+    (try (eval expr env)
+         (lambda (e) (second e)))))
+
+(test-assert (= (string->symbol "abc") (q abc))
+  "string->symbol should return the symbol with that name")
+(test-assert (= (symbol->string (q abc)) "abc")
+  "symbol->string should return a symbol's name")
+(test-assert (= (string->symbol (symbol->string (q λx))) (q λx))
+  "a symbol should round-trip through symbol->string")
+(test-assert (= (string->symbol (string-append "point" "-" "x")) (q point-x))
+  "string->symbol should make a symbol from a computed string")
+(test-assert (symbol? (string->symbol ""))
+  "string->symbol should accept any string")
+
+(define symbol-test-value 42)
+(test-assert
+    (= (eval (string->symbol "symbol-test-value") (get-current-environment)) 42)
+  "a symbol made by string->symbol should evaluate as a variable")
+
+(test-assert
+    (= (symbol-error (string->symbol 5)) "string->symbol: argument must be a string, got 5")
+  "string->symbol should reject an argument that isn't a string")
+(test-assert
+    (= (symbol-error (symbol->string "x")) "symbol->string: argument must be a symbol, got \"x\"")
+  "symbol->string should reject an argument that isn't a symbol")
+(test-error (string->symbol) "string->symbol should require an argument")
+(test-error (symbol->string (q a) (q b)) "symbol->string should require one argument")

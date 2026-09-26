@@ -10,6 +10,7 @@ A summary of the language, for working on Noeval code (for example, as context f
 **Numeric comparisons**: `<=>` (evaluate all arguments)
 **Lists**: `cons`, `first`, `rest`, `nil?` (evaluate all arguments)
 **Strings**: `string->list` and `list->string` convert to/from lists of Unicode codepoints as Noeval numbers
+**Symbols**: `string->symbol` returns the symbol with a string as its name (any string, even one that wouldn't read back as that symbol), and `symbol->string` returns a symbol's name
 **Predicates**: `=` (evaluate all arguments)
 **I/O**: `write`, `display`, `flush` (evaluate all arguments), `read` (reads the next expression from standard input, or returns an eof object at the end)
 **Mutation**: `define-mutable`, `set!`
@@ -69,7 +70,7 @@ Environments are first-class values that can be inspected.
 - **Write transformers with `vau`**: a transformer receives the operands unevaluated, so a `lambda` would evaluate them.
 - **Empty environment**: the transformer's environment argument is a new environment with no bindings and no parent, so an expansion can depend only on the operands.
 - **Embed values, not names**: build expansions with `list` and `cons` so that they contain the values of `if`, `do` and so on, not their names, which the calling environment might rebind: `(macro (vau args _ (list if (first args) (cons do (rest args)) ())))`.
-- **Capture on purpose with names**: hygiene is a convention, chosen name by name. A symbol in an expansion is looked up, or bound, in the calling environment, so a macro can deliberately insert a name instead of a value. This supports anaphoric macros, which bind a name such as `it` for their body (`(cons let (cons (list (list (q it) (first args))) (rest args)))`), macros that refer to a caller's variable by name, and defining macros, which `define` names given as operands. A captured name is looked up wherever the combination is evaluated, even though the expansion is cached.
+- **Capture on purpose with names**: hygiene is a convention, chosen name by name. A symbol in an expansion is looked up, or bound, in the calling environment, so a macro can deliberately insert a name instead of a value. This supports anaphoric macros, which bind a name such as `it` for their body (`(cons let (cons (list (list (q it) (first args))) (rest args)))`), macros that refer to a caller's variable by name, and defining macros, which `define` names given as operands or made from them with `string->symbol`. A captured name is looked up wherever the combination is evaluated, even though the expansion is cached.
 - **No new scope**: the expansion is evaluated in the calling environment, so a `define` in it binds there, and `define`'s usual rule against rebinding applies.
 - **Only as an operator**: a macro value can't be evaluated on its own ("Cannot evaluate macro").
 - **Expanded once**: a combination's expansion is cached, invisibly, on the combination, and reused each time the combination is evaluated with a macro that has the same transformer. So a transformer runs once per combination, not once per call, and it shouldn't have side effects. A combination built at runtime (`(eval (cons m args) env)`) is expanded each time it's evaluated.

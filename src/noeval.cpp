@@ -1438,6 +1438,41 @@ namespace builtins {
         return value::make(s);
     }
 
+    // Evaluates its argument, which must be a string, and returns the symbol
+    // with that name. Like Scheme's, it accepts any string, including ones
+    // that wouldn't read back as that symbol, such as "" or "a b".
+    continuation_type string_to_symbol_operative(const std::vector<value_ptr>& args, env_ptr env)
+    {
+        expect_args("string->symbol", args, 1);
+        auto str_val = eval(args[0], env);
+        auto str = std::get_if<std::string>(&str_val->data);
+        if (not str) {
+            throw evaluation_error(
+                std::format("string->symbol: argument must be a string, got {}", value_to_string(str_val)),
+                "string->symbol",
+                call_stack::format()
+            );
+        }
+        return value::make(symbol{*str});
+    }
+
+    // Evaluates its argument, which must be a symbol, and returns its name as a
+    // string.
+    continuation_type symbol_to_string_operative(const std::vector<value_ptr>& args, env_ptr env)
+    {
+        expect_args("symbol->string", args, 1);
+        auto sym_val = eval(args[0], env);
+        auto sym = std::get_if<symbol>(&sym_val->data);
+        if (not sym) {
+            throw evaluation_error(
+                std::format("symbol->string: argument must be a symbol, got {}", value_to_string(sym_val)),
+                "symbol->string",
+                call_stack::format()
+            );
+        }
+        return value::make(sym->name);
+    }
+
     continuation_type load_operative(const std::vector<value_ptr>& args, env_ptr env)
     {
         expect_args("load", args, 1, "(filename)");
@@ -1614,6 +1649,9 @@ env_ptr create_top_level_environment()
     // Strings
     define_builtin("string->list", builtins::string_to_list_operative);
     define_builtin("list->string", builtins::list_to_string_operative);
+    // Symbols
+    define_builtin("string->symbol", builtins::string_to_symbol_operative);
+    define_builtin("symbol->string", builtins::symbol_to_string_operative);
     // Equality
     define_builtin("=", builtins::equal_operative);
     // I/O
