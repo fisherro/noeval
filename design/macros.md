@@ -667,6 +667,17 @@ its own. No change in behavior.
   item and the question about hiding `cond`'s helpers).
 - Compare `cond`, `if-chain`, and `codepoints-utf8` against the baseline.
 
+Done, with one change: the old `cond-transformer` wasn't restored as it was.
+It used `foldr`, and decided that an `else` clause was last when the
+expansion of the clauses after it was `()`. But an empty `else` clause also
+expands to `()`, so `(cond (else 1) (else))` was accepted. And working from
+the last clause back, it reported the last malformed clause rather than the
+first. The new `cond-transformer` works from the first clause, like the
+`cond` it replaces, and its per-clause helper is local, since it runs once per
+`cond` combination. `cond` now takes about the same time as the `if` chain
+in the `cond` and `if-chain` benchmarks, and `dependency-checker`, whose inner
+loop is a three-clause `cond` with cheap tests, is about 6.6 times faster.
+
 #### Step 5: `when` and `unless`
 
 Convert both, embedding `if` and `do`. Add a test that a `define` in the body

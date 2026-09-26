@@ -40,11 +40,6 @@ Add max-garbage stat
 
 Questions, things to consider, and open-ended design work.
 
-`cond`'s helpers (`cond-clauses`, `cond-clause`, `cond-test`, and
-`cond-body`) are global names. Should they be hidden? Defining them inside
-`cond` would rebuild them on every call, which would give back some of the
-speed `cond` gained by evaluating its clauses directly.
-
 Implement transducers (See Clojure and SRFI-171)
 
 Prioritize macros and RRB trees in order to improve performance.
@@ -132,14 +127,6 @@ Function overloading or multimethods? Some way to allow the list functions to wo
 User-defined types?
 
 Consider switching to intrusive reference counting
-
-Once there are expansion-time macros, try the old `cond` again. It's kept in
-a `#skip` block in `src/lib.noeval`. It transformed its clauses into an `if`
-chain and evaluated that, but it redid the transformation every time, which
-made it about 14 times slower than the `if` chain alone. The current `cond`
-evaluates its clauses directly, which is about 1.7 times slower than the `if`
-chain. A macro could transform once and also check every clause up front.
-(Benchmarks: `cond`, `if-chain`, and `codepoints-utf8`.)
 
 `string-length`, `string-nth`, and `substring` convert the whole string to a
 list on every call, so indexing a string in a loop is quadratic.

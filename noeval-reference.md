@@ -36,7 +36,7 @@ A summary of the language, for working on Noeval code (for example, as context f
 
 ## Standard Library (lib.noeval)
 
-**Core**: `lambda` (single expression), `lambda*` (multiple expressions), `vau*` (multiple expressions), `wrap`, `apply`, `if`, `let`, `cond`
+**Core**: `lambda` (single expression), `lambda*` (multiple expressions), `vau*` (multiple expressions), `wrap`, `apply`, `if`, `let`, `cond` (a macro; see [Macros](#macros))
 **Lists**: `append`, `reverse`, `length`, `filter`, `map`, `foldl`, `foldr`, `foldl-until`, `foldr-until`, `unfoldl`, `unfoldr`, `last`, `list`, `snoc`, `iota`, `prepend`, `second`, `third`, `fourth`, `nth` (`(nth list index)`, zero-based), `take` and `drop` (`(take n list)`), `list-index`, `any?` and `all?` (`(any? predicate list)`)
 **Control**: `when`, `unless`, `and`, `or`, `not`
 **Predicates**: `odd?`, `even?`, `number?`, `integer?`, `non-negative-integer?`, `string?`, `symbol?`, `list?`, `operative?`, `macro?`, `environment?`, `eof-object?`
@@ -50,7 +50,7 @@ A summary of the language, for working on Noeval code (for example, as context f
 **Numeric operations**: `abs`, `modulo`, `quotient` (integer division), `clamp` (`(clamp value lower higher)`)
 **String operations**: `string-length`, `string-nth`, `substring`, `string-append`, `strings->string`, `string->codepoint-strings`, `codepoints->utf8` and `utf8->codepoints` (convert between lists of codepoints and lists of UTF-8 byte values)
 **Testing**: `test-assert`, `test-error` (for library test suite)
-**Internal helpers**: `cond-clauses`, `cond-clause`, `cond-test`, and `cond-body` (used by `cond`)
+**Internal helpers**: `cond-transformer` (`cond`'s transformer)
 **Unicode support**: `λ` (alias for `lambda`), `∧` (alias for `and`), `∨` (alias for `or`), `¬` (alias for `not`), `×` (alias for `*`), `÷` (alias for `/`)
 
 ## Environments

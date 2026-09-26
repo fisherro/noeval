@@ -159,8 +159,36 @@
   "cond should reject an else clause that isn't last")
 
 (test-assert
-    (= (cond ((= 1 1) "first") 42) "first")
-  "cond should not check clauses after the one chosen")
+    (= (error-message (cond (else 1) (else)))
+       "else clause must be the last clause")
+  "cond should reject an else clause followed by an empty else clause")
+
+(test-assert
+    (= (error-message (cond ((= 1 1) "first") 42)) "cond clause must be a list")
+  "cond should check clauses after the one chosen")
+
+(test-assert
+    (= (error-message (cond 42 ())) "cond clause must be a list")
+  "cond should report the first malformed clause")
+
+(test-assert
+    (= (let ((do 1) (if 2)) (cond ((= 1 1) 3 4))) 4)
+  "cond should be unaffected by local bindings of the names it uses")
+
+; cond's expansion is cached, but its tests are still evaluated every time.
+(define-mutable cond-test-count 0)
+(define count-cond-test
+  (lambda ()
+    (do (set! cond-test-count (+ cond-test-count 1))
+        (= 1 2))))
+(define cond-in-loop
+  (lambda (n)
+    (cond ((count-cond-test) "unreachable")
+          ((= n 0) "done")
+          (else (cond-in-loop (- n 1))))))
+(test-assert
+    (and (= (cond-in-loop 3) "done") (= cond-test-count 4))
+  "cond should evaluate its tests each time it's evaluated")
 
 ; The chosen body is in tail position, so this doesn't grow the stack.
 (define cond-countdown
