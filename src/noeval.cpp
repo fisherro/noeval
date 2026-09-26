@@ -1824,7 +1824,16 @@ continuation_type eval_operation(const value_ptr& expr, const cons_cell& cell, e
         // Evaluate the operator expression
         op = eval(operator_expr, env);
     }
-    
+
+    // A combination whose operator is no longer a macro doesn't need its
+    // cached expansion, which would keep the transformer (and its closure
+    // environment) alive. The cache is almost always empty, so this is
+    // usually just a null check.
+    if (cell.expansion_cache.cache and not std::holds_alternative<macro>(op->data)) {
+        NOEVAL_DEBUG(macro, "Clearing cached expansion of {}", expr_context(expr));
+        cell.expansion_cache.cache.reset();
+    }
+
     // Check if it's an operative
     if (std::holds_alternative<operative>(op->data)) {
         return operate_operative(std::get<operative>(op->data), operands, env);

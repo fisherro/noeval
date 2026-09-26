@@ -25,7 +25,11 @@ Run these from the top of the repository. If the default `g++` is older than
 - `make bench`: time the benchmarks. In Claude Code in the cloud, the
   machine's speed varies widely between runs (an unchanged build has run
   about 25% faster later in the same session), so results saved earlier
-  aren't a valid baseline. Always compare against the earlier commit built in
-  a worktree and run back to back, as described in CONTRIBUTING.md.
+  aren't a valid baseline, and even two runs back to back can disagree by
+  10-15% if the machine slows down during one of them. Always compare against
+  the earlier commit built in a worktree with `benchmarks/run.bash -a`, which
+  alternates between them run by run, as described in CONTRIBUTING.md. Don't
+  trust a timing difference of a few percent, even from `-a`: confirm it by
+  counting instructions with cachegrind, also described there.
 - `bin/noeval --skip-tests script.noeval`: run a script without running the
   C++ tests first

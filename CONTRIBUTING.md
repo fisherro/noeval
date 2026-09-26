@@ -36,24 +36,29 @@ loads the library and tests by relative path.
 - `make test-sanitize` runs the same tests with AddressSanitizer and
   UndefinedBehaviorSanitizer, and with the library tests under GC stress.
 - `make bench` times the benchmarks and reports their peak memory use. To
-  measure a change, compare against results saved from before it with
-  `benchmarks/run.bash -c`. A machine's speed can drift between runs, so
-  for a reliable comparison, build the earlier commit in a `git worktree` and
-  run both versions back to back:
+  measure a change, build the earlier commit in a `git worktree` and compare
+  against it with `-a`, which runs the two checkouts' binaries alternately,
+  benchmark by benchmark:
 
   ```bash
   git worktree add ../noeval-before HEAD~1
   make -C ../noeval-before
-  ../noeval-before/benchmarks/run.bash > before.txt
-  benchmarks/run.bash -c before.txt
+  benchmarks/run.bash -a ../noeval-before
   ```
 
-  Run them in the other order too (`benchmarks/run.bash > after.txt`, then
-  `../noeval-before/benchmarks/run.bash -c after.txt`), and trust only a
-  difference that shows up both ways. Use each checkout's own `run.bash`
-  rather than `-b`: `run.bash` runs from its own checkout, and noeval loads
-  the library from there, so `-b` would time the earlier binary with the
-  current library.
+  The ratios are this checkout's time over the earlier one's. A machine's
+  speed can drift a lot between runs, even within a few seconds, so compare
+  runs made alternately like this rather than results saved earlier
+  (`benchmarks/run.bash -c`). Both checkouts run this checkout's copy of each
+  benchmark, but each loads its own library, which `-b` alone wouldn't do.
+  Timing can't settle a difference of a few percent, since runs can be faster
+  as well as slower than usual. For that, count the instructions executed in
+  each checkout, which doesn't depend on the machine's speed:
+
+  ```bash
+  valgrind --tool=cachegrind --cache-sim=no --cachegrind-out-file=/dev/null \
+      bin/noeval --skip-tests benchmarks/fib.noeval
+  ```
 
 `./check-reference.bash` lists the builtins and library definitions that
 [noeval-reference.md](noeval-reference.md) doesn't mention. Run it after
