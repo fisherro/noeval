@@ -36,6 +36,10 @@ would share that source.
 
 Add max-garbage stat
 
+Port my `infix` and `pipe` macros to Noeval.
+
+Attempt to implement `syntax-rules` and `syntax-case` on top of our macro system.
+
 ## Ideas
 
 Questions, things to consider, and open-ended design work.
