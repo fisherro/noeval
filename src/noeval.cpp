@@ -961,22 +961,6 @@ namespace builtins {
         return is_nil(val)? church_true(env): church_false(env);
     }
 
-    continuation_type invoke_operative(const std::vector<value_ptr>& args, env_ptr env)
-    {
-        expect_args("invoke", args, 2, "(operative arg-list)");
-
-        auto op_expr = args[0];  // The operative to invoke (unevaluated)
-        auto arg_list = eval(args[1], env);  // The list of arguments
-        
-        // Convert the argument list to a vector
-        auto arg_vector = list_to_vector(arg_list);
-        
-        // Create a new expression: (operative arg1 arg2 ...)
-        auto call_expr = value::make(cons_cell{op_expr, arg_list});
-        
-        return eval(call_expr, env);
-    }
-
     // Evaluates both arguments, then evaluates each element of the list in the
     // environment and returns a list of the results.
     // This used to be in the library, but its helper operative created a
@@ -1779,14 +1763,10 @@ env_ptr create_top_level_environment()
     define_builtin("eval", builtins::eval_operative);
     define_builtin("eval-list", builtins::eval_list_operative);
     define_builtin("define", builtins::define_operative);
-    define_builtin("invoke", builtins::invoke_operative);
     define_builtin("macro", builtins::macro_operative);
     define_builtin("try", builtins::try_operative);
     define_builtin("raise", builtins::raise_operative);
-#define USE_PRIMITIVE_DO
-#ifdef USE_PRIMITIVE_DO
     define_builtin("do", builtins::do_operative);
-#endif
     define_builtin("load", builtins::load_operative);
     define_builtin("read", builtins::read_operative);
     // Arithmetic

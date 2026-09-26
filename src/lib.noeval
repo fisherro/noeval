@@ -10,31 +10,14 @@
 ; language.
 (define q (vau (operand) _ operand))
 
-#skip
-; Library implementation of do
-; Using invoke is likely incorrect here because the recursive call should get
-; the same dynamic environment as the caller.
-(define do-helper
-  (vau (remaining last-result env) _
-    ((nil? remaining)
-     last-result
-     (invoke do-helper
-       (cons (rest remaining)
-             (cons (eval (first remaining) env)
-                   (cons env ())))))))
-
-; Currently using the primitive do instead of this one.
-; Using invoke is likely incorrect here because the recursive call should get
-; the same dynamic environment as the caller.
-(define do
-  (vau expressions env
-    ((nil? expressions)
-     ()
-     (invoke do-helper
-       (cons (rest expressions)
-             (cons (eval (first expressions) env)
-                   (cons env ())))))))
-#end
+; invoke
+; (invoke operative operand-list) calls operative with the elements of
+; operand-list as its operands, as though they had been written after it, in
+; the calling environment. So an applicative evaluates them. apply, by
+; contrast, passes its list as arguments, which aren't evaluated again.
+(define invoke
+  (vau (operative operands) env
+    (eval (cons operative (eval operands env)) env)))
 
 ; A convenience macro.
 ; Since we use Church Booleans, you can essentially just remove the if.

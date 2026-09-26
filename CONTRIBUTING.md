@@ -9,6 +9,12 @@ rules for C++ and Noeval code.
 
 - **Minimize primitives.** Implement as much as possible in the language
   itself. Add a primitive only when a library implementation is impractical.
+  Once something is in the interpreter, though, being possible to write in
+  the library isn't reason enough to move it there. Move it when that
+  significantly simplifies the interpreter, or when a different approach makes
+  library code more expressive. So `numerator` stays a builtin: it's trivial
+  for the interpreter, and a library version would gain nothing (see
+  [design/primitives.md](design/primitives.md)).
 - **Operatives control evaluation.** An operative (fexpr) receives its
   operands unevaluated, along with the environment it was called from, and
   decides what to evaluate and when. When writing one, be deliberate about

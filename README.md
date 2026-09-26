@@ -90,10 +90,10 @@ This interpreter does not make a distinction between operatives and
 applicatives. An applicative is merely an operative that chooses to evaluate
 its arguments, and the interpreter cannot distinguish between the two.
 
-Kernel provides `wrap` as a primitive, but this interpreter instead provides
-`invoke` as a primitive. While Kernel's `apply` applies applicatives, our
-`invoke` invokes operatives. (And I'm not yet sure of the implications of not
-having an `unwrap` primitive.)
+Kernel provides `wrap` as a primitive, but here `wrap` is in the library, built
+on `eval` and `eval-list`. So is `invoke`, built on `eval`: while Kernel's
+`apply` applies applicatives, our `invoke` invokes operatives. (And I'm not
+yet sure of the implications of not having an `unwrap` primitive.)
 
 In hindsight, I don't think this was a good choice. I was thinking that having
 the distinction between operatives and applicatives would require separate
