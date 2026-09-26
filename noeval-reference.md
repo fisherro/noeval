@@ -49,7 +49,7 @@ A summary of the language, for working on Noeval code (for example, as context f
 **Numeric operations**: `abs`, `modulo`, `quotient` (integer division), `clamp` (`(clamp value lower higher)`)
 **String operations**: `string-length`, `string-nth`, `substring`, `string-append`, `strings->string`, `string->codepoint-strings`, `codepoints->utf8` and `utf8->codepoints` (convert between lists of codepoints and lists of UTF-8 byte values)
 **Testing**: `test-assert`, `test-error` (for library test suite)
-**Internal helpers**: `cond-clauses`, `cond-clause`, `cond-test`, and `cond-body` (used by `cond`), and `recurse` (used by `prepend`, but defined at the top level because `do` doesn't create an environment)
+**Internal helpers**: `cond-clauses`, `cond-clause`, `cond-test`, and `cond-body` (used by `cond`)
 **Unicode support**: `λ` (alias for `lambda`), `∧` (alias for `and`), `∨` (alias for `or`), `¬` (alias for `not`), `×` (alias for `*`), `÷` (alias for `/`)
 
 ## Environments
@@ -110,6 +110,13 @@ Environments are first-class values that can be inspected.
 - For multiple expressions, use `lambda*`: `(lambda* (x) (displayln x) (+ x 1))` ✓  
 - Same applies to `vau` vs `vau*` for operatives
 - Multiple expressions without `*` forms will cause syntax errors
+
+### do and try Don't Create Scopes
+
+- `do` and `try` evaluate in the current environment, so definitions made inside them remain afterward: after `(do (define x 1))`, `x` is bound
+- The same applies to `when`, `unless`, and `cond` clause bodies, which are wrapped in `do`
+- A definition made in a `try`'s body before an error remains after the error is handled
+- For a new scope, use `let` or `lambda*`: `(let () (define x 1) x)` doesn't bind `x` outside
 
 ### Church Boolean Usage
 

@@ -2,22 +2,25 @@
 ; Environment isolation tests
 (lndisplayln "environment isolation tests")
 
-#skip
-; I'm not sure about this one.
-; We could have `try` introduce a new environment.
-; But maybe we should leave that up to the user.
-; (Especially once we've implemented let.)
-
-; Test that errors don't corrupt environment
-(define test-env-var 100)
-(try (do (define test-env-var 200)  ; This should fail...
-         (rest "invalid"))          ; ...before this error
-  (lambda* (error) "caught"))
-; The original binding should be preserved
+; do and try don't create environments, so definitions made in them remain
+(do (define do-defined-var 1))
 (test-assert
-    (= test-env-var 100)
-  "exceptions should not corrupt environment bindings")
-#end
+    (= do-defined-var 1)
+  "a definition made in do should remain after it")
+
+(define test-env-var 100)
+(try (do (define test-env-var 200)
+         (rest "invalid"))
+  (lambda* (error) "caught"))
+(test-assert
+    (= test-env-var 200)
+  "a definition made in try before an error should remain after it")
+
+(test-assert
+    (not (any? (lambda (name) (= name (q let-scoped-var)))
+               (do (let () (define let-scoped-var 1) let-scoped-var)
+                   (environment-names (get-current-environment)))))
+  "a definition made in let should not remain after it")
 
 ; Test exception in environment parameter usage
 (define env-error-vau (vau (expr) _ (eval expr "not-an-env")))
@@ -43,6 +46,10 @@
     (and (names-include? top-level-names (q map))
          (not (names-include? top-level-names (q vau))))
   "the top-level environment should hold the library but not the builtins")
+
+(test-assert
+    (not (names-include? top-level-names (q recurse)))
+  "prepend's recurse helper should not be bound in the top-level environment")
 
 (test-assert
     (nil? (environment-parent (get-builtins-environment)))

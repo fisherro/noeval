@@ -40,10 +40,6 @@ Check in the definition of the `gcc-rlf:latest` container image, or stop
 using it. `test-dependency-checker.zsh` runs in it, but a fresh clone can't
 build it.
 
-`prepend`'s `recurse` helper is bound in the top-level environment, because
-it's defined inside a `do`, which doesn't create an environment. Define it
-somewhere that does, such as a `let` or `lambda*`.
-
 ## Ideas
 
 Questions, things to consider, and open-ended design work.
@@ -132,8 +128,6 @@ Do we need get-current-environment? Is it correct?
 
 Makes `value` formattable by std::format and std::print and then use them to
 expose formattting functions to Noeval.
-
-Consider `do` and `try` creating their own environment
 
 Function overloading or multimethods? Some way to allow the list functions to work on any sequence.
 

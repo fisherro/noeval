@@ -81,9 +81,10 @@
        (raise "wrap can only be applied to operatives"))
       (vau unevaluated-args wrapped-call-env
         ; Here, the implicit env is the closure environment of this inner vau.
-        ; This environment was created by the `do` block when the outer vau was
-        ; called, and contains `resolved-operative` as well as access to the
-        ; global environment. When this inner vau is called, it creates a new
+        ; This environment was created when the outer vau was called. (The `do`
+        ; doesn't create one; it evaluates in the outer vau's environment.) It
+        ; contains `resolved-operative` as well as access to the global
+        ; environment. When this inner vau is called, it creates a new
         ; environment extending this closure environment, with
         ; `wrapped-call-env` bound to the calling environment and
         ; `unevaluated-args` bound to the arguments.
@@ -133,18 +134,20 @@
 ; look to match the expected behavior in use. It would evaluate its arguments
 ; multiple times during the recursion, but uses seem to expect that its
 ; arguments would only be evaluated once. To achieve that, this implementation
-; uses an inner fexpr for the recursion.
+; uses an inner fexpr for the recursion. It's defined inside a lambda* so that
+; it isn't bound in the top-level environment.
 (define prepend
-  (do (define recurse
-        (vau operands _
-          ((nil? operands)
-           ()
-           (do (define head (first operands))
-               (define tail (rest operands))
-               ((nil? tail)
-                head
-                (cons head (invoke recurse tail)))))))
-      (lambda args (invoke recurse args))))
+  ((lambda* ()
+     (define recurse
+       (vau operands _
+         ((nil? operands)
+          ()
+          (do (define head (first operands))
+              (define tail (rest operands))
+              ((nil? tail)
+               head
+               (cons head (invoke recurse tail)))))))
+     (lambda args (invoke recurse args)))))
 
 (define newline (lambda () (display "\n")))
 

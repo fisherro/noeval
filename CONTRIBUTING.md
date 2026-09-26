@@ -16,6 +16,10 @@ rules for C++ and Noeval code.
 - **Church Booleans instead of a primitive conditional.** A condition
   evaluates to `true` or `false`, which select between alternatives:
   `(condition true-branch false-branch)`.
+- **Sequencing is separate from scoping.** `do` and `try` don't create
+  environments; `let` and `lambda*` do. So a multi-expression body doesn't
+  need an environment of its own, and a helper that shouldn't be visible
+  outside a definition belongs inside a `lambda*` or `let`.
 - **Immutable by default.** Mutation is explicit: only bindings created with
   `define-mutable` can be changed with `set!`.
 
