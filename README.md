@@ -144,6 +144,26 @@ Several times, I almost changed...
 Noeval's `do` is the equivalent of CL `progn`, Scheme `begin`, and Kernel's
 `$sequence`.
 
+### do and try don't create environments
+
+Neither `do` nor `try` creates a new environment. Definitions made inside them
+are made in the environment they're evaluated in, and remain afterward:
+
+    (do (define x 1))
+    x ; => 1
+
+This may be surprising if you think of `do` as a block. Sequencing is kept
+separate from scoping: to get a new scope, use `let` or `lambda*`. It also
+means a multi-expression body in `lambda*` or `vau*` (which is wrapped in a
+`do`) doesn't need an environment of its own beyond the one the call creates.
+
+The same goes for forms whose bodies are wrapped in `do`, such as `when`,
+`unless`, and the bodies of `cond` clauses. And a definition made in a `try`'s
+body before an error remains after the error is handled.
+
+A helper defined with `define` inside a top-level `do` ends up bound at the
+top level. Define helpers inside a `lambda*` or `let` instead.
+
 ### Church Booleans
 
 Noeval uses Church Booleans, which allows not having a primitive conditional.

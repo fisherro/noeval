@@ -185,17 +185,15 @@
     (= mutable-msg-result "mutable error")
   "raise should work with mutable variable messages")
 
-#skip
-; The current design decision is that try does not create an environment
-; Test 18: raise doesn't affect environment bindings
+; Test 18: try doesn't create an environment, so a definition made before a
+; raise remains after it
 (define pre-raise-var 100)
 (try (do (define pre-raise-var 200)
          (raise "environment test"))
   (lambda (error) "handled"))
 (test-assert
-    (= pre-raise-var 100)
-  "raise should not corrupt environment bindings")
-#end
+    (= pre-raise-var 200)
+  "a definition made before a raise should remain after it")
 
 ; Test 19: raise in conditional expressions
 (define conditional-raiser

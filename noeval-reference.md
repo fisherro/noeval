@@ -111,6 +111,13 @@ Environments are first-class values that can be inspected.
 - Same applies to `vau` vs `vau*` for operatives
 - Multiple expressions without `*` forms will cause syntax errors
 
+### do and try Don't Create Scopes
+
+- `do` and `try` evaluate in the current environment, so definitions made inside them remain afterward: after `(do (define x 1))`, `x` is bound
+- The same applies to `when`, `unless`, and `cond` clause bodies, which are wrapped in `do`
+- A definition made in a `try`'s body before an error remains after the error is handled
+- For a new scope, use `let` or `lambda*`: `(let () (define x 1) x)` doesn't bind `x` outside
+
 ### Church Boolean Usage
 
 - Conditions return operatives, not boolean values

@@ -129,8 +129,6 @@ Do we need get-current-environment? Is it correct?
 Makes `value` formattable by std::format and std::print and then use them to
 expose formattting functions to Noeval.
 
-Consider `do` and `try` creating their own environment
-
 Function overloading or multimethods? Some way to allow the list functions to work on any sequence.
 
 User-defined types?
