@@ -21,6 +21,12 @@
 #   benchmarks/run.bash > before.txt
 #   (make the change and rebuild)
 #   benchmarks/run.bash -c before.txt
+#
+# A machine's speed can drift between runs, so saved results can mislead.
+# For a reliable comparison, run an earlier version's own copy of this script
+# (for example, from a git worktree) just before this one, and then in the
+# other order. -b isn't enough for that: this script runs from its own
+# checkout, and noeval loads the library from there.
 
 set -euo pipefail
 
