@@ -45,6 +45,10 @@ adding one.
 
 CI runs `make test`, `make test-sanitize`, and each benchmark once.
 
+Don't add Python to the repository, for tooling or anything else. Scripts are
+Bash. If a tool needs information only the interpreter has, noeval can provide
+it, as it does for the benchmarks' peak memory (`NOEVAL_REPORT_PEAK_MEMORY`).
+
 ## Conventions
 
 ### Built-in operatives
