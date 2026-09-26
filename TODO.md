@@ -36,11 +36,14 @@ would share that source.
 
 Add max-garbage stat
 
-Attempt to implement `syntax-rules` and `syntax-case` on top of our macro system.
-
 ## Ideas
 
 Questions, things to consider, and open-ended design work.
+
+Attempt to implement `syntax-rules` and `syntax-case` on top of our macro system.
+On hold, and maybe only as a proof of concept, which might call for a module
+system first. See [design/syntax-rules.md](design/syntax-rules.md) for the
+design so far and its open questions.
 
 A top-level definition that shadows a builtin breaks the library. The library
 is loaded into the top-level environment, where scripts and the REPL also
