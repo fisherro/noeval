@@ -496,12 +496,28 @@
 (define nand (macro (vau operands _ (list not (cons and operands)))))
 (define nor (macro (vau operands _ (list not (cons or operands)))))
 
+; (xor operand ...) is true when an odd number of its operands are true. That's
+; what chaining two-operand xor from the left gives: (xor a b c) is
+; (xor (xor a b) c). (xor) is false. The result depends on every operand, so
+; all of them are evaluated, and xor is an ordinary function rather than a
+; macro.
+(define xor
+  (lambda operands
+    (foldl (lambda (result operand) (operand (not result) result))
+           false
+           operands)))
+
+; (xnor operand ...) is (not (xor operand ...)): true when an even number of its
+; operands are true. With two operands, that's equivalence. (xnor) is true.
+(define xnor (lambda operands (not (apply xor operands))))
+
 (define λ lambda)
 (define ∧ and)
 (define ∨ or)
 (define ¬ not)
 (define ⊼ nand)
 (define ⊽ nor)
+(define ⊻ xor)
 (define × *)
 (define ÷ /)
 
