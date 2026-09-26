@@ -75,7 +75,9 @@ Add expansion-time macros (see [having-both-fexprs-and-macros.html](https://axis
 * Need a macro transformer primitive that will expand macros.
 * When the code is creating an operative, run macro expansion on the body before storing it in the operative.
 
-There's a lot of common code that could be refactored in the builtin operatives
+Argument-count checks in the builtin operatives share `expect_args`, but
+there's more common code that could be refactored, such as the blocks that
+rethrow evaluation errors and wrap other exceptions.
 
 Pattern matching?
 

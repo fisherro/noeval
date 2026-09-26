@@ -879,6 +879,9 @@ int test_mutable_bindings()
     runner.test_error("(set!)", "expected 2 arguments");
     runner.test_error("(set! x)", "expected 2 arguments");
     runner.test_error("(set! x 1 2)", "expected 2 arguments");
+    // The error's context is the call
+    runner.test_error("(set! x 1 2)",
+        "set!: expected 2 arguments (symbol value), got 3\n while evaluating: (set! x 1 2)");
     
     // Test 10: Error - set! with non-symbol first argument
     runner.test_error("(set! 123 456)", "must be a symbol");
