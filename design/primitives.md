@@ -118,7 +118,9 @@ library as they are, since printing an operative or an environment needs the
 interpreter's printer. The existing TODO item, to consolidate them into one
 primitive, is the way to reduce them: for example, a primitive that returns
 the printed form of a value as a string, and one that prints a string as it
-is, with both `write` and `display` in the library.
+is, with both `write` and `display` in the library. See
+[printing.md](printing.md) for how other languages divide printing between
+primitives and library.
 
 ## Keep
 
