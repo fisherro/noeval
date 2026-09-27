@@ -180,11 +180,8 @@ codepoint view of text, and bytevectors as sequences of bytes.
 
 ## Consequences and open questions
 
-- **Improper lists go away.** `(cons 1 2)` has no RRB equivalent. Today the
-  reader has no dotted notation, and variadic parameters use a single symbol,
-  so improper lists appear only as pairs used as 2-tuples, as in
-  `utf8->codepoints`'s `(codepoint . remaining-bytes)`, and in a test that
-  `(list? (cons 1 2))` is true. Whether to imitate them is to be discussed.
+- **Improper lists go away, and won't be imitated.** See
+  [Improper lists](#improper-lists).
 - **Lazy and infinite sequences need their own type.** An RRB tree is finite
   and fully built, so streams need a separate type with `first` and `rest`,
   like Clojure's lazy seqs. That type is about computation, not storage, so it
@@ -198,6 +195,65 @@ codepoint view of text, and bytevectors as sequences of bytes.
   `value::make` uses `new` rather than `make_shared`. A sequence of
   `value_ptr` fixes the locality of the spine, not of the elements, so shrinking
   `value` matters too.
+
+## Improper lists
+
+`(cons 1 2)` has no RRB equivalent. Decision: drop improper lists rather
+than imitate them. `cons` requires a sequence (or lazy sequence) as its tail
+and raises an error otherwise, as Clojure's does.
+
+### What they're used for now
+
+Very little. The reader has no dotted notation, and variadic parameters use a
+single symbol rather than `(a . rest)`, so improper lists appear only as:
+
+- a pair used as a 2-tuple: `utf8->codepoints`'s helper returns
+  `(codepoint . remaining-bytes)` and takes it apart with `first` and `rest`
+- a test that `(list? (cons 1 2))` is true, which documents a quirk of `list?`
+- the printer's `(1 . 2)` form
+
+### What replaces each use
+
+In other Lisps, improper lists do five jobs. Each has a replacement that
+doesn't need them:
+
+1. **Tuples**, such as association list entries: 2-element sequences, which
+   an RRB tree stores as one small leaf, or records when the fields deserve
+   names. `(rest p)` becomes `(second p)`.
+2. **Rest parameters**, `(a b . rest)`: syntax in the parameter list, such as
+   `(a b & rest)` as in Clojure, or a keyword.
+3. **Destructuring patterns**, such as `syntax-rules`'s `(_ x . rest)` or
+   Kernel's parameter trees, `((a . b) c)`: a pattern syntax of their own,
+   such as `(_ x rest ...)` or `((a & b) c)`, wherever Noeval ends up needing a
+   pattern language. Patterns don't need improper data to match against.
+4. **Lazy streams**, which put a promise in the cdr: the separate lazy
+   sequence type.
+5. **Binary trees of conses**: 2-element sequences or records.
+
+### Why not imitate them
+
+Imitating them is possible: `(cons 1 2)` could make the sequence `[1]` with a
+hidden tail of `2`, kept either as a sentinel element or in a tail field, and
+`rest` would return the tail once the elements ran out. `cons`, `first`, and
+`rest` would behave as they do now.
+
+But every other sequence operation would need a rule for the tail: `length`,
+`nth`, `reduce`, `map`, concatenation, slicing, equality, hashing, and
+printing, plus the distinction between `list?` and `pair?`. Scheme makes most
+of those an error on an improper list, so the sequence type would take on the
+split between lists and pairs that it's meant not to have. A sentinel element
+is the riskier form, since any builtin that forgets it exposes it to user
+code, as array holes do in JavaScript. A tail field contains it better, but
+costs a word and a branch in every operation.
+
+That's a feature added because a restriction makes it appear necessary. The
+restriction here is that a pair has to be a cons, and removing it is cheaper
+than working around it.
+
+### Migration
+
+`utf8->codepoints`'s helper returns a 2-element sequence, the `list?` test
+changes, and the printer's dotted case goes away.
 
 ## Microbenchmark proposal
 
