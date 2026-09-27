@@ -84,6 +84,8 @@ Revisit escaping in string literals (what scheme do we want to use?)
 
 Replace lists with arrays? Or maybe Clojure/Scala style vectors? Or RRB trees?
 And maybe going further, support for homogenous RRB trees of specific types (like bytes) would make sense?
+See [design/data-structures.md](design/data-structures.md), which recommends
+RRB trees and proposes a microbenchmark to check them.
 
 > I'll avoid set-car!/set-cdr! for now...a set-array-element! might happen
 > And that might be needed for a good promise implementation
