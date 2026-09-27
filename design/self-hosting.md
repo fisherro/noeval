@@ -1,6 +1,6 @@
 # Self-hosting notes
 
-Robert-Fisher_tmemu: @workspace I don't know if I want to do it, but I'm wondering what features would need to be added to Noeval to achieve self-hosting.
+Robert: @workspace I don't know if I want to do it, but I'm wondering what features would need to be added to Noeval to achieve self-hosting.
 
 Workspace: Collecting workspace informationLooking at your Noeval interpreter, self-hosting would require several significant additions. Let me analyze what you'd need:
 
@@ -148,7 +148,7 @@ Start with file I/O and string operations - you could begin by writing a simple 
 
 Would you be most interested in pursuing the parser-in-Noeval direction first, or the meta-circular evaluator?
 
-Robert-Fisher_tmemu: @workspace I think, at least from a theoretical standpoint, not all of those features would need to be builtins.
+Robert: @workspace I think, at least from a theoretical standpoint, not all of those features would need to be builtins.
 
 `string->list` and `list->string` as builtins could enable all the string manipulation to be done without additional built-ins.
 
@@ -280,7 +280,7 @@ The self-hosted parser and evaluator would serve as the ultimate stress test of 
 
 Would you lean toward this minimal primitive approach, or do you think there are practical considerations that would push you toward more built-ins?
 
-Robert-Fisher_tmemu: That hypothetical `unicode-codepoint` function points to one of the reasons I tend to be wary of a character type. Now that UTF-8 everywhere is the *de facto* standard, the old concept of a "character" is much less relevant. We have strings and codepoints, and UTF-8 codepoints come in different lengths.
+Robert: That hypothetical `unicode-codepoint` function points to one of the reasons I tend to be wary of a character type. Now that UTF-8 everywhere is the *de facto* standard, the old concept of a "character" is much less relevant. We have strings and codepoints, and UTF-8 codepoints come in different lengths.
 
 If we decided to `(define λ lambda*)` or `(define ≤ (lambda (x y) (or (< x y) (= x y))))`, those my look like individual characters, but they're not. And that's before we get into things like combining pairs.
 
