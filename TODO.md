@@ -108,7 +108,9 @@ Implement void or #inert?
 
 Dynamic variables (a la Kernel?) (could be used for test-failures in the library tests)
 
-Consolidate write and display into a single primitive
+Consolidate write and display into a single primitive, and more broadly,
+choose the printing primitives that let the library do the most. See
+[design/printing.md](design/printing.md) for a survey of other languages.
 
 Consider if*, cond*, and*, or*, not* library functions that can handle
 non-boolean values
