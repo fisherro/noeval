@@ -50,7 +50,7 @@ strength.
 
 ## On Church Booleans
 
-Unlike Church Booleans, these may be adding strength.
+Unlike Church numerals, these may be adding strength.
 
 Eliminates a primitive with little cost.
 
