@@ -280,14 +280,13 @@ promises may need a mutable array element, and a box may be enough.
 
 ### Summary
 
-Primitives: a sequence that's a flat array up to 32 elements and an RRB tree
-above that (with compact storage for bytes and codepoints), a CHAMP map,
-encapsulation types, and possibly boxes. Library: records, the codepoint view
-of text, and bytevectors as sequences of bytes.
+Primitives: lists (proper only), `vector` (a flat array up to 32 elements and
+an RRB tree above that), homogeneous vectors, a CHAMP map, encapsulation
+types, and possibly boxes. Library: records, and the codepoint view of text.
 
 ## Consequences and open questions
 
-- **Improper lists go away, and won't be imitated.** See
+- **Improper lists are gone, and won't be imitated.** See
   [Improper lists](#improper-lists).
 - **Lazy and infinite sequences need their own type.** An RRB tree is finite
   and fully built, so streams need a separate type with `first` and `rest`,
@@ -295,8 +294,6 @@ of text, and bytevectors as sequences of bytes.
   isn't an argument for keeping cons lists.
 - **Cyclic structures stay impossible.** They already are, since a pair can't
   be mutated.
-- **Per-combination metadata** (the source location and the expansion cache)
-  moves from the cons cell to the node that holds the form.
 - **Value size is a separate problem.** `sizeof(value)` is 160 bytes (g++ 14),
   and each value also has a separately allocated control block, because
   `value::make` uses `new` rather than `make_shared`. A sequence of
