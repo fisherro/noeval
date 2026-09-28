@@ -98,6 +98,30 @@ chains of cells. What changed was the default for data.
 
 ## Recommendation
 
+### Decision: keep lists, and add vectors
+
+After the microbenchmark and the discussion that followed it, the decision
+is:
+
+- **Lists stay**, made of cons cells, and code stays made of lists. That may
+  change later, but the cons list is still the best structure for what code
+  does most: taking a form apart and putting a new head on its operands.
+- **Improper lists are gone**, as if lists had already been replaced (see
+  [Improper lists](#improper-lists)). `cons`'s second argument must be a
+  list.
+- **`vector` is a new type**: a flat array up to 32 elements and an RRB tree
+  above that, as described below.
+- **A homogeneous vector** holds elements of one type unboxed, such as
+  bytes, as a variant of `vector`.
+
+So there are two sequence types, as in Clojure, rather than one. That makes
+the generic sequence interface (see [sequences.md](sequences.md)) more
+important: library functions such as `map` and `foldl` should work on both,
+through reduction.
+
+The rest of this section is the analysis that led here, which argued for a
+single sequence type.
+
 ### Sequences: an RRB tree, updated in place when unshared
 
 The microbenchmark below supports this for sequences longer than a leaf (32
@@ -248,18 +272,19 @@ of text, and bytevectors as sequences of bytes.
 
 ## Improper lists
 
-`(cons 1 2)` has no RRB equivalent. Decision: drop improper lists rather
-than imitate them. `cons` requires a sequence (or lazy sequence) as its tail
-and raises an error otherwise, as Clojure's does.
+`(cons 1 2)` would have no RRB equivalent. Decision: drop improper lists
+rather than imitate them. This is done, although lists remain cons cells:
+`cons` requires a list as its second argument and raises an error otherwise,
+as Clojure's requires a sequence.
 
-### What they're used for now
+### What they were used for
 
 Very little. The reader has no dotted notation, and variadic parameters use a
-single symbol rather than `(a . rest)`, so improper lists appear only as:
+single symbol rather than `(a . rest)`, so improper lists appeared only in:
 
-- a pair used as a 2-tuple: `utf8->codepoints`'s helper returns
-  `(codepoint . remaining-bytes)` and takes it apart with `first` and `rest`
-- a test that `(list? (cons 1 2))` is true, which documents a quirk of `list?`
+- three tests: that `(list? (cons 1 2))` is true (a quirk of `list?`), that
+  `(typeof (cons 1 2))` is `cons-cell`, and one that used `partialr` to cons
+  onto a string
 - the printer's `(1 . 2)` form
 
 ### What replaces each use
@@ -302,8 +327,11 @@ than working around it.
 
 ### Migration
 
-`utf8->codepoints`'s helper returns a 2-element sequence, the `list?` test
-changes, and the printer's dotted case goes away.
+Done. `cons` raises an error for a second argument that isn't a list, the
+printer no longer has a dotted form, and the tests that built improper lists
+now build proper ones. (`utf8->codepoints`'s helper, whose comments wrote its
+result as `(codepoint . remaining-bytes)`, turned out to return a proper list
+whose rest is the remaining bytes, so it didn't change.)
 
 ## Microbenchmark
 

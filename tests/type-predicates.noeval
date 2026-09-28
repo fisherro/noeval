@@ -48,8 +48,8 @@
   "typeof should return 'cons-cell for lists")
 
 (test-assert
-    (= (typeof (cons 1 2)) (q cons-cell))
-  "typeof should return 'cons-cell for cons pairs")
+    (= (typeof (cons 1 ())) (q cons-cell))
+  "typeof should return 'cons-cell for a list made with cons")
 
 ; Test 6: typeof with operatives
 (define test-vau (vau (x) _ x))
@@ -412,10 +412,10 @@
     (= (list? (q symbol)) false)
   "list? should return false for symbols")
 
-; Test 3: list? with cons cells vs improper lists
+; Test 3: list? with a list made with cons
 (test-assert
-    (= (list? (cons 1 2)) true)
-  "list? should return true for cons pairs (implementation treats all cons-cells as lists)")
+    (= (list? (cons 1 ())) true)
+  "list? should return true for a list made with cons")
 
 ; Test 4: list? as Church Boolean
 (test-assert

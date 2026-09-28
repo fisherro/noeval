@@ -121,13 +121,13 @@ arguments as a single list.
 
     (vau args env body)
 
-It does not support the pair or improper list syntax for a combination of
-fixed parameters with a rest parameter.
+It does not support the dotted syntax for a combination of fixed parameters
+with a rest parameter.
 
     (vau (param1 param2 . rest) env body) ; not supported
 
-In fact, the language does not fully support pairs or improper lists.
-(I expect at some point to try to move towards replacing lists with arrays.)
+Noeval has no pairs or improper lists at all: `cons`'s second argument must be
+a list. (See [design/data-structures.md](design/data-structures.md).)
 
 ### Single expression bodies for vau & lambda
 

@@ -874,6 +874,10 @@
 (test-error (cons) "cons should require exactly 2 arguments")
 (test-error (cons 1) "cons should require exactly 2 arguments")
 (test-error (cons 1 2 3) "cons should require exactly 2 arguments")
+(test-assert
+    (= (error-message (cons 1 2)) "cons: second argument must be a list, got 2")
+  "cons should require a list as its second argument")
+(test-assert (= (cons 1 ()) (list 1)) "cons onto () makes a one-element list")
 
 ; Test undefined variable errors
 (test-error undefined-variable-name "accessing undefined variables should throw")

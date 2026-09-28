@@ -163,7 +163,7 @@
 
 ; Test 4: Different behavior with list operations
 (define left-cons-hello (partiall cons "hello"))   ; (cons "hello" x)
-(define right-cons-hello (partialr cons "hello"))  ; (cons x "hello")
+(define right-cons-hello (partialr cons (list "hello")))  ; (cons x (list "hello"))
 
 (define left-result (left-cons-hello (list "world")))
 (define right-result (right-cons-hello (list "world")))
