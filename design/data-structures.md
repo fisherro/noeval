@@ -468,8 +468,8 @@ size, which is what RRB implementations do in spirit (a short vector is a
 single leaf):
 
 - **Up to a leaf's size (32 elements), an exact-size flat array in one
-  allocation**, with `rest` and slices as views. Every operation on it is
-  bounded by the size, so the performance model stays uniform.
+  allocation.** Every operation on it is bounded by the size, so the
+  performance model stays uniform.
 - **Above that, an RRB tree**, with the library iterating by reduction.
 
 The cost is expanding forms, the one workload where the cons list stays well
@@ -477,17 +477,41 @@ ahead. Macro expansions are cached, one per combination (see
 [macros.md](macros.md)), so that cost is paid once per combination rather
 than once per evaluation, while evaluation is the path that runs every time.
 
+### Design of the representations
+
+- **Every sequence handle is (block, offset, length).** Blocks are immutable
+  and shared by reference count, so there's no separate kind of "view": a
+  whole array is a handle with an offset of 0 and its block's length. `rest`
+  and slices are new handles on the same block, with no copying.
+- **A handle keeps its whole block alive**, including the elements outside
+  its range. With blocks of at most 32 elements, that's at most 31 elements.
+  (Java's `String.substring` shared its parent's array the same way until
+  Java 7 update 6, when it switched to copying because small substrings kept
+  large strings alive. The bound on block size avoids that here.)
+- **A block is updated or grown in place** only when its handle is the only
+  reference to it and covers all of it: a reference count of 1, an offset of
+  0, and the block's full length. Otherwise the operation copies.
+- **The flat array is the RRB tree's leaf type**, so a full block becomes the
+  tree's first leaf without copying when a sequence grows past 32 elements:
+  one new node on top, and the new element in a new leaf or tail.
+- **A handle with a nonzero offset is copied when it becomes part of a
+  tree**, rather than letting a tree refer to part of a leaf. That copies at
+  most 32 elements, and keeps leaves simple.
+
+This needs an implementation of its own, since immer's nodes have their own
+layout and can't adopt an outside array.
+
 Two things are left to check:
 
-- **Views in Noeval need a value.** Every Noeval value is a separate
+- **A new handle needs a value in Noeval.** Every Noeval value is a separate
   allocation (351 instructions and 19 ns to allocate and free one of
-  Noeval's size), so a `rest` that returns a view costs that too, where a
-  cons list's `rest` returns a value that already exists. Whether that
-  matters depends on how values are represented after the change, which is
-  a separate question (see "Value size" above).
+  Noeval's size), so a `rest` that returns a new handle costs that too, where
+  a cons list's `rest` returns a value that already exists. That's a
+  question of how values are represented (see "Value size" above): it goes
+  away if a sequence handle can be held in a value slot directly, rather
+  than always behind a `value_ptr`.
 - **The mixed representation itself** wasn't benchmarked: the numbers above
   are for the flat array and the RRB tree separately.
-
 
 ## References
 
