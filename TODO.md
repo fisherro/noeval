@@ -97,8 +97,9 @@ breaks the implementation into manageable pieces, and settle whether
 homogeneous vectors are a distinct family of types.
 
 How should Noeval deal with arbitrary binary data, such as network packets and
-binary file formats? This may shape which element types homogeneous vectors
-have.
+binary file formats? See [design/binary-data.md](design/binary-data.md) for a
+proposal: `:u8` vectors, bitwise primitives, a bit-syntax macro, and handles
+for I/O.
 
 Reader extensions, which vector literal syntax waits for.
 
