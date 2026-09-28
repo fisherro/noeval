@@ -213,8 +213,16 @@ effectively constant, and it can update in place when unshared too.
 Environments shouldn't be the general map. They can only map symbols, a
 lookup falls through to the parent, `define` can't rebind a name, and every
 environment is tracked by the cycle collector, whose runs are triggered by
-creating environments (see [env-gc.md](env-gc.md)). Environment frames could
-be built on the map internally, so the C++ still has one mechanism.
+creating environments (see [env-gc.md](env-gc.md)).
+
+Nor should environments be built on the map internally. A frame is mutated in
+place by `define` and never needs an old version, so persistence buys nothing,
+and most frames are probably a call's few parameters, where a linear scan of a
+small array beats any hash table. What would speed lookups up is interning
+symbols, so a name compares and hashes as a pointer, and storing small frames
+as flat arrays. The exception would be a feature that needs a snapshot of an
+environment as a map, such as a module exporting its bindings: then sharing
+the map would be O(1) where copying a hash table is O(n).
 
 Each map has its own equality and hash hooks, given when it's created (with
 keywords, as in `(make-map :equal f :hash g)`, say). Every map derived from it
