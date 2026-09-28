@@ -22,6 +22,11 @@ Update noeval-reference.md
 Concrete, scoped work that could be picked up without first deciding whether
 or how to do it.
 
+During data srructure research, which may still be on a branch, we determined
+how we would handle a loss of improper list support. Let's go ahead and remove
+what little support we have for improper lists even without the change to the
+data structure used for code.
+
 `read` still pulls characters from `std::cin` one at a time. The lexer's
 `pushback_streambuf` reads its source in chunks only when `in_avail()` says
 characters are ready, and `std::cin`'s buffer, while synced with stdio, always
