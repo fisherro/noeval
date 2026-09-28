@@ -1120,7 +1120,8 @@
                                         (raise "Codepoint beyond Unicode range"))
                                       (cons cp rest-remaining))))))))))))
 
-    ; Helper function to process one UTF-8 sequence and return (codepoint . remaining-bytes)
+    ; Helper function to process one UTF-8 sequence and return a list of the
+    ; codepoint followed by the remaining bytes
     (define decode-one-utf8-sequence
       (lambda* (bytes)
         (cond ((nil? bytes)
@@ -1146,8 +1147,8 @@
 
     (unless (list? bytes)
       (raise "utf8->codepoints's argument must be a list"))
-    ; The seed is the result of decoding one sequence:
-    ; (codepoint . remaining-bytes)
+    ; The seed is the result of decoding one sequence: a list of the codepoint
+    ; followed by the remaining bytes.
     ; Decoding no bytes gives a codepoint of (), which ends the unfold.
     (unfoldr (lambda (decoded) (nil? (first decoded)))
              first

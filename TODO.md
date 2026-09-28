@@ -89,6 +89,18 @@ Revisit escaping in string literals (what scheme do we want to use?)
 
 Replace lists with arrays? Or maybe Clojure/Scala style vectors? Or RRB trees?
 And maybe going further, support for homogenous RRB trees of specific types (like bytes) would make sense?
+Decided: lists stay for now (they may be replaced later), and `vector` (flat
+arrays up to 32 elements, RRB trees above) and homogeneous vectors will be
+added. See
+[design/data-structures.md](design/data-structures.md). Next, make a plan that
+breaks the implementation into manageable pieces, and settle whether
+homogeneous vectors are a distinct family of types.
+
+How should Noeval deal with arbitrary binary data, such as network packets and
+binary file formats? This may shape which element types homogeneous vectors
+have.
+
+Reader extensions, which vector literal syntax waits for.
 
 > I'll avoid set-car!/set-cdr! for now...a set-array-element! might happen
 > And that might be needed for a good promise implementation
@@ -100,6 +112,13 @@ Module system?
 Hash sets and maps (Should this be done my making environments first class?)
 
 Interning symbols
+
+Store small environment frames as flat arrays, searched linearly, instead of
+`std::unordered_map`. Most frames probably hold a call's few parameters, where
+a linear scan beats hashing the name (especially once symbols are interned, so
+names compare as pointers). Large frames, like the library's and the top
+level's, would keep a hash table. Measure the distribution of frame sizes
+first. See [design/data-structures.md](design/data-structures.md).
 
 Support for lazy evaluation (We can do this in the library, right?)
 

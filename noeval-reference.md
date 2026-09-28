@@ -25,7 +25,7 @@ A summary of the language, for working on Noeval code (for example, as context f
 - **Church Booleans**: `((condition) true-branch false-branch)`
 - **Variadic parameters**: `vau` and `lambda` support variadic parameters using single symbol form `(lambda args ...)` but not dotted pair form `(lambda (first . rest) ...)`
 - **Single vs multiple expressions**: `lambda` and `vau` support only single body expressions; use `lambda*` and `vau*` for multiple expressions in the body
-- **Lists**: Built from `cons` cells, terminated with `()`
+- **Lists**: Built from `cons` cells, terminated with `()`. Every list is proper: `cons`'s second argument must be a list (`()` or a cons cell), so there are no improper lists or dotted pairs
 - **Unevaluated arguments**: Operatives receive raw expressions
 - **Evaluation rule**: As in Kernel, a symbol is looked up and a cons cell is a combination; every other value (numbers, strings, `()`, operatives, macros, environments, the eof object) evaluates to itself. So code built at runtime can contain any value, not just its name.
 - **Environment access**: Second parameter to `vau` gets calling environment

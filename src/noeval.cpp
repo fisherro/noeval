@@ -265,9 +265,6 @@ std::string cons_cell::to_string() const
         result += value_to_string(cell.car);
         current = cell.cdr;
     }
-    if (not std::holds_alternative<std::nullptr_t>(current->data)) {
-        result += " . " + value_to_string(current);
-    }
     result += ")";
     return result;
 }
@@ -446,7 +443,7 @@ std::vector<value_ptr> list_to_vector(value_ptr list)
         current = cdr(current);
     }
     if (not is_nil(current)) {
-        throw std::runtime_error("Improper list");
+        throw std::runtime_error("Not a list");
     }
     return result;
 }
@@ -481,7 +478,7 @@ param_pattern extract_param_pattern(value_ptr params)
         return {true, {std::get<symbol>(params->data).name}};
     }
 
-    // Handle list cases: (vau (a b . rest) env ...) or (vau (a b) env ...)
+    // Handle the list case: (vau (a b) env ...)
     std::vector<std::string> fixed;
     auto current = params;
     
@@ -495,7 +492,6 @@ param_pattern extract_param_pattern(value_ptr params)
     }
     
     if (is_nil(current)) {
-        // Proper list: (a b c)
         return { false, fixed };
     } else {
         throw std::runtime_error("Invalid parameter pattern");
@@ -902,7 +898,15 @@ namespace builtins {
         
         auto first_val = eval(args[0], env);
         auto rest_val = eval(args[1], env);
-        
+        // Lists are always proper: there are no improper lists or dotted pairs.
+        if (not is_nil(rest_val) and not is_cons(rest_val)) {
+            throw evaluation_error(
+                std::format("cons: second argument must be a list, got {}", value_to_string(rest_val)),
+                "cons",
+                call_stack::format()
+            );
+        }
+
         return value::make(cons_cell{first_val, rest_val});
     }
 
