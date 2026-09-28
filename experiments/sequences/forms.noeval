@@ -1,0 +1,13 @@
+; Prints the length of every list in the expressions read from standard input.
+(define walk
+  (lambda* (x)
+    (when (and (list? x) (not (nil? x)))
+      (displayln (length x))
+      (for-each walk x))))
+(define loop
+  (lambda* ()
+    (define x (read))
+    (unless (eof-object? x)
+      (walk x)
+      (loop))))
+(loop)
