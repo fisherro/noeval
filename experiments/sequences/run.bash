@@ -1,10 +1,12 @@
 #!/bin/bash
 # Build and run the sequence microbenchmark, and write the results.
 #
-# Usage: experiments/sequences/run.bash [-r rounds]
+# Usage: experiments/sequences/run.bash [-r rounds] [-p]
 #
 #   -r rounds  Time each structure this many times, in turn, and keep the
 #              fastest time for each measurement (default 3).
+#   -p         Don't measure: only write the results again from the last
+#              run's measurements, in build/raw.
 #
 # Fetches immer (at a fixed commit) into build/, builds build/bench, and
 # measures each structure three ways:
@@ -22,8 +24,10 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 rounds=3
-while getopts r: option; do
+do_measure=true
+while getopts pr: option; do
     case $option in
+        p) do_measure=false ;;
         r) rounds=$OPTARG ;;
         *) exit 2 ;;
     esac
@@ -31,7 +35,11 @@ done
 
 cxx=${CXX:-g++-14}
 immer_commit=bd4fc749b97dfa2b66a8f3de00bbf234db4856ef
-structures=("cons (shared_ptr)" "cons (intrusive)" "flat array" "trie" "rrb")
+structures=("cons (shared_ptr)" "cons (intrusive)" "cons (free list)" "flat array" "trie" "rrb" "rrb (free list)")
+
+raw=build/raw
+
+if $do_measure; then
 
 mkdir -p build
 if [[ ! -d build/immer ]]; then
@@ -40,10 +48,9 @@ if [[ ! -d build/immer ]]; then
     git -C build/immer checkout -q FETCH_HEAD
 fi
 
-"$cxx" -std=c++26 -O2 -g -DNDEBUG -DIMMER_NO_THREAD_SAFETY=1 -Wall -Wextra \
+"$cxx" -std=c++26 -O2 -g -DNDEBUG -Wall -Wextra \
     -isystem build/immer bench.cpp -o build/bench
 
-raw=build/raw
 rm -rf "$raw"
 mkdir -p "$raw/callgrind"
 
@@ -88,16 +95,24 @@ done |
         END { for (label in best) print label, best[label] }
     ' | sort > "$raw/time.tsv"
 
+fi
+
 # results.tsv: structure, workload, size, instructions, D1 misses,
-# allocations, nanoseconds (each per unit), in the order the program runs
-# them.
+# allocations, nanoseconds (each per unit), in the order the program runs the
+# workloads, by size.
+workloads="build|build incrementally|prepend|persistent growth|walk with rest|reduce|reduce spine|length|index|update shared|update unique|concatenate|slice|code: parse|code: evaluate|code: expand|text: concatenate|text: slice|value allocation|memory"
 {
     printf 'structure\tworkload\tsize\tinstructions\td1_misses\tallocations\tnanoseconds\n'
-    sort "$raw/callgrind.tsv" | join -t $'\t' - "$raw/time.tsv" |
-        awk -F '\t' -v OFS='\t' '
-            { split($1, key, "|"); printf "%s\t%s\t%s\t%.1f\t%.2f\t%.2f\t%s\n", key[1], key[2], key[3], $4, $5, $3, $6 }
-        '
-    awk -F '\t' -v OFS='\t' '{ split($1, key, "|"); print key[1], key[2], key[3], "", "", "", $2 }' "$raw/memory.tsv"
+    {
+        sort "$raw/callgrind.tsv" | join -t $'\t' - "$raw/time.tsv" |
+            awk -F '\t' -v OFS='\t' '
+                { split($1, key, "|"); printf "%s\t%s\t%s\t%.1f\t%.2f\t%.2f\t%s\n", key[1], key[2], key[3], $4, $5, $3, $6 }
+            '
+        awk -F '\t' -v OFS='\t' '{ split($1, key, "|"); print key[1], key[2], key[3], "", "", "", $2 }' "$raw/memory.tsv"
+    } | awk -F '\t' -v OFS='\t' -v workloads="$workloads" '
+        BEGIN { n = split(workloads, w, "|"); for (i = 1; i <= n; ++i) order[w[i]] = i }
+        { print order[$2], $0 }
+    ' | sort -t $'\t' -s -k1,1n -k4,4n | cut -f 2-
 } > results.tsv
 
 # results.md: a table per measure, with a row for each workload and size and

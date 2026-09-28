@@ -27,6 +27,8 @@ cat src/lib.noeval tests/*.noeval |
   counts are atomic, as `shared_ptr`'s are.
 - **cons (intrusive)**: a cons list with intrusive, non-atomic reference
   counts. This is the fair baseline for a cons list.
+- **cons (free list)**: the same, with its nodes kept on a free list for
+  reuse rather than freed.
 - **flat array**: a `std::vector`, shared by reference count. An update is in
   place when nothing else refers to it, and a copy otherwise. `rest` and
   slices are views into it, so they allocate nothing, but they keep the whole
@@ -35,9 +37,14 @@ cat src/lib.noeval tests/*.noeval |
   Clojure's vector. It has no cheap `rest`, prepend, concatenation, or slice,
   so those copy.
 - **rrb**: `immer::flex_vector`, an RRB tree.
+- **rrb (free list)**: the same, with immer's free lists, which are its
+  default.
 
-immer is built with `IMMER_NO_THREAD_SAFETY`, so its counts aren't atomic
-either, and it uses its free lists.
+immer's reference counts aren't atomic here. Except for the two free list
+variants, every structure allocates with malloc, so the comparisons between
+them are on equal terms. The free list variants show how much a structure
+gains from reusing freed nodes, which an implementation could do for any of
+the structures.
 
 Every structure holds *elements*, which stand for Noeval's `value_ptr`: a
 pointer to a separately allocated, reference-counted object. Copying an
@@ -82,7 +89,8 @@ what it was given.
 - **First-level data cache misses**, as callgrind simulates them. The
   simulated last-level cache is the host's, which on a large server holds
   everything, so last-level misses aren't reported.
-- **Allocations**, counted by replacing `operator new`.
+- **Allocations**, counted by replacing `operator new`. A free list's reuse
+  of a node isn't an allocation.
 - **Nanoseconds**, the fastest of 7 runs in each of 3 rounds. The machine's
   speed varies, so treat these as rough, and prefer the instruction counts
   for small differences.

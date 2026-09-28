@@ -155,8 +155,28 @@ struct shared_links {
     }
 };
 
-// A cons list with intrusive, non-atomic reference counts.
-template<typename T>
+// Allocates blocks of one size, keeping freed ones on a list for reuse, as
+// immer's free lists do.
+template<std::size_t Size>
+struct free_list {
+    static inline void* head{nullptr};
+    static void* allocate()
+    {
+        if (not head) return ::operator new(Size);
+        void* p{head};
+        head = *static_cast<void**>(p);
+        return p;
+    }
+    static void deallocate(void* p)
+    {
+        *static_cast<void**>(p) = head;
+        head = p;
+    }
+};
+
+// A cons list with intrusive, non-atomic reference counts, whose nodes come
+// from malloc or, if Pooled, from a free list.
+template<typename T, bool Pooled = false>
 struct intrusive_links {
     struct node {
         long refs;
@@ -179,7 +199,7 @@ struct intrusive_links {
             node* n{n_};
             while (n and 0 == --n->refs) {
                 node* next{n->cdr};
-                delete n;
+                destroy(n);
                 n = next;
             }
         }
@@ -189,10 +209,24 @@ struct intrusive_links {
     private:
         node* n_{nullptr};
     };
-    static ptr make(T car, ptr cdr)
+    static node* create(T car, node* cdr)
     {
-        return ptr(new node{1, std::move(car), cdr.release()});
+        if constexpr (Pooled) {
+            return new (free_list<sizeof(node)>::allocate()) node{1, std::move(car), cdr};
+        } else {
+            return new node{1, std::move(car), cdr};
+        }
     }
+    static void destroy(node* n)
+    {
+        if constexpr (Pooled) {
+            n->~node();
+            free_list<sizeof(node)>::deallocate(n);
+        } else {
+            delete n;
+        }
+    }
+    static ptr make(T car, ptr cdr) { return ptr(create(std::move(car), cdr.release())); }
     static const T& car(const ptr& p) { return p.get()->car; }
     // A view of the cdr that shares the node's reference: copying it takes a
     // reference of its own.
@@ -330,6 +364,7 @@ private:
 
 template<typename T> using cons_shared = cons_list<T, shared_links<T>>;
 template<typename T> using cons_intrusive = cons_list<T, intrusive_links<T>>;
+template<typename T> using cons_pooled = cons_list<T, intrusive_links<T, true>>;
 
 // A flat array, shared by reference count, updated in place when nothing else
 // refers to it and copied otherwise. rest and slice are views into it.
@@ -464,7 +499,13 @@ struct flat_array {
     }
 };
 
-// immer's vectors, with non-atomic counts (IMMER_NO_THREAD_SAFETY).
+// immer's vectors, with non-atomic counts. By default their nodes come from
+// malloc, like the other structures'; immer's default policy keeps free
+// lists.
+using malloc_policy = immer::memory_policy<immer::heap_policy<immer::cpp_heap>,
+    immer::unsafe_refcount_policy, immer::no_lock_policy>;
+using free_list_policy = immer::memory_policy<immer::unsafe_free_list_heap_policy<immer::cpp_heap>,
+    immer::unsafe_refcount_policy, immer::no_lock_policy>;
 
 template<typename V>
 struct immer_common {
@@ -498,8 +539,8 @@ struct immer_common {
 
 // The persistent trie, as Clojure's vector.
 template<typename T>
-struct trie : immer_common<immer::vector<T>> {
-    using base = immer_common<immer::vector<T>>;
+struct trie : immer_common<immer::vector<T, malloc_policy>> {
+    using base = immer_common<immer::vector<T, malloc_policy>>;
     using typename base::seq;
 
     static constexpr bool linear_rest{true};
@@ -540,9 +581,9 @@ struct trie : immer_common<immer::vector<T>> {
 };
 
 // The RRB tree.
-template<typename T>
-struct rrb : immer_common<immer::flex_vector<T>> {
-    using base = immer_common<immer::flex_vector<T>>;
+template<typename T, typename Policy>
+struct rrb_tree : immer_common<immer::flex_vector<T, Policy>> {
+    using base = immer_common<immer::flex_vector<T, Policy>>;
     using typename base::seq;
 
     static constexpr bool linear_rest{false};
@@ -559,6 +600,9 @@ struct rrb : immer_common<immer::flex_vector<T>> {
     static seq append_in_place(seq&& a, const seq& b) { return std::move(a) + b; }
     static seq slice(const seq& s, std::size_t from, std::size_t to) { return s.drop(from).take(to - from); }
 };
+
+template<typename T> using rrb = rrb_tree<T, malloc_policy>;
+template<typename T> using rrb_pooled = rrb_tree<T, free_list_policy>;
 
 // Measuring
 
@@ -876,7 +920,9 @@ int main(int argc, char** argv)
     if (want("baseline") and "memory" != mode) run_baseline();
     if (want("cons (shared_ptr)")) run_structure<cons_shared>(mode, "cons (shared_ptr)", p);
     if (want("cons (intrusive)")) run_structure<cons_intrusive>(mode, "cons (intrusive)", p);
+    if (want("cons (free list)")) run_structure<cons_pooled>(mode, "cons (free list)", p);
     if (want("flat array")) run_structure<flat_array>(mode, "flat array", p);
     if (want("trie")) run_structure<trie>(mode, "trie", p);
     if (want("rrb")) run_structure<rrb>(mode, "rrb", p);
+    if (want("rrb (free list)")) run_structure<rrb_pooled>(mode, "rrb (free list)", p);
 }
