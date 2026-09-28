@@ -135,9 +135,9 @@ reference counting, and Noeval can too. A loop that builds a sequence then
 runs at the speed of a mutable array, while the semantics stay persistent.
 
 For C++, [immer](https://github.com/arximboldi/immer) has `flex_vector`, an
-RRB tree, with configurable memory and reference counting policies. At the
-least it's a reference implementation. It would also be a candidate
-dependency, if one beyond Boost and Readline is acceptable.
+RRB tree, with configurable memory and reference counting policies. It's a
+reference implementation, but Noeval will have its own (see
+[Design of the representations](#design-of-the-representations)).
 
 ### Iteration: reduce first, `first` and `rest` second
 
@@ -498,8 +498,26 @@ than once per evaluation, while evaluation is the path that runs every time.
   tree**, rather than letting a tree refer to part of a leaf. That copies at
   most 32 elements, and keeps leaves simple.
 
-This needs an implementation of its own, since immer's nodes have their own
-layout and can't adopt an outside array.
+Noeval will have its own implementation of both representations, rather than
+using immer for the RRB tree:
+
+- **The cycle collector has to see the nodes.** It visits each heap object
+  once and subtracts the references that object holds (see
+  [env-gc.md](env-gc.md)). In an RRB tree, the objects holding the elements
+  are its nodes, which are shared between trees. Walking each tree's elements
+  instead would subtract an element in a shared leaf once per tree, though
+  the leaf holds only one reference to it, and the collector could free
+  something still reachable. immer's nodes and their counts are in its
+  `detail` namespace, not its public API.
+- **It avoids a dependency** beyond Boost and Readline.
+- **It lets a full flat array become a leaf without copying**, since the
+  flat array can be the leaf type. (With immer, crossing 32 elements would
+  copy them, which would also have been acceptable.)
+
+When an RRB tree shrinks to 32 elements or fewer, through `rest`, a slice,
+or a drop, it's copied back to a flat array, so short sequences are always
+flat. If a sequence that keeps crossing the boundary ever copies too often,
+demoting only below a lower size, such as 16, would fix it.
 
 Two things are left to check:
 
