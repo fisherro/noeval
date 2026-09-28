@@ -154,8 +154,23 @@ environment is tracked by the cycle collector, whose runs are triggered by
 creating environments (see [env-gc.md](env-gc.md)). Environment frames could
 be built on the map internally, so the C++ still has one mechanism.
 
-A map needs an equality and a hash for its keys, so this depends on the
-questions in [equality.md](equality.md).
+Keys are compared with `=`, which is structural (see
+[equality.md](equality.md)); `identity?` is for identity. Using `=` for keys
+raises three questions about how it applies, not about which equality to use:
+
+- **Keys of different types.** `=` raises an error when its arguments' types
+  differ, so a map whose keys are a mix of, say, symbols and numbers would
+  raise when two keys of different types hash alike. Key comparison should
+  treat different types as unequal instead. It's the same relation, without
+  the error that's there to catch mistakes in user code.
+- **Types without structural equality.** `(= first first)` and `(= map map)`
+  are false: `=` on builtins and on operatives without tags is never true, so
+  such a key could never be found. The key comparison needs to be reflexive,
+  most simply by falling back to identity for those types. That could be the
+  rule for `=` itself.
+- **Hashing** has to agree with `=`, so a sequence's hash depends on its
+  contents. That's O(n) to compute, but a sequence is immutable, so its hash
+  can be computed once and cached.
 
 ### Records: Kernel's encapsulation types
 
