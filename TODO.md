@@ -84,7 +84,7 @@ Revisit escaping in string literals (what scheme do we want to use?)
 
 Replace lists with arrays? Or maybe Clojure/Scala style vectors? Or RRB trees?
 And maybe going further, support for homogenous RRB trees of specific types (like bytes) would make sense?
-Decided: lists stay, and `vector` (flat arrays up to 32 elements, RRB trees
+Decided: lists stay for now (they may be replaced later), and `vector` (flat arrays up to 32 elements, RRB trees
 above) and homogeneous vectors will be added. See
 [design/data-structures.md](design/data-structures.md). Next, make a plan that
 breaks the implementation into manageable pieces, and settle whether

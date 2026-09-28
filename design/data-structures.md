@@ -98,14 +98,15 @@ chains of cells. What changed was the default for data.
 
 ## Recommendation
 
-### Decision: keep lists, and add vectors
+### Decision: keep lists for now, and add vectors
 
 After the microbenchmark and the discussion that followed it, the decision
 is:
 
-- **Lists stay**, made of cons cells, and code stays made of lists. That may
-  change later, but the cons list is still the best structure for what code
-  does most: taking a form apart and putting a new head on its operands.
+- **Lists stay for now**, made of cons cells, and code stays made of lists.
+  This isn't permanent: lists may be replaced later. For now, the cons list is
+  still the best structure for what code does most: taking a form apart and
+  putting a new head on its operands.
 - **Improper lists are gone**, as if lists had already been replaced (see
   [Improper lists](#improper-lists)). `cons`'s second argument must be a
   list.
