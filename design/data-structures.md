@@ -116,7 +116,8 @@ is:
   constructor, as in `(make-vector :u8 ...)`. See
   [Homogeneous vectors](#homogeneous-vectors).
 - **No literal syntax** for vectors for now. That waits for reader
-  extensions.
+  extensions. Until then, a vector prints as the call that constructs it,
+  such as `(vector :u8 1 2 3)` (see [binary-data.md](binary-data.md#printing)).
 - **Implementation waits** for a plan that breaks it into manageable pieces.
 
 So there are two sequence types, as in Clojure, rather than one. That makes
@@ -126,10 +127,11 @@ through reduction.
 
 ### Homogeneous vectors
 
-For now, assume a homogeneous vector can be made for any element type. How
-to deal with arbitrary binary data, such as network packets and binary file
-formats, is a later discussion, and it may shape what element types there
-are.
+For now, assume a homogeneous vector can be made for any element type.
+[binary-data.md](binary-data.md) proposes how to deal with arbitrary binary
+data, such as network packets and binary file formats. Of the element types,
+it needs only `:u8`, so it doesn't shape what others there are, but it asks for
+leaves of unboxed elements to be sized in bytes rather than elements.
 
 "Any type" covers two different things, which the design needs to keep
 apart:
