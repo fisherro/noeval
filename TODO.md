@@ -107,6 +107,13 @@ Hash sets and maps (Should this be done my making environments first class?)
 
 Interning symbols
 
+Store small environment frames as flat arrays, searched linearly, instead of
+`std::unordered_map`. Most frames probably hold a call's few parameters, where
+a linear scan beats hashing the name (especially once symbols are interned, so
+names compare as pointers). Large frames, like the library's and the top
+level's, would keep a hash table. Measure the distribution of frame sizes
+first. See [design/data-structures.md](design/data-structures.md).
+
 Support for lazy evaluation (We can do this in the library, right?)
 
 FFI and POSIX support
