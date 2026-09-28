@@ -111,13 +111,46 @@ is:
   list.
 - **`vector` is a new type**: a flat array up to 32 elements and an RRB tree
   above that, as described below.
-- **A homogeneous vector** holds elements of one type unboxed, such as
-  bytes, as a variant of `vector`.
+- **A homogeneous vector** holds elements of one type, given to its
+  constructor, as in `(make-vector :u8 ...)`. See
+  [Homogeneous vectors](#homogeneous-vectors).
+- **No literal syntax** for vectors for now. That waits for reader
+  extensions.
+- **Implementation waits** for a plan that breaks it into manageable pieces.
 
 So there are two sequence types, as in Clojure, rather than one. That makes
 the generic sequence interface (see [sequences.md](sequences.md)) more
 important: library functions such as `map` and `foldl` should work on both,
 through reduction.
+
+### Homogeneous vectors
+
+For now, assume a homogeneous vector can be made for any element type. How
+to deal with arbitrary binary data, such as network packets and binary file
+formats, is a later discussion, and it may shape what element types there
+are.
+
+"Any type" covers two different things, which the design needs to keep
+apart:
+
+- **Representations**, such as unsigned bytes or 32-bit integers. These
+  aren't Noeval types (Noeval's numbers are all rationals), but they're what
+  makes storage compact: the elements are stored unboxed, and leaves hold no
+  references, so the cycle collector can skip them. Storing a value out of
+  range, such as 256 in a vector of bytes, is an error.
+- **Noeval types**, such as strings or symbols (and later, records). Storage
+  gains nothing, since the elements are still values, so homogeneity is only
+  a checked constraint.
+
+Open question: whether homogeneous vectors are a distinct family of types
+from heterogeneous ones. The alternative is one `vector` type whose element
+type is a property of each vector, with the heterogeneous vector being the
+one whose element type is "any". That keeps one set of vector functions and
+one predicate. In Clojure, `vector-of` makes vectors of primitives that are
+still vectors (`vector?` is true of them). One type does need rules for
+operations whose results might not fit the element type: `map` over a vector
+of bytes may return values that aren't bytes, and concatenating a vector of
+bytes with a heterogeneous vector has to give a heterogeneous one.
 
 The rest of this section is the analysis that led here, which argued for a
 single sequence type.
