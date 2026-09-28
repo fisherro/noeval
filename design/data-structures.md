@@ -154,23 +154,52 @@ environment is tracked by the cycle collector, whose runs are triggered by
 creating environments (see [env-gc.md](env-gc.md)). Environment frames could
 be built on the map internally, so the C++ still has one mechanism.
 
-Keys are compared with `=`, which is structural (see
-[equality.md](equality.md)); `identity?` is for identity. Using `=` for keys
-raises three questions about how it applies, not about which equality to use:
+Each map has its own equality and hash hooks, given when it's created (with
+keywords, as in `(make-map :equal f :hash g)`, say). Every map derived from it
+by adding or removing entries keeps them. The defaults:
 
-- **Keys of different types.** `=` raises an error when its arguments' types
-  differ, so a map whose keys are a mix of, say, symbols and numbers would
-  raise when two keys of different types hash alike. Key comparison should
-  treat different types as unequal instead. It's the same relation, without
-  the error that's there to catch mistakes in user code.
-- **Types without structural equality.** `(= first first)` and `(= map map)`
-  are false: `=` on builtins and on operatives without tags is never true, so
-  such a key could never be found. The key comparison needs to be reflexive,
-  most simply by falling back to identity for those types. That could be the
-  rule for `=` itself.
-- **Hashing** has to agree with `=`, so a sequence's hash depends on its
-  contents. That's O(n) to compute, but a sequence is immutable, so its hash
-  can be computed once and cached.
+- **Equality: `=`, but false for arguments of different types**, rather than
+  an error. `=` raises that error to catch mistakes in user code, but a map
+  whose keys are a mix of, say, symbols and numbers compares keys of different
+  types whenever they hash alike. It could be a primitive, or the library's
+  `(and (= (typeof a) (typeof b)) (= a b))`, but the C++ has to implement it
+  anyway for the fast path below, so exposing it costs little.
+- **Hash: a hash of any `value`, written in C++ and exposed to user code.** It
+  has to agree with the default equality: equal values hash alike. So a
+  number's hash comes from its canonical numerator and denominator, a string's
+  and a symbol's from their contents, and a sequence's from its elements'
+  hashes, in order. That's O(n), but a sequence is immutable, so its hash can
+  be computed once and cached. A map's hash has to combine its entries'
+  hashes in a way that doesn't depend on their order, such as a sum.
+
+Details to settle:
+
+- **Reflexivity.** `(= first first)` and `(= map map)` are false: `=` on
+  builtins and on operatives without tags is never true, so such a key could
+  never be found. The default equality has to fall back to identity for types
+  without structural equality, and their hash has to be by identity to match.
+  That could be the rule for `=` itself.
+- **The fast path.** Calling a Noeval operative for every hash and comparison
+  would be slow. When a map's hooks are the defaults, which the C++ can tell by
+  identity, it calls the C++ functions directly.
+- **The hooks' contract.** Equality has to be an equivalence relation, and
+  equal keys have to hash alike. Neither can be checked, and breaking them
+  gives wrong lookups rather than errors, so the contract needs documenting.
+  A hook that raises in the middle of an update is safe: the map is
+  persistent, so the old version is untouched.
+- **Operations on two maps.** Merging two maps, or comparing them with `=`,
+  needs both to have the same hooks. Raising an error when they differ is the
+  simplest rule. Then `=` on two maps compares keys with the maps' equality
+  hook and values with `=`, so a map's own hash (for a map used as a key) has
+  to hash its keys with its hash hook and its values with the default hash.
+  Hashing keys with the default hash would break with a coarser hook: under
+  case-insensitive keys, maps whose keys are `"A"` and `"a"` are equal but
+  would hash differently.
+- **Hash values are unspecified.** Hashes by identity differ between runs, and
+  so would everything if the hash were seeded per process. User code can use
+  them for its own hash tables, but shouldn't store them or depend on their
+  values. A per-process seed would make that hard to depend on by accident.
+- **Sets** would take the same hooks.
 
 ### Records: Kernel's encapsulation types
 
