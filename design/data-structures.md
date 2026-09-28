@@ -100,6 +100,10 @@ chains of cells. What changed was the default for data.
 
 ### Sequences: an RRB tree, updated in place when unshared
 
+The microbenchmark below supports this for sequences longer than a leaf (32
+elements), but not for shorter ones, which should be exact-size flat arrays.
+See [What the results change](#what-the-results-change).
+
 The RRB tree is the only candidate with no bad operation. log₃₂ n is at most
 7 levels for 2³² elements, so every operation is effectively constant. That
 gives a uniform performance model: there's no slow operation to stumble into,
@@ -113,7 +117,8 @@ It covers each workload:
   rather than O(1).
 - **Code:** nearly every form has fewer than 32 elements, so it's a single
   leaf, which is a small array. Taking it apart is cheap and its locality is
-  ideal.
+  ideal. (But a leaf should be exact-size: immer gives even a one-element
+  vector a 32-slot leaf.)
 - **Text:** RRB leaves of bytes make a rope, with cheap concatenation and
   slicing. That's the "primitive sequence type that serves the needs of
   strings" that musings.md asks for, and it could replace the separate string
@@ -218,9 +223,10 @@ promises may need a mutable array element, and a box may be enough.
 
 ### Summary
 
-Primitives: an RRB sequence (with compact leaves for bytes and codepoints), a
-CHAMP map, encapsulation types, and possibly boxes. Library: records, the
-codepoint view of text, and bytevectors as sequences of bytes.
+Primitives: a sequence that's a flat array up to 32 elements and an RRB tree
+above that (with compact storage for bytes and codepoints), a CHAMP map,
+encapsulation types, and possibly boxes. Library: records, the codepoint view
+of text, and bytevectors as sequences of bytes.
 
 ## Consequences and open questions
 
@@ -299,7 +305,7 @@ than working around it.
 `utf8->codepoints`'s helper returns a 2-element sequence, the `list?` test
 changes, and the printer's dotted case goes away.
 
-## Microbenchmark proposal
+## Microbenchmark
 
 End-to-end Noeval benchmarks can't settle this, because the existing code is
 shaped around cons cells. What can be checked independently is whether an RRB
@@ -371,12 +377,117 @@ Settle what would change the recommendation before running it:
   shared updates, prepending, and concatenation, weigh how often those happen
   in real programs before choosing it.
 
-### Where it lives
+### Results
 
-A standalone C++ program in its own directory, such as
-`experiments/sequences/`, outside the interpreter's build, with a Bash script
-to build and run it. immer is header-only, so it only needs to be on the
-include path for the experiment.
+The code and results are in
+[experiments/sequences](../experiments/sequences/README.md), with every
+number in `results.md`. These are nanoseconds per unit, the fastest of 21
+runs, for the structures that allocate with malloc, and for the cons list
+with a free list. (immer's RRB tree with its free lists is up to a third
+faster than the one without, and mostly less, which changes none of the
+comparisons.) Instruction counts, which don't
+depend on the machine's speed, tell the same story.
+
+| Workload | Size | cons | cons, free list | flat array | RRB tree |
+|---|---:|---:|---:|---:|---:|
+| build | 3 | 11.8 | 3.9 | 4.3 | 7.1 |
+| walk with rest | 3 | 1.4 | 1.3 | 0.7 | 14.0 |
+| walk with rest | 1,000,000 | 16.3 | 7.7 | 5.5 | 283 |
+| reduce | 3 | 0.35 | 0.31 | 0.44 | 0.56 |
+| reduce | 1,000,000 | 9.2 | 7.4 | 6.3 | 6.1 |
+| reduce spine | 1,000,000 | 5.1 | 2.7 | 0.43 | 0.42 |
+| prepend | 3 | 10.4 | 4.0 | 13.1 | 27.4 |
+| prepend | 1,000,000 | 54 | 23 | (quadratic) | 1,148 |
+| index | 1,000 | 613 | 543 | 0.75 | 1.6 |
+| update, shared | 1,000 | 14,523 | 5,137 | 2,564 | 85 |
+| concatenate | 1,000 | 29,204 | 14,225 | 5,056 | 398 |
+| slice | 1,000 | 16,671 | 9,159 | 2.7 | 142 |
+| code: parse (per form) | | 188 | 70 | 93 | 124 |
+| code: evaluate (per form) | | 17.0 | 16.4 | 18.3 | 20.3 |
+| code: expand (per form) | | 29.7 | 12.7 | 100 | 202 |
+| text: concatenate (per byte) | | 24.3 | 12.1 | 0.50 | 0.97 |
+| text: slice (per slice) | | 104,175 | 250,815 | 23 | 175 |
+
+Bytes each structure allocates per element, not counting the elements'
+objects:
+
+| Size | cons | flat array | RRB tree |
+|---:|---:|---:|---:|
+| 1 | 24 | 40 | 264 |
+| 3 | 24 | 18.7 | 88 |
+| 32 | 24 | 8.75 | 8.25 |
+| 1,000,000 | 24 | 8.0 | 8.5 |
+
+Against the criteria set in advance:
+
+- **The RRB tree isn't within 2× of the cons list on the code workload or on
+  the walk at small sizes**, so the recommendation doesn't stand as it was.
+  Evaluating forms is close (1.2×), and parsing them is faster than a cons
+  list that allocates with malloc, but expanding them (a new head on the
+  operands) is 7× to 16× slower, and a walk with `first` and `rest` of three
+  elements is 10× slower. immer also gives even a one-element vector a full
+  32-slot leaf, 264 bytes.
+- **Reduction is fast**, as fast as a cons list's for small sequences and
+  faster for large ones. So library code over sequences should reduce rather
+  than recurse with `rest`: a `rest` of an RRB tree of a million elements
+  takes about 280 ns, against 16 ns for a cons list.
+- **The code workload is much slower, so the fallback was to represent a
+  short sequence as a single flat leaf** and check again. A flat array in one
+  allocation parses forms faster than the RRB tree and than a cons list that
+  allocates with malloc, evaluates them about as fast as either, takes less
+  memory than the cons list at every size from 2 and than the RRB tree at
+  every size measured but 32, and walks with `rest` fastest of all, since
+  `rest` is a view. It still expands forms 3× to 8× slower than a cons list:
+  a cons list shares the operands, but an array copies them, and copying an
+  element touches its reference count, in a scattered object (twice the
+  cache misses per form).
+- **Against the flat array, the RRB tree wins only where sequences are large
+  and shared or combined**: shared updates, concatenation, prepending,
+  persistent growth, and building one element at a time. The flat array wins
+  at indexing, unique updates, slicing, and text.
+
+Other findings:
+
+- **immer's prepend is expensive**: 27 ns for three elements and 1.1 µs for a
+  million, against 4 to 54 ns for a cons list. It goes through
+  concatenation. Whether another RRB implementation would do better wasn't
+  tested.
+- **Free lists matter as much as the structure**: a free list makes the cons
+  list 2× to 3× faster wherever it allocates. Any structure could have one.
+  But it scatters a long list's nodes, since reused nodes aren't adjacent:
+  slicing the long text is 2.4× slower with it.
+- **The cons list's weaknesses are as expected**: at a thousand elements,
+  indexing is 400 to 800 times slower than the RRB tree's and the flat
+  array's, concatenation 3 to 70 times slower, and a slice 60 to 6,000 times
+  slower.
+
+### What the results change
+
+One sequence type still looks right, but with two representations chosen by
+size, which is what RRB implementations do in spirit (a short vector is a
+single leaf):
+
+- **Up to a leaf's size (32 elements), an exact-size flat array in one
+  allocation**, with `rest` and slices as views. Every operation on it is
+  bounded by the size, so the performance model stays uniform.
+- **Above that, an RRB tree**, with the library iterating by reduction.
+
+The cost is expanding forms, the one workload where the cons list stays well
+ahead. Macro expansions are cached, one per combination (see
+[macros.md](macros.md)), so that cost is paid once per combination rather
+than once per evaluation, while evaluation is the path that runs every time.
+
+Two things are left to check:
+
+- **Views in Noeval need a value.** Every Noeval value is a separate
+  allocation (351 instructions and 19 ns to allocate and free one of
+  Noeval's size), so a `rest` that returns a view costs that too, where a
+  cons list's `rest` returns a value that already exists. Whether that
+  matters depends on how values are represented after the change, which is
+  a separate question (see "Value size" above).
+- **The mixed representation itself** wasn't benchmarked: the numbers above
+  are for the flat array and the RRB tree separately.
+
 
 ## References
 

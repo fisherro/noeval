@@ -29,8 +29,9 @@ cat src/lib.noeval tests/*.noeval |
   counts. This is the fair baseline for a cons list.
 - **cons (free list)**: the same, with its nodes kept on a free list for
   reuse rather than freed.
-- **flat array**: a `std::vector`, shared by reference count. An update is in
-  place when nothing else refers to it, and a copy otherwise. `rest` and
+- **flat array**: an array in a single allocation, with its header, shared by
+  reference count. An update is in place when nothing else refers to it, and
+  a copy otherwise. Growing it in place doubles its capacity. `rest` and
   slices are views into it, so they allocate nothing, but they keep the whole
   array alive.
 - **trie**: `immer::vector`, a persistent trie with 32-way branching, as
@@ -104,6 +105,14 @@ what it was given.
   cons list returns a value that already exists, but on every other
   structure it would allocate one. The baseline row in the results gives
   that cost, which isn't included in the structures' numbers.
+- A sequence that copies elements rather than sharing them (as a flat array
+  does for `code: expand`) touches each element's reference count, in its
+  scattered object, so copying costs cache misses as well as instructions.
+  A cons list shares the tail instead.
+- The cons lists' nodes are allocated one after another, so they're mostly
+  adjacent in memory, which favours the cons lists in the walks and
+  reductions of large lists. In a heap that has been running for a while,
+  they'd be more scattered.
 - The cons list's `index`, `update`, `concatenate`, and `slice` are written
   in C++ over the nodes. In Noeval, they'd be library code over `first` and
   `rest`, and much slower.

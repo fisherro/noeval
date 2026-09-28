@@ -366,20 +366,36 @@ template<typename T> using cons_shared = cons_list<T, shared_links<T>>;
 template<typename T> using cons_intrusive = cons_list<T, intrusive_links<T>>;
 template<typename T> using cons_pooled = cons_list<T, intrusive_links<T, true>>;
 
-// A flat array, shared by reference count, updated in place when nothing else
-// refers to it and copied otherwise. rest and slice are views into it.
+// A flat array in a single allocation, shared by reference count, updated in
+// place when nothing else refers to it and copied otherwise. Growing it in
+// place doubles its capacity. rest and slice are views into it.
 template<typename T>
 struct flat_array {
-    struct buffer {
+    struct block {
         long refs;
-        std::vector<T> items;
+        std::size_t size;
+        std::size_t capacity;
+        T* items() { return reinterpret_cast<T*>(this + 1); }
     };
+    static_assert(alignof(T) <= alignof(block));
+
+    static block* allocate(std::size_t capacity)
+    {
+        void* p{::operator new(sizeof(block) + capacity * sizeof(T))};
+        return new (p) block{1, 0, capacity};
+    }
+    static void release(block* b)
+    {
+        std::destroy_n(b->items(), b->size);
+        ::operator delete(b);
+    }
+
     struct seq {
-        buffer* b{nullptr};
+        block* b{nullptr};
         std::size_t offset{0};
         std::size_t length{0};
         seq() = default;
-        seq(buffer* buf, std::size_t off, std::size_t len): b(buf), offset(off), length(len) {}
+        seq(block* blk, std::size_t off, std::size_t len): b(blk), offset(off), length(len) {}
         seq(const seq& that): b(that.b), offset(that.offset), length(that.length)
         {
             if (b) ++b->refs;
@@ -393,12 +409,12 @@ struct flat_array {
             length = that.length;
             return *this;
         }
-        ~seq() { if (b and 0 == --b->refs) delete b; }
+        ~seq() { if (b and 0 == --b->refs) release(b); }
         bool unique_and_whole() const
         {
-            return b and 1 == b->refs and 0 == offset and length == b->items.size();
+            return b and 1 == b->refs and 0 == offset and length == b->size;
         }
-        const T* data() const { return b ? b->items.data() + offset : nullptr; }
+        T* data() const { return b ? b->items() + offset : nullptr; }
     };
 
     static constexpr bool linear_rest{false};
@@ -409,23 +425,38 @@ struct flat_array {
     static constexpr bool linear_persistent_growth{true};
     static constexpr bool grows_at_front{false};
 
-    static seq make(std::vector<T> items)
+    // A new array holding a's elements and then b's, with room for capacity.
+    static seq copy(const T* a, std::size_t a_length, const T* b, std::size_t b_length,
+        std::size_t capacity)
     {
-        auto n{items.size()};
-        return seq(new buffer{1, std::move(items)}, 0, n);
+        block* blk{allocate(capacity)};
+        std::uninitialized_copy_n(a, a_length, blk->items());
+        std::uninitialized_copy_n(b, b_length, blk->items() + a_length);
+        blk->size = a_length + b_length;
+        return seq(blk, 0, blk->size);
     }
-    static seq build(const T* first, std::size_t n) { return make(std::vector<T>(first, first + n)); }
+    // Make room for more elements at the end of a unique array.
+    static void reserve(seq& s, std::size_t needed)
+    {
+        if (needed <= s.b->capacity) return;
+        block* blk{allocate(std::max(needed, 2 * s.b->capacity))};
+        std::uninitialized_move_n(s.b->items(), s.b->size, blk->items());
+        blk->size = s.b->size;
+        release(s.b);
+        s.b = blk;
+    }
+    static seq build(const T* first, std::size_t n) { return copy(first, n, nullptr, 0, n); }
     static seq push_back(seq&& s, T e)
     {
-        if (not s.b) return make(std::vector<T>{std::move(e)});
-        if (s.unique_and_whole()) {
-            s.b->items.push_back(std::move(e));
-            ++s.length;
-            return std::move(s);
+        if (not s.unique_and_whole()) {
+            seq t{copy(s.data(), s.length, nullptr, 0, std::max<std::size_t>(4, 2 * s.length))};
+            return push_back(std::move(t), std::move(e));
         }
-        std::vector<T> items(s.data(), s.data() + s.length);
-        items.push_back(std::move(e));
-        return make(std::move(items));
+        reserve(s, s.length + 1);
+        new (s.b->items() + s.length) T(std::move(e));
+        ++s.b->size;
+        ++s.length;
+        return std::move(s);
     }
     static seq build_incrementally(const T* first, std::size_t n)
     {
@@ -433,15 +464,12 @@ struct flat_array {
         for (std::size_t i{0}; i < n; ++i) s = push_back(std::move(s), first[i]);
         return s;
     }
-    static seq push_front(const seq& s, T e)
+    static seq push_front(const seq& s, T e) { return copy(&e, 1, s.data(), s.length, s.length + 1); }
+    static seq grow(const seq& s, T e)
     {
-        std::vector<T> items;
-        items.reserve(s.length + 1);
-        items.push_back(std::move(e));
-        items.insert(items.end(), s.data(), s.data() + s.length);
-        return make(std::move(items));
+        seq t{copy(s.data(), s.length, nullptr, 0, s.length + 1)};
+        return push_back(std::move(t), std::move(e));
     }
-    static seq grow(const seq& s, T e) { return push_back(seq(s), std::move(e)); }
     static bool is_empty(const seq& s) { return 0 == s.length; }
     static const T& first(const seq& s) { return s.data()[0]; }
     static seq rest(const seq& s)
@@ -453,34 +481,32 @@ struct flat_array {
     static const T& nth(const seq& s, std::size_t i) { return s.data()[i]; }
     static seq set(const seq& s, std::size_t i, T e)
     {
-        std::vector<T> items(s.data(), s.data() + s.length);
-        items[i] = std::move(e);
-        return make(std::move(items));
+        seq t{copy(s.data(), s.length, nullptr, 0, s.length)};
+        t.data()[i] = std::move(e);
+        return t;
     }
     static seq set_unique(seq&& s, std::size_t i, T e)
     {
         if (s.unique_and_whole()) {
-            s.b->items[i] = std::move(e);
+            s.data()[i] = std::move(e);
             return std::move(s);
         }
         return set(s, i, std::move(e));
     }
     static seq concat(const seq& a, const seq& b)
     {
-        std::vector<T> items;
-        items.reserve(a.length + b.length);
-        items.insert(items.end(), a.data(), a.data() + a.length);
-        items.insert(items.end(), b.data(), b.data() + b.length);
-        return make(std::move(items));
+        return copy(a.data(), a.length, b.data(), b.length, a.length + b.length);
     }
     static seq append_in_place(seq&& a, const seq& b)
     {
-        if (a.unique_and_whole()) {
-            a.b->items.insert(a.b->items.end(), b.data(), b.data() + b.length);
-            a.length += b.length;
-            return std::move(a);
+        if (not a.unique_and_whole()) {
+            return copy(a.data(), a.length, b.data(), b.length, 2 * (a.length + b.length));
         }
-        return concat(a, b);
+        reserve(a, a.length + b.length);
+        std::uninitialized_copy_n(b.data(), b.length, a.b->items() + a.length);
+        a.b->size += b.length;
+        a.length += b.length;
+        return std::move(a);
     }
     static seq slice(const seq& s, std::size_t from, std::size_t to)
     {

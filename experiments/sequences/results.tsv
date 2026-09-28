@@ -1,0 +1,975 @@
+structure	workload	size	instructions	d1_misses	allocations	nanoseconds
+cons (free list)	build	1	106.0	0.00	0.00	6.25
+cons (intrusive)	build	1	256.0	0.00	1.00	14.10
+cons (shared_ptr)	build	1	438.0	0.00	2.00	23.63
+flat array	build	1	245.0	0.00	1.00	9.92
+rrb (free list)	build	1	178.0	0.00	0.00	8.91
+rrb	build	1	311.0	0.00	1.00	16.19
+trie	build	1	340.0	0.00	1.00	17.87
+cons (free list)	build	2	75.0	0.00	0.00	4.29
+cons (intrusive)	build	2	224.0	0.00	1.00	13.72
+cons (shared_ptr)	build	2	410.0	0.00	2.00	22.53
+flat array	build	2	131.0	0.00	0.50	5.61
+rrb (free list)	build	2	108.5	0.00	0.00	6.38
+rrb	build	2	175.0	0.00	0.50	9.13
+trie	build	2	202.0	0.00	0.50	9.68
+cons (free list)	build	3	64.7	0.00	0.00	3.88
+cons (intrusive)	build	3	213.3	0.00	1.00	11.79
+cons (shared_ptr)	build	3	400.7	0.00	2.00	21.05
+flat array	build	3	93.0	0.00	0.33	4.30
+rrb (free list)	build	3	85.3	0.00	0.00	4.77
+rrb	build	3	129.7	0.00	0.33	7.05
+trie	build	3	156.0	0.00	0.33	7.12
+cons (free list)	build	4	59.5	0.00	0.00	3.92
+cons (intrusive)	build	4	208.0	0.00	1.00	10.29
+cons (shared_ptr)	build	4	443.0	0.00	2.00	22.67
+flat array	build	4	74.0	0.00	0.25	3.43
+rrb (free list)	build	4	73.8	0.00	0.00	4.30
+rrb	build	4	107.0	0.00	0.25	5.73
+trie	build	4	133.0	0.00	0.25	5.99
+cons (free list)	build	8	51.8	0.00	0.00	4.07
+cons (intrusive)	build	8	218.0	0.00	1.00	13.45
+cons (shared_ptr)	build	8	452.4	0.00	2.00	21.43
+flat array	build	8	45.5	0.00	0.12	2.14
+rrb (free list)	build	8	56.4	0.00	0.00	2.75
+rrb	build	8	73.0	0.00	0.12	4.00
+trie	build	8	98.5	0.00	0.12	4.32
+cons (free list)	build	16	47.9	0.00	0.00	4.11
+cons (intrusive)	build	16	227.7	0.00	1.00	13.02
+cons (shared_ptr)	build	16	468.1	0.00	2.00	23.59
+flat array	build	16	31.3	0.00	0.06	1.51
+rrb (free list)	build	16	47.7	0.00	0.00	2.73
+rrb	build	16	56.0	0.00	0.06	3.21
+trie	build	16	81.3	0.00	0.06	3.63
+cons (free list)	build	32	45.9	0.00	0.00	4.61
+cons (intrusive)	build	32	235.3	0.00	1.00	13.93
+cons (shared_ptr)	build	32	476.0	0.00	2.00	23.08
+flat array	build	32	24.1	0.00	0.03	1.18
+rrb (free list)	build	32	43.3	0.00	0.00	2.42
+rrb	build	32	47.5	0.00	0.03	2.72
+trie	build	32	72.6	0.00	0.03	3.10
+cons (free list)	build	33	45.9	0.00	0.00	4.32
+cons (intrusive)	build	33	235.4	0.00	1.00	13.29
+cons (shared_ptr)	build	33	475.9	0.00	2.00	24.15
+flat array	build	33	23.9	0.00	0.03	1.09
+rrb (free list)	build	33	50.8	0.00	0.00	3.35
+rrb	build	33	63.3	0.00	0.09	4.18
+trie	build	33	86.7	0.00	0.09	4.72
+cons (free list)	build	1000	46.9	1.74	0.01	5.07
+cons (intrusive)	build	1000	244.3	1.84	1.00	12.53
+cons (shared_ptr)	build	1000	486.9	2.83	2.00	23.49
+flat array	build	1000	17.7	2.35	0.00	2.26
+rrb (free list)	build	1000	42.7	2.34	0.00	2.94
+rrb	build	1000	54.6	2.38	0.03	3.15
+trie	build	1000	78.4	2.40	0.03	4.95
+cons (free list)	build	1000000	253.5	3.12	1.00	26.18
+cons (intrusive)	build	1000000	357.1	3.12	1.00	46.17
+cons (shared_ptr)	build	1000000	713.1	4.12	2.00	68.53
+flat array	build	1000000	17.0	2.37	0.00	13.88
+rrb (free list)	build	1000000	58.3	2.42	0.03	18.62
+rrb	build	1000000	59.0	2.41	0.03	16.11
+trie	build	1000000	82.8	2.41	0.03	20.43
+cons (free list)	build incrementally	1	273.0	0.00	0.00	22.38
+cons (intrusive)	build incrementally	1	536.0	0.00	2.00	42.09
+cons (shared_ptr)	build incrementally	1	1033.0	0.00	4.00	60.82
+flat array	build incrementally	1	373.0	0.00	1.00	21.99
+rrb (free list)	build incrementally	1	145.0	0.00	0.00	8.25
+rrb	build incrementally	1	285.0	0.00	1.00	16.34
+trie	build incrementally	1	318.0	0.00	1.00	15.94
+cons (free list)	build incrementally	2	236.5	0.00	0.00	20.74
+cons (intrusive)	build incrementally	2	496.5	0.00	2.00	45.61
+cons (shared_ptr)	build incrementally	2	1052.0	0.00	4.00	61.26
+flat array	build incrementally	2	230.5	0.00	0.50	16.17
+rrb (free list)	build incrementally	2	94.0	0.00	0.00	5.78
+rrb	build incrementally	2	164.5	0.00	0.50	9.48
+trie	build incrementally	2	192.0	0.00	0.50	9.17
+cons (free list)	build incrementally	3	224.3	0.00	0.00	19.97
+cons (intrusive)	build incrementally	3	483.3	0.00	2.00	42.15
+cons (shared_ptr)	build incrementally	3	1083.7	0.00	4.00	57.34
+flat array	build incrementally	3	183.0	0.00	0.33	15.03
+rrb (free list)	build incrementally	3	77.0	0.00	0.00	4.89
+rrb	build incrementally	3	124.3	0.00	0.33	6.90
+trie	build incrementally	3	150.0	0.00	0.33	7.13
+cons (free list)	build incrementally	4	218.2	0.00	0.00	19.23
+cons (intrusive)	build incrementally	4	501.8	0.00	2.00	37.28
+cons (shared_ptr)	build incrementally	4	1113.3	0.00	4.00	62.12
+flat array	build incrementally	4	159.2	0.00	0.25	14.18
+rrb (free list)	build incrementally	4	68.5	0.00	0.00	4.22
+rrb	build incrementally	4	104.2	0.00	0.25	6.08
+trie	build incrementally	4	129.0	0.00	0.25	6.31
+cons (free list)	build incrementally	8	209.1	0.00	0.00	18.01
+cons (intrusive)	build incrementally	8	530.3	0.00	2.00	46.13
+cons (shared_ptr)	build incrementally	8	1143.9	0.00	4.00	57.69
+flat array	build incrementally	8	155.1	0.00	0.25	15.35
+rrb (free list)	build incrementally	8	55.8	0.00	0.00	4.05
+rrb	build incrementally	8	74.1	0.00	0.12	4.04
+trie	build incrementally	8	97.5	0.00	0.12	4.98
+cons (free list)	build incrementally	16	204.6	0.00	0.00	19.08
+cons (intrusive)	build incrementally	16	544.5	0.00	2.00	47.79
+cons (shared_ptr)	build incrementally	16	1159.2	0.00	4.00	61.66
+flat array	build incrementally	16	141.1	0.00	0.19	13.67
+rrb (free list)	build incrementally	16	49.4	0.00	0.00	2.87
+rrb	build incrementally	16	59.1	0.00	0.06	3.18
+trie	build incrementally	16	81.8	0.00	0.06	3.58
+cons (free list)	build incrementally	32	202.3	0.00	0.00	19.83
+cons (intrusive)	build incrementally	32	551.7	0.00	2.00	46.10
+cons (shared_ptr)	build incrementally	32	1167.0	0.00	4.00	60.03
+flat array	build incrementally	32	128.0	0.00	0.12	12.22
+rrb (free list)	build incrementally	32	46.2	0.00	0.00	2.53
+rrb	build incrementally	32	51.5	0.00	0.03	2.59
+trie	build incrementally	32	73.9	0.00	0.03	3.19
+cons (free list)	build incrementally	33	202.2	0.00	0.00	19.88
+cons (intrusive)	build incrementally	33	551.5	0.00	2.00	46.08
+cons (shared_ptr)	build incrementally	33	1166.4	0.00	4.00	58.91
+flat array	build incrementally	33	147.2	0.00	0.15	12.84
+rrb (free list)	build incrementally	33	53.4	0.00	0.00	3.38
+rrb	build incrementally	33	67.3	0.00	0.09	3.82
+trie	build incrementally	33	88.0	0.00	0.09	4.73
+cons (free list)	build incrementally	1000	203.2	5.59	0.02	19.11
+cons (intrusive)	build incrementally	1000	560.2	5.89	2.00	45.22
+cons (shared_ptr)	build incrementally	1000	1177.6	8.52	4.00	60.38
+flat array	build incrementally	1000	107.2	2.51	0.01	12.05
+rrb (free list)	build incrementally	1000	46.4	2.34	0.00	3.13
+rrb	build incrementally	1000	59.6	2.39	0.03	3.50
+trie	build incrementally	1000	80.4	2.40	0.03	5.22
+cons (free list)	build incrementally	1000000	409.0	6.62	1.00	74.04
+cons (intrusive)	build incrementally	1000000	673.9	6.62	2.00	171.77
+cons (shared_ptr)	build incrementally	1000000	1404.8	9.12	4.00	183.77
+flat array	build incrementally	1000000	103.7	2.77	0.00	31.33
+rrb (free list)	build incrementally	1000000	62.0	2.42	0.03	15.37
+rrb	build incrementally	1000000	63.9	2.41	0.03	14.52
+trie	build incrementally	1000000	84.7	2.41	0.03	21.31
+cons (free list)	prepend	1	73.0	0.00	0.00	4.52
+cons (intrusive)	prepend	1	219.0	0.00	1.00	10.40
+cons (shared_ptr)	prepend	1	434.0	0.00	2.00	24.55
+flat array	prepend	1	230.0	0.00	1.00	11.42
+rrb (free list)	prepend	1	299.0	0.00	0.00	21.29
+rrb	prepend	1	418.0	0.00	1.00	25.99
+trie	prepend	1	660.0	0.00	1.00	46.20
+cons (free list)	prepend	2	64.0	0.00	0.00	4.05
+cons (intrusive)	prepend	2	210.0	0.00	1.00	10.91
+cons (shared_ptr)	prepend	2	432.0	0.00	2.00	23.90
+flat array	prepend	2	235.0	0.00	1.00	11.53
+rrb (free list)	prepend	2	312.5	0.00	0.00	22.60
+rrb	prepend	2	436.5	0.00	1.00	26.87
+trie	prepend	2	670.0	0.00	1.00	42.03
+cons (free list)	prepend	3	61.0	0.00	0.00	3.98
+cons (intrusive)	prepend	3	207.0	0.00	1.00	10.40
+cons (shared_ptr)	prepend	3	431.3	0.00	2.00	22.33
+flat array	prepend	3	242.3	0.00	1.00	13.05
+rrb (free list)	prepend	3	322.7	0.00	0.00	21.64
+rrb	prepend	3	448.3	0.00	1.00	27.38
+trie	prepend	3	697.3	0.00	1.00	41.63
+cons (free list)	prepend	4	59.5	0.00	0.00	3.89
+cons (intrusive)	prepend	4	205.5	0.00	1.00	9.95
+cons (shared_ptr)	prepend	4	532.8	0.00	2.00	24.76
+flat array	prepend	4	250.2	0.00	1.00	12.69
+rrb (free list)	prepend	4	332.0	0.00	0.00	19.75
+rrb	prepend	4	458.5	0.00	1.00	25.67
+trie	prepend	4	729.0	0.00	1.00	41.18
+cons (free list)	prepend	8	57.3	0.00	0.00	4.05
+cons (intrusive)	prepend	8	254.1	0.00	1.00	14.83
+cons (shared_ptr)	prepend	8	532.2	0.00	2.00	24.57
+flat array	prepend	8	283.4	0.00	1.00	14.38
+rrb (free list)	prepend	8	367.3	0.00	0.00	24.14
+rrb	prepend	8	495.0	0.00	1.00	31.29
+trie	prepend	8	866.5	0.00	1.00	50.92
+cons (free list)	prepend	16	56.1	0.00	0.00	5.47
+cons (intrusive)	prepend	16	253.0	0.00	1.00	14.84
+cons (shared_ptr)	prepend	16	532.0	0.00	2.00	27.23
+flat array	prepend	16	351.0	0.00	1.00	17.06
+rrb (free list)	prepend	16	435.9	0.00	0.00	28.18
+rrb	prepend	16	564.3	0.00	1.00	31.04
+trie	prepend	16	1151.2	0.00	1.00	61.19
+cons (free list)	prepend	32	55.6	0.00	0.00	5.40
+cons (intrusive)	prepend	32	252.4	0.00	1.00	13.80
+cons (shared_ptr)	prepend	32	531.9	0.00	2.00	26.54
+flat array	prepend	32	486.8	0.00	1.00	25.17
+rrb (free list)	prepend	32	572.2	0.00	0.00	32.63
+rrb	prepend	32	700.9	0.00	1.00	37.17
+trie	prepend	32	1725.6	0.00	1.00	87.17
+cons (free list)	prepend	33	55.5	0.00	0.00	5.31
+cons (intrusive)	prepend	33	250.9	0.00	1.00	13.61
+cons (shared_ptr)	prepend	33	528.8	0.00	2.00	26.51
+flat array	prepend	33	495.2	0.00	1.00	24.06
+rrb (free list)	prepend	33	588.8	0.00	0.00	34.37
+rrb	prepend	33	725.9	0.00	1.06	40.83
+trie	prepend	33	1776.0	0.00	1.06	108.66
+cons (free list)	prepend	1000	55.0	1.75	0.00	4.73
+cons (intrusive)	prepend	1000	251.9	2.19	1.00	14.78
+cons (shared_ptr)	prepend	1000	531.8	3.27	2.00	26.79
+flat array	prepend	1000	9171.2	698.71	1.00	997.94
+rrb (free list)	prepend	1000	2810.9	1.28	0.00	212.74
+rrb	prepend	1000	3232.1	1.36	2.91	219.22
+trie	prepend	1000	42200.8	753.96	17.10	2550.28
+cons (free list)	prepend	1000000	55.0	3.12	0.00	23.17
+cons (intrusive)	prepend	1000000	251.9	3.12	1.00	53.55
+cons (shared_ptr)	prepend	1000000	531.8	4.12	2.00	104.22
+rrb (free list)	prepend	1000000	12212.7	2.50	0.03	995.03
+rrb	prepend	1000000	13058.3	2.65	5.05	1148.00
+cons (free list)	persistent growth	1	77.0	0.00	0.00	3.52
+cons (intrusive)	persistent growth	1	222.0	0.00	1.00	10.56
+cons (shared_ptr)	persistent growth	1	438.0	0.00	2.00	24.78
+flat array	persistent growth	1	301.0	0.00	1.00	17.45
+rrb (free list)	persistent growth	1	280.0	0.00	0.00	19.04
+rrb	persistent growth	1	355.0	0.00	1.00	23.78
+trie	persistent growth	1	326.0	0.00	1.00	18.36
+cons (free list)	persistent growth	2	69.0	0.00	0.00	3.83
+cons (intrusive)	persistent growth	2	212.5	0.00	1.00	10.38
+cons (shared_ptr)	persistent growth	2	446.5	0.00	2.00	25.84
+flat array	persistent growth	2	304.5	0.00	1.00	20.34
+rrb (free list)	persistent growth	2	265.5	0.00	0.00	18.82
+rrb	persistent growth	2	350.5	0.00	1.00	22.08
+trie	persistent growth	2	311.5	0.00	1.00	15.48
+cons (free list)	persistent growth	3	66.3	0.00	0.00	4.10
+cons (intrusive)	persistent growth	3	209.3	0.00	1.00	10.50
+cons (shared_ptr)	persistent growth	3	449.3	0.00	2.00	23.09
+flat array	persistent growth	3	311.3	0.00	1.00	21.28
+rrb (free list)	persistent growth	3	266.3	0.00	0.00	17.44
+rrb	persistent growth	3	354.7	0.00	1.00	22.57
+trie	persistent growth	3	312.3	0.00	1.00	14.77
+cons (free list)	persistent growth	4	65.0	0.00	0.00	4.24
+cons (intrusive)	persistent growth	4	207.8	0.00	1.00	10.22
+cons (shared_ptr)	persistent growth	4	552.5	0.00	2.00	28.47
+flat array	persistent growth	4	319.0	0.00	1.00	21.44
+rrb (free list)	persistent growth	4	271.0	0.00	0.00	18.36
+rrb	persistent growth	4	361.0	0.00	1.00	22.75
+trie	persistent growth	4	317.0	0.00	1.00	14.76
+cons (free list)	persistent growth	8	63.0	0.00	0.00	5.14
+cons (intrusive)	persistent growth	8	256.2	0.00	1.00	14.95
+cons (shared_ptr)	persistent growth	8	554.6	0.00	2.00	26.27
+flat array	persistent growth	8	351.8	0.00	1.00	20.90
+rrb (free list)	persistent growth	8	299.3	0.00	0.00	20.50
+rrb	persistent growth	8	391.8	0.00	1.00	24.20
+trie	persistent growth	8	345.3	0.00	1.00	16.02
+cons (free list)	persistent growth	16	62.0	0.00	0.00	4.66
+cons (intrusive)	persistent growth	16	255.1	0.00	1.00	14.71
+cons (shared_ptr)	persistent growth	16	555.7	0.00	2.00	28.35
+flat array	persistent growth	16	419.1	0.00	1.00	23.79
+rrb (free list)	persistent growth	16	364.4	0.00	0.00	26.88
+rrb	persistent growth	16	458.1	0.00	1.00	25.60
+trie	persistent growth	16	410.4	0.00	1.00	18.00
+cons (free list)	persistent growth	32	61.5	0.00	0.00	4.50
+cons (intrusive)	persistent growth	32	254.5	0.00	1.00	13.87
+cons (shared_ptr)	persistent growth	32	556.2	0.00	2.00	27.93
+flat array	persistent growth	32	554.8	0.00	1.00	31.44
+rrb (free list)	persistent growth	32	498.9	0.00	0.00	31.75
+rrb	persistent growth	32	593.3	0.00	1.00	32.60
+trie	persistent growth	32	544.9	0.00	1.00	23.49
+cons (free list)	persistent growth	33	61.5	0.00	0.00	4.52
+cons (intrusive)	persistent growth	33	252.9	0.00	1.00	13.75
+cons (shared_ptr)	persistent growth	33	553.2	0.00	2.00	27.57
+flat array	persistent growth	33	563.3	0.00	1.00	31.48
+rrb (free list)	persistent growth	33	497.5	0.00	0.00	32.33
+rrb	persistent growth	33	596.2	0.00	1.03	32.66
+trie	persistent growth	33	545.7	0.00	1.03	28.55
+cons (free list)	persistent growth	1000	61.0	1.73	0.00	4.54
+cons (intrusive)	persistent growth	1000	253.9	2.29	1.00	13.25
+cons (shared_ptr)	persistent growth	1000	556.7	3.44	2.00	30.84
+flat array	persistent growth	1000	9239.1	702.96	1.00	868.85
+rrb (free list)	persistent growth	1000	545.2	2.32	0.00	40.96
+rrb	persistent growth	1000	655.7	2.37	1.03	38.68
+trie	persistent growth	1000	569.5	2.38	1.03	34.62
+cons (free list)	persistent growth	1000000	61.0	3.12	0.00	18.53
+cons (intrusive)	persistent growth	1000000	253.9	3.12	1.00	54.91
+cons (shared_ptr)	persistent growth	1000000	556.8	4.12	2.00	105.98
+rrb (free list)	persistent growth	1000000	602.3	2.42	0.03	66.08
+rrb	persistent growth	1000000	710.4	2.41	1.09	97.08
+trie	persistent growth	1000000	622.8	2.41	1.09	55.79
+cons (free list)	walk with rest	1	41.0	0.00	0.00	1.37
+cons (intrusive)	walk with rest	1	31.0	0.00	0.00	1.50
+cons (shared_ptr)	walk with rest	1	73.0	0.00	0.00	3.71
+flat array	walk with rest	1	32.0	0.00	0.00	1.43
+rrb (free list)	walk with rest	1	194.0	0.00	0.00	12.84
+rrb	walk with rest	1	140.0	0.00	0.00	8.74
+trie	walk with rest	1	370.0	0.00	0.00	25.28
+cons (free list)	walk with rest	2	27.5	0.00	0.00	1.47
+cons (intrusive)	walk with rest	2	22.0	0.00	0.00	1.81
+cons (shared_ptr)	walk with rest	2	53.5	0.00	0.00	2.85
+flat array	walk with rest	2	20.0	0.00	0.00	0.84
+rrb (free list)	walk with rest	2	194.0	0.00	0.00	12.30
+rrb	walk with rest	2	215.5	0.00	0.50	12.15
+trie	walk with rest	2	490.0	0.00	0.50	31.44
+cons (free list)	walk with rest	3	23.0	0.00	0.00	1.26
+cons (intrusive)	walk with rest	3	19.0	0.00	0.00	1.39
+cons (shared_ptr)	walk with rest	3	47.0	0.00	0.00	3.06
+flat array	walk with rest	3	16.0	0.00	0.00	0.70
+rrb (free list)	walk with rest	3	199.7	0.00	0.00	11.87
+rrb	walk with rest	3	246.3	0.00	0.67	14.03
+trie	walk with rest	3	560.0	0.00	0.67	33.89
+cons (free list)	walk with rest	4	20.8	0.00	0.00	1.25
+cons (intrusive)	walk with rest	4	17.5	0.00	0.00	1.62
+cons (shared_ptr)	walk with rest	4	43.8	0.00	0.00	2.80
+flat array	walk with rest	4	14.0	0.00	0.00	0.63
+rrb (free list)	walk with rest	4	206.8	0.00	0.00	11.81
+rrb	walk with rest	4	266.0	0.00	0.75	14.80
+trie	walk with rest	4	617.5	0.00	0.75	36.42
+cons (free list)	walk with rest	8	17.4	0.00	0.00	0.98
+cons (intrusive)	walk with rest	8	15.3	0.00	0.00	1.22
+cons (shared_ptr)	walk with rest	8	38.9	0.00	0.00	2.36
+flat array	walk with rest	8	11.0	0.00	0.00	0.68
+rrb (free list)	walk with rest	8	238.6	0.00	0.00	12.50
+rrb	walk with rest	8	316.8	0.00	0.88	16.15
+trie	walk with rest	8	816.3	0.00	0.88	44.77
+cons (free list)	walk with rest	16	15.7	0.00	0.00	1.58
+cons (intrusive)	walk with rest	16	14.1	0.00	0.00	1.27
+cons (shared_ptr)	walk with rest	16	36.4	0.00	0.00	2.38
+flat array	walk with rest	16	9.5	0.00	0.00	0.46
+rrb (free list)	walk with rest	16	305.6	0.00	0.00	17.22
+rrb	walk with rest	16	393.1	0.00	0.94	20.26
+trie	walk with rest	16	1185.6	0.00	0.94	66.62
+cons (free list)	walk with rest	32	14.8	0.00	0.00	1.42
+cons (intrusive)	walk with rest	32	13.6	0.00	0.00	1.97
+cons (shared_ptr)	walk with rest	32	35.2	0.00	0.00	1.97
+flat array	walk with rest	32	8.8	0.00	0.00	0.43
+rrb (free list)	walk with rest	32	441.0	0.00	0.00	25.88
+rrb	walk with rest	32	533.3	0.00	0.97	27.16
+trie	walk with rest	32	1910.3	0.00	0.97	110.79
+cons (free list)	walk with rest	33	14.8	0.00	0.00	1.41
+cons (intrusive)	walk with rest	33	13.5	0.00	0.00	1.91
+cons (shared_ptr)	walk with rest	33	35.2	0.00	0.00	1.95
+flat array	walk with rest	33	8.7	0.00	0.00	0.66
+rrb (free list)	walk with rest	33	689.9	0.00	0.00	40.11
+rrb	walk with rest	33	885.3	0.00	1.88	42.89
+trie	walk with rest	33	1956.8	0.00	0.97	131.78
+cons (free list)	walk with rest	1000	14.0	1.49	0.00	1.38
+cons (intrusive)	walk with rest	1000	13.0	1.66	0.00	3.34
+cons (shared_ptr)	walk with rest	1000	34.0	2.18	0.00	4.04
+flat array	walk with rest	1000	8.0	1.06	0.00	0.83
+rrb (free list)	walk with rest	1000	1197.9	1.12	0.00	108.25
+rrb	walk with rest	1000	1406.6	1.10	1.99	89.77
+trie	walk with rest	1000	52346.3	745.44	17.06	3384.96
+cons (free list)	walk with rest	1000000	14.0	1.50	0.00	7.69
+cons (intrusive)	walk with rest	1000000	13.0	1.50	0.00	16.28
+cons (shared_ptr)	walk with rest	1000000	34.0	2.00	0.00	19.50
+flat array	walk with rest	1000000	8.0	1.12	0.00	5.46
+rrb (free list)	walk with rest	1000000	3092.8	1.15	0.00	229.17
+rrb	walk with rest	1000000	3524.7	1.14	3.98	282.72
+cons (free list)	reduce	1	15.0	0.00	0.00	0.50
+cons (intrusive)	reduce	1	15.0	0.00	0.00	0.50
+cons (shared_ptr)	reduce	1	15.0	0.00	0.00	0.57
+flat array	reduce	1	20.0	0.00	0.00	0.86
+rrb (free list)	reduce	1	30.0	0.00	0.00	1.29
+rrb	reduce	1	30.0	0.00	0.00	1.40
+trie	reduce	1	30.0	0.00	0.00	1.24
+cons (free list)	reduce	2	10.0	0.00	0.00	0.32
+cons (intrusive)	reduce	2	10.0	0.00	0.00	0.37
+cons (shared_ptr)	reduce	2	10.0	0.00	0.00	0.41
+flat array	reduce	2	12.5	0.00	0.00	0.56
+rrb (free list)	reduce	2	17.5	0.00	0.00	0.74
+rrb	reduce	2	17.5	0.00	0.00	0.71
+trie	reduce	2	17.5	0.00	0.00	0.68
+cons (free list)	reduce	3	8.3	0.00	0.00	0.31
+cons (intrusive)	reduce	3	8.3	0.00	0.00	0.35
+cons (shared_ptr)	reduce	3	8.3	0.00	0.00	0.40
+flat array	reduce	3	10.0	0.00	0.00	0.44
+rrb (free list)	reduce	3	13.3	0.00	0.00	0.51
+rrb	reduce	3	13.3	0.00	0.00	0.56
+trie	reduce	3	13.3	0.00	0.00	0.50
+cons (free list)	reduce	4	7.5	0.00	0.00	0.30
+cons (intrusive)	reduce	4	7.5	0.00	0.00	0.35
+cons (shared_ptr)	reduce	4	7.5	0.00	0.00	0.40
+flat array	reduce	4	8.8	0.00	0.00	0.42
+rrb (free list)	reduce	4	11.3	0.00	0.00	0.45
+rrb	reduce	4	11.3	0.00	0.00	0.49
+trie	reduce	4	11.3	0.00	0.00	0.41
+cons (free list)	reduce	8	6.3	0.00	0.00	0.35
+cons (intrusive)	reduce	8	6.3	0.00	0.00	0.40
+cons (shared_ptr)	reduce	8	6.3	0.00	0.00	0.42
+flat array	reduce	8	6.9	0.00	0.00	0.28
+rrb (free list)	reduce	8	8.1	0.00	0.00	0.30
+rrb	reduce	8	8.1	0.00	0.00	0.30
+trie	reduce	8	8.1	0.00	0.00	0.27
+cons (free list)	reduce	16	5.6	0.00	0.00	0.46
+cons (intrusive)	reduce	16	5.6	0.00	0.00	0.53
+cons (shared_ptr)	reduce	16	5.6	0.00	0.00	0.51
+flat array	reduce	16	5.9	0.00	0.00	0.46
+rrb (free list)	reduce	16	6.6	0.00	0.00	0.47
+rrb	reduce	16	6.6	0.00	0.00	0.34
+trie	reduce	16	6.6	0.00	0.00	0.33
+cons (free list)	reduce	32	5.3	0.00	0.00	0.61
+cons (intrusive)	reduce	32	5.3	0.00	0.00	0.71
+cons (shared_ptr)	reduce	32	5.3	0.00	0.00	0.67
+flat array	reduce	32	5.5	0.00	0.00	0.31
+rrb (free list)	reduce	32	5.8	0.00	0.00	0.30
+rrb	reduce	32	5.8	0.00	0.00	0.31
+trie	reduce	32	5.8	0.00	0.00	0.31
+cons (free list)	reduce	33	5.3	0.00	0.00	0.62
+cons (intrusive)	reduce	33	5.3	0.00	0.00	0.70
+cons (shared_ptr)	reduce	33	5.3	0.00	0.00	0.67
+flat array	reduce	33	5.5	0.00	0.00	0.30
+rrb (free list)	reduce	33	8.6	0.00	0.00	0.40
+rrb	reduce	33	8.6	0.00	0.00	0.64
+trie	reduce	33	6.3	0.00	0.00	0.36
+cons (free list)	reduce	1000	5.0	1.49	0.00	1.28
+cons (intrusive)	reduce	1000	5.0	1.67	0.00	3.09
+cons (shared_ptr)	reduce	1000	5.0	1.99	0.00	4.92
+flat array	reduce	1000	5.0	1.06	0.00	0.57
+rrb (free list)	reduce	1000	6.3	1.12	0.00	0.62
+rrb	reduce	1000	6.3	1.10	0.00	0.53
+trie	reduce	1000	5.3	1.10	0.00	0.62
+cons (free list)	reduce	1000000	5.0	1.50	0.00	7.44
+cons (intrusive)	reduce	1000000	5.0	1.50	0.00	9.23
+cons (shared_ptr)	reduce	1000000	5.0	2.00	0.00	45.08
+flat array	reduce	1000000	5.0	1.12	0.00	6.32
+rrb (free list)	reduce	1000000	6.2	1.15	0.00	5.49
+rrb	reduce	1000000	6.2	1.14	0.00	6.13
+trie	reduce	1000000	6.2	1.14	0.00	5.81
+cons (free list)	reduce spine	1	14.0	0.00	0.00	0.42
+cons (intrusive)	reduce spine	1	14.0	0.00	0.00	0.51
+cons (shared_ptr)	reduce spine	1	14.0	0.00	0.00	0.52
+flat array	reduce spine	1	18.0	0.00	0.00	0.67
+rrb (free list)	reduce spine	1	29.0	0.00	0.00	1.21
+rrb	reduce spine	1	29.0	0.00	0.00	1.29
+trie	reduce spine	1	29.0	0.00	0.00	1.21
+cons (free list)	reduce spine	2	9.0	0.00	0.00	0.27
+cons (intrusive)	reduce spine	2	9.0	0.00	0.00	0.30
+cons (shared_ptr)	reduce spine	2	9.0	0.00	0.00	0.34
+flat array	reduce spine	2	11.0	0.00	0.00	0.45
+rrb (free list)	reduce spine	2	16.5	0.00	0.00	0.67
+rrb	reduce spine	2	16.5	0.00	0.00	0.67
+trie	reduce spine	2	16.5	0.00	0.00	0.67
+cons (free list)	reduce spine	3	7.3	0.00	0.00	0.22
+cons (intrusive)	reduce spine	3	7.3	0.00	0.00	0.25
+cons (shared_ptr)	reduce spine	3	7.3	0.00	0.00	0.28
+flat array	reduce spine	3	8.7	0.00	0.00	0.34
+rrb (free list)	reduce spine	3	12.3	0.00	0.00	0.46
+rrb	reduce spine	3	12.3	0.00	0.00	0.51
+trie	reduce spine	3	12.3	0.00	0.00	0.46
+cons (free list)	reduce spine	4	6.5	0.00	0.00	0.21
+cons (intrusive)	reduce spine	4	6.5	0.00	0.00	0.24
+cons (shared_ptr)	reduce spine	4	6.5	0.00	0.00	0.31
+flat array	reduce spine	4	7.5	0.00	0.00	0.33
+rrb (free list)	reduce spine	4	10.3	0.00	0.00	0.38
+rrb	reduce spine	4	10.3	0.00	0.00	0.42
+trie	reduce spine	4	10.3	0.00	0.00	0.38
+cons (free list)	reduce spine	8	5.3	0.00	0.00	0.24
+cons (intrusive)	reduce spine	8	5.3	0.00	0.00	0.28
+cons (shared_ptr)	reduce spine	8	5.3	0.00	0.00	0.30
+flat array	reduce spine	8	5.8	0.00	0.00	0.21
+rrb (free list)	reduce spine	8	7.1	0.00	0.00	0.28
+rrb	reduce spine	8	7.1	0.00	0.00	0.28
+trie	reduce spine	8	7.1	0.00	0.00	0.28
+cons (free list)	reduce spine	16	4.6	0.00	0.00	0.34
+cons (intrusive)	reduce spine	16	4.6	0.00	0.00	0.39
+cons (shared_ptr)	reduce spine	16	4.6	0.00	0.00	0.38
+flat array	reduce spine	16	4.9	0.00	0.00	0.46
+rrb (free list)	reduce spine	16	5.6	0.00	0.00	0.33
+rrb	reduce spine	16	5.6	0.00	0.00	0.35
+trie	reduce spine	16	5.6	0.00	0.00	0.43
+cons (free list)	reduce spine	32	4.3	0.00	0.00	0.48
+cons (intrusive)	reduce spine	32	4.3	0.00	0.00	0.56
+cons (shared_ptr)	reduce spine	32	4.3	0.00	0.00	0.52
+flat array	reduce spine	32	4.4	0.00	0.00	0.30
+rrb (free list)	reduce spine	32	4.8	0.00	0.00	0.30
+rrb	reduce spine	32	4.8	0.00	0.00	0.30
+trie	reduce spine	32	4.8	0.00	0.00	0.32
+cons (free list)	reduce spine	33	4.3	0.00	0.00	0.49
+cons (intrusive)	reduce spine	33	4.3	0.00	0.00	0.56
+cons (shared_ptr)	reduce spine	33	4.3	0.00	0.00	0.53
+flat array	reduce spine	33	4.4	0.00	0.00	0.27
+rrb (free list)	reduce spine	33	7.7	0.00	0.00	0.39
+rrb	reduce spine	33	7.7	0.00	0.00	0.39
+trie	reduce spine	33	4.0	0.00	0.00	0.28
+cons (free list)	reduce spine	1000	4.0	0.00	0.00	1.20
+cons (intrusive)	reduce spine	1000	4.0	0.02	0.00	1.74
+cons (shared_ptr)	reduce spine	1000	4.0	0.96	0.00	4.10
+flat array	reduce spine	1000	4.0	0.00	0.00	0.30
+rrb (free list)	reduce spine	1000	3.1	0.00	0.00	0.19
+rrb	reduce spine	1000	3.1	0.00	0.00	0.16
+trie	reduce spine	1000	2.9	0.00	0.00	0.19
+cons (free list)	reduce spine	1000000	4.0	0.50	0.00	2.69
+cons (intrusive)	reduce spine	1000000	4.0	0.50	0.00	5.13
+cons (shared_ptr)	reduce spine	1000000	4.0	1.00	0.00	22.39
+flat array	reduce spine	1000000	4.0	0.13	0.00	0.43
+rrb (free list)	reduce spine	1000000	2.9	0.14	0.00	0.40
+rrb	reduce spine	1000000	2.9	0.14	0.00	0.42
+trie	reduce spine	1000000	2.9	0.14	0.00	0.45
+cons (free list)	length	1	12.0	0.00	0.00	0.42
+cons (intrusive)	length	1	13.0	0.00	0.00	0.51
+cons (shared_ptr)	length	1	13.0	0.00	0.00	0.48
+flat array	length	1	5.0	0.00	0.00	0.23
+rrb (free list)	length	1	5.0	0.00	0.00	0.24
+rrb	length	1	5.0	0.00	0.00	0.23
+trie	length	1	5.0	0.00	0.00	0.23
+cons (free list)	length	2	16.0	0.00	0.00	0.52
+cons (intrusive)	length	2	17.0	0.00	0.00	0.61
+cons (shared_ptr)	length	2	17.0	0.00	0.00	0.59
+flat array	length	2	5.0	0.00	0.00	0.24
+rrb (free list)	length	2	5.0	0.00	0.00	0.23
+rrb	length	2	5.0	0.00	0.00	0.23
+trie	length	2	5.0	0.00	0.00	0.23
+cons (free list)	length	3	20.0	0.00	0.00	0.67
+cons (intrusive)	length	3	21.0	0.00	0.00	1.59
+cons (shared_ptr)	length	3	21.0	0.00	0.00	0.74
+flat array	length	3	5.0	0.00	0.00	0.24
+rrb (free list)	length	3	5.0	0.00	0.00	0.23
+rrb	length	3	5.0	0.00	0.00	0.24
+trie	length	3	5.0	0.00	0.00	0.22
+cons (free list)	length	4	24.0	0.00	0.00	0.80
+cons (intrusive)	length	4	25.0	0.00	0.00	0.90
+cons (shared_ptr)	length	4	25.0	0.00	0.00	0.90
+flat array	length	4	5.0	0.00	0.00	0.24
+rrb (free list)	length	4	5.0	0.00	0.00	0.23
+rrb	length	4	5.0	0.00	0.00	0.25
+trie	length	4	5.0	0.00	0.00	0.23
+cons (free list)	length	8	40.0	0.00	0.00	1.31
+cons (intrusive)	length	8	41.0	0.00	0.00	1.49
+cons (shared_ptr)	length	8	41.0	0.00	0.00	1.50
+flat array	length	8	5.0	0.00	0.00	0.22
+rrb (free list)	length	8	5.0	0.00	0.00	0.22
+rrb	length	8	5.0	0.00	0.00	0.22
+trie	length	8	5.0	0.00	0.00	0.22
+cons (free list)	length	16	72.0	0.00	0.00	4.53
+cons (intrusive)	length	16	73.0	0.00	0.00	5.44
+cons (shared_ptr)	length	16	73.0	0.00	0.00	4.88
+flat array	length	16	5.0	0.00	0.00	0.23
+rrb (free list)	length	16	5.0	0.00	0.00	0.23
+rrb	length	16	5.0	0.00	0.00	0.23
+trie	length	16	5.0	0.00	0.00	0.23
+cons (free list)	length	32	136.0	0.00	0.00	9.81
+cons (intrusive)	length	32	137.0	0.00	0.00	12.01
+cons (shared_ptr)	length	32	137.0	0.00	0.00	10.89
+flat array	length	32	5.0	0.00	0.00	0.21
+rrb (free list)	length	32	5.0	0.00	0.00	0.22
+rrb	length	32	5.0	0.00	0.00	0.22
+trie	length	32	5.0	0.00	0.00	0.22
+cons (free list)	length	33	140.0	0.00	0.00	10.27
+cons (intrusive)	length	33	141.0	0.00	0.00	12.14
+cons (shared_ptr)	length	33	141.0	0.00	0.00	11.41
+flat array	length	33	5.0	0.00	0.00	0.21
+rrb (free list)	length	33	5.0	0.00	0.00	0.22
+rrb	length	33	5.0	0.00	0.00	0.22
+trie	length	33	5.0	0.00	0.00	0.24
+cons (free list)	length	1000	4008.2	4.05	0.00	1195.74
+cons (intrusive)	length	1000	4009.2	3.69	0.00	1780.85
+cons (shared_ptr)	length	1000	4009.2	964.78	0.00	3743.08
+flat array	length	1000	5.3	0.08	0.00	1.05
+rrb (free list)	length	1000	5.2	0.08	0.00	1.02
+rrb	length	1000	5.2	0.08	0.00	0.85
+trie	length	1000	5.3	0.09	0.00	1.03
+cons (free list)	length	1000000	4000023.0	499786.00	0.00	2457339.00
+cons (intrusive)	length	1000000	4000025.0	499790.00	0.00	6857284.00
+cons (shared_ptr)	length	1000000	4000025.0	999648.00	0.00	22484428.00
+flat array	length	1000000	24.0	5.00	0.00	48.00
+rrb (free list)	length	1000000	20.0	5.00	0.00	49.00
+rrb	length	1000000	20.0	5.00	0.00	63.00
+trie	length	1000000	22.0	6.00	0.00	48.00
+cons (free list)	index	1	10.0	0.13	0.00	0.35
+cons (intrusive)	index	1	10.0	0.13	0.00	0.41
+cons (shared_ptr)	index	1	10.0	0.13	0.00	0.39
+flat array	index	1	7.0	0.13	0.00	0.44
+rrb (free list)	index	1	19.0	0.13	0.00	1.00
+rrb	index	1	19.0	0.13	0.00	0.97
+trie	index	1	14.0	0.13	0.00	0.62
+cons (free list)	index	2	13.5	0.13	0.00	3.03
+cons (intrusive)	index	2	13.5	0.13	0.00	3.51
+cons (shared_ptr)	index	2	13.5	0.13	0.00	3.50
+flat array	index	2	7.0	0.13	0.00	0.46
+rrb (free list)	index	2	19.0	0.13	0.00	0.97
+rrb	index	2	19.0	0.13	0.00	0.97
+trie	index	2	14.0	0.13	0.00	0.53
+cons (free list)	index	3	14.7	0.13	0.00	3.75
+cons (intrusive)	index	3	14.7	0.13	0.00	5.06
+cons (shared_ptr)	index	3	14.7	0.13	0.00	4.93
+flat array	index	3	7.0	0.13	0.00	0.47
+rrb (free list)	index	3	19.0	0.13	0.00	0.89
+rrb	index	3	19.0	0.13	0.00	1.00
+trie	index	3	14.0	0.13	0.00	0.50
+cons (free list)	index	4	16.3	0.13	0.00	4.09
+cons (intrusive)	index	4	16.3	0.13	0.00	4.76
+cons (shared_ptr)	index	4	16.3	0.13	0.00	4.65
+flat array	index	4	7.0	0.13	0.00	0.46
+rrb (free list)	index	4	19.0	0.13	0.00	0.89
+rrb	index	4	19.0	0.13	0.00	1.00
+trie	index	4	14.0	0.13	0.00	0.46
+cons (free list)	index	8	20.6	0.13	0.00	6.70
+cons (intrusive)	index	8	20.6	0.13	0.00	6.32
+cons (shared_ptr)	index	8	20.6	0.13	0.00	6.35
+flat array	index	8	7.0	0.13	0.00	0.39
+rrb (free list)	index	8	19.0	0.13	0.00	0.82
+rrb	index	8	19.0	0.13	0.00	0.86
+trie	index	8	14.0	0.13	0.00	0.60
+cons (free list)	index	16	28.8	0.13	0.00	8.23
+cons (intrusive)	index	16	28.8	0.13	0.00	9.46
+cons (shared_ptr)	index	16	28.8	0.13	0.00	8.55
+flat array	index	16	7.0	0.13	0.00	0.37
+rrb (free list)	index	16	19.0	0.13	0.00	0.81
+rrb	index	16	19.0	0.13	0.00	0.81
+trie	index	16	14.0	0.13	0.00	0.44
+cons (free list)	index	32	44.7	0.13	0.00	10.66
+cons (intrusive)	index	32	44.7	0.13	0.00	11.64
+cons (shared_ptr)	index	32	44.7	0.13	0.00	10.03
+flat array	index	32	7.0	0.13	0.00	0.34
+rrb (free list)	index	32	19.0	0.13	0.00	0.81
+rrb	index	32	19.0	0.13	0.00	0.81
+trie	index	32	14.0	0.13	0.00	0.50
+cons (free list)	index	33	45.6	0.13	0.00	10.22
+cons (intrusive)	index	33	45.6	0.13	0.00	11.69
+cons (shared_ptr)	index	33	45.6	0.13	0.00	10.44
+flat array	index	33	7.0	0.13	0.00	0.37
+rrb (free list)	index	33	35.5	0.13	0.00	1.96
+rrb	index	33	36.5	0.13	0.00	1.94
+trie	index	33	25.7	0.13	0.00	1.49
+cons (free list)	index	1000	1009.7	0.94	0.00	542.53
+cons (intrusive)	index	1000	1009.7	0.94	0.00	613.06
+cons (shared_ptr)	index	1000	1009.7	186.56	0.00	746.36
+flat array	index	1000	7.0	0.60	0.00	0.75
+rrb (free list)	index	1000	35.9	0.63	0.00	1.86
+rrb	index	1000	36.9	0.62	0.00	1.59
+trie	index	1000	25.9	0.62	0.00	1.44
+flat array	index	1000000	7.0	2.12	0.00	11.11
+rrb (free list)	index	1000000	45.0	3.31	0.00	24.04
+rrb	index	1000000	46.0	3.33	0.00	22.89
+trie	index	1000000	35.0	3.33	0.00	20.02
+cons (free list)	update shared	1	151.0	1.25	0.00	10.29
+cons (intrusive)	update shared	1	284.0	1.26	1.00	20.63
+cons (shared_ptr)	update shared	1	501.0	1.25	2.00	27.72
+flat array	update shared	1	230.0	1.25	1.00	12.03
+rrb (free list)	update shared	1	214.5	1.26	0.00	14.55
+rrb	update shared	1	309.5	1.26	1.00	16.68
+trie	update shared	1	286.5	1.26	1.00	15.12
+cons (free list)	update shared	2	281.1	1.26	0.48	22.65
+cons (intrusive)	update shared	2	477.1	1.26	1.96	38.15
+cons (shared_ptr)	update shared	2	816.2	1.26	3.44	49.76
+flat array	update shared	2	247.0	1.25	1.00	13.52
+rrb (free list)	update shared	2	231.0	1.25	0.00	16.76
+rrb	update shared	2	326.0	1.25	1.00	18.68
+trie	update shared	2	303.0	1.25	1.00	14.22
+cons (free list)	update shared	3	425.0	1.25	1.00	31.92
+cons (intrusive)	update shared	3	690.8	1.25	3.01	51.41
+cons (shared_ptr)	update shared	3	1152.0	1.26	5.01	70.89
+flat array	update shared	3	264.4	1.26	1.00	14.13
+rrb (free list)	update shared	3	248.0	1.25	0.00	16.64
+rrb	update shared	3	343.0	1.25	1.00	19.69
+trie	update shared	3	320.0	1.26	1.00	15.17
+cons (free list)	update shared	4	561.2	1.26	1.49	38.44
+cons (intrusive)	update shared	4	892.1	1.25	3.97	60.92
+cons (shared_ptr)	update shared	4	1493.2	1.25	6.46	89.51
+flat array	update shared	4	281.0	1.25	1.00	15.17
+rrb (free list)	update shared	4	265.0	1.25	0.00	18.56
+rrb	update shared	4	360.0	1.25	1.00	20.82
+trie	update shared	4	337.0	1.25	1.00	15.90
+cons (free list)	update shared	8	951.7	1.26	2.60	59.97
+cons (intrusive)	update shared	8	1560.9	1.26	7.05	104.47
+cons (shared_ptr)	update shared	8	2842.4	1.26	11.51	150.78
+flat array	update shared	8	349.0	1.25	1.00	19.81
+rrb (free list)	update shared	8	333.0	1.25	0.00	20.31
+rrb	update shared	8	428.0	1.25	1.00	21.22
+trie	update shared	8	405.0	1.25	1.00	18.23
+cons (free list)	update shared	16	1531.0	1.26	3.71	92.91
+cons (intrusive)	update shared	16	2897.0	1.26	12.14	189.80
+cons (shared_ptr)	update shared	16	5289.4	1.26	20.57	276.95
+flat array	update shared	16	485.0	1.24	1.00	24.96
+rrb (free list)	update shared	16	469.0	1.24	0.00	27.99
+rrb	update shared	16	564.0	1.24	1.00	27.97
+trie	update shared	16	541.0	1.24	1.00	23.85
+cons (free list)	update shared	32	2495.5	1.25	4.83	151.60
+cons (intrusive)	update shared	32	5370.3	1.25	21.33	330.71
+cons (shared_ptr)	update shared	32	10008.6	1.27	37.83	528.82
+flat array	update shared	32	757.0	1.23	1.00	36.58
+rrb (free list)	update shared	32	741.0	1.22	0.00	51.48
+rrb	update shared	32	836.0	1.23	1.00	42.05
+trie	update shared	32	813.0	1.23	1.00	40.35
+cons (free list)	update shared	33	2597.1	1.23	4.97	155.28
+cons (intrusive)	update shared	33	5622.4	1.25	22.30	341.48
+cons (shared_ptr)	update shared	33	10490.0	1.27	39.62	555.88
+flat array	update shared	33	774.4	1.23	1.00	37.63
+rrb (free list)	update shared	33	938.0	1.22	0.00	67.28
+rrb	update shared	33	1187.8	1.23	1.97	91.41
+trie	update shared	33	1122.5	1.23	1.97	91.32
+cons (free list)	update shared	1000	49670.8	1897.73	10.04	5137.24
+cons (intrusive)	update shared	1000	237591.0	1970.32	508.44	14523.15
+cons (shared_ptr)	update shared	1000	465980.0	3191.59	1006.84	29788.92
+flat array	update shared	1000	17652.0	2356.62	1.00	2563.79
+rrb (free list)	update shared	1000	1247.1	14.64	0.00	98.05
+rrb	update shared	1000	1501.9	14.87	1.99	85.02
+trie	update shared	1000	1439.9	14.65	1.99	102.39
+rrb (free list)	update shared	1000000	3683.1	100.76	0.00	829.69
+rrb	update shared	1000000	4218.9	100.27	4.00	952.56
+trie	update shared	1000000	4154.9	100.20	4.00	876.65
+cons (free list)	update unique	1	149.1	1.25	0.00	9.67
+cons (intrusive)	update unique	1	283.1	1.25	1.00	20.04
+cons (shared_ptr)	update unique	1	490.1	1.25	2.00	26.27
+flat array	update unique	1	28.1	1.24	0.00	2.36
+rrb (free list)	update unique	1	52.1	1.25	0.00	4.10
+rrb	update unique	1	81.1	1.24	0.00	5.45
+trie	update unique	1	42.2	1.25	0.00	3.82
+cons (free list)	update unique	2	279.7	1.25	0.48	22.11
+cons (intrusive)	update unique	2	476.6	1.25	1.96	38.77
+cons (shared_ptr)	update unique	2	801.0	1.25	3.44	49.46
+flat array	update unique	2	28.1	1.24	0.00	2.88
+rrb (free list)	update unique	2	52.1	1.24	0.00	4.60
+rrb	update unique	2	81.1	1.24	0.00	6.26
+trie	update unique	2	42.2	1.25	0.00	4.70
+cons (free list)	update unique	3	423.7	1.25	1.00	31.96
+cons (intrusive)	update unique	3	690.8	1.25	3.01	53.06
+cons (shared_ptr)	update unique	3	1134.4	1.25	5.01	68.59
+flat array	update unique	3	28.1	1.24	0.00	2.76
+rrb (free list)	update unique	3	52.1	1.24	0.00	4.36
+rrb	update unique	3	81.1	1.24	0.00	6.14
+trie	update unique	3	42.2	1.25	0.00	4.04
+cons (free list)	update unique	4	560.0	1.25	1.49	39.80
+cons (intrusive)	update unique	4	892.6	1.25	3.97	59.69
+cons (shared_ptr)	update unique	4	1472.5	1.25	6.46	87.30
+flat array	update unique	4	28.1	1.24	0.00	2.57
+rrb (free list)	update unique	4	52.1	1.24	0.00	3.80
+rrb	update unique	4	81.1	1.24	0.00	6.09
+trie	update unique	4	42.2	1.25	0.00	3.98
+cons (free list)	update unique	8	950.4	1.25	2.60	58.99
+cons (intrusive)	update unique	8	1561.8	1.25	7.05	99.53
+cons (shared_ptr)	update unique	8	2813.3	1.25	11.51	143.17
+flat array	update unique	8	28.1	1.23	0.00	2.35
+rrb (free list)	update unique	8	52.1	1.24	0.00	3.33
+rrb	update unique	8	81.1	1.24	0.00	5.08
+trie	update unique	8	42.2	1.24	0.00	3.83
+cons (free list)	update unique	16	1529.7	1.24	3.71	91.94
+cons (intrusive)	update unique	16	2901.6	1.24	12.14	181.60
+cons (shared_ptr)	update unique	16	5241.9	1.24	20.57	273.72
+flat array	update unique	16	28.1	1.23	0.00	2.31
+rrb (free list)	update unique	16	52.1	1.23	0.00	3.25
+rrb	update unique	16	81.1	1.23	0.00	4.74
+trie	update unique	16	42.2	1.23	0.00	3.64
+cons (free list)	update unique	32	2494.2	1.22	4.83	152.38
+cons (intrusive)	update unique	32	5381.8	1.22	21.33	322.86
+cons (shared_ptr)	update unique	32	9925.1	1.22	37.83	511.82
+flat array	update unique	32	28.1	1.21	0.00	2.28
+rrb (free list)	update unique	32	52.1	1.21	0.00	3.23
+rrb	update unique	32	81.1	1.21	0.00	4.78
+trie	update unique	32	42.2	1.22	0.00	3.66
+cons (free list)	update unique	33	2596.2	1.22	4.97	193.54
+cons (intrusive)	update unique	33	5634.0	1.22	22.30	335.34
+cons (shared_ptr)	update unique	33	10403.1	1.22	39.62	545.07
+flat array	update unique	33	28.1	1.21	0.00	2.20
+rrb (free list)	update unique	33	103.6	1.21	0.00	5.31
+rrb	update unique	33	130.6	1.21	0.00	6.95
+trie	update unique	33	96.5	1.21	0.00	5.93
+cons (free list)	update unique	1000	49669.5	2044.58	10.04	6780.73
+cons (intrusive)	update unique	1000	238604.0	1728.21	508.44	14963.00
+cons (shared_ptr)	update unique	1000	464347.0	3014.05	1006.84	25107.64
+flat array	update unique	1000	28.1	1.60	0.00	3.00
+rrb (free list)	update unique	1000	101.8	1.66	0.00	5.82
+rrb	update unique	1000	128.8	1.65	0.00	7.11
+trie	update unique	1000	94.8	1.64	0.00	6.22
+flat array	update unique	1000000	28.1	3.26	0.00	26.69
+rrb (free list)	update unique	1000000	189.8	6.51	0.00	89.67
+rrb	update unique	1000000	216.7	6.44	0.00	99.57
+trie	update unique	1000000	182.7	6.41	0.00	85.01
+cons (free list)	concatenate	1	356.0	0.00	1.00	15.13
+cons (intrusive)	concatenate	1	491.0	0.00	2.00	32.49
+cons (shared_ptr)	concatenate	1	724.0	0.00	3.00	42.34
+flat array	concatenate	1	259.0	0.00	1.00	11.92
+rrb (free list)	concatenate	1	287.0	0.00	0.00	17.34
+rrb	concatenate	1	410.0	0.00	1.00	22.01
+trie	concatenate	1	539.0	0.00	1.00	34.34
+cons (free list)	concatenate	2	629.0	0.00	2.00	29.20
+cons (intrusive)	concatenate	2	910.0	0.00	4.00	52.19
+cons (shared_ptr)	concatenate	2	1352.0	0.00	6.00	74.59
+flat array	concatenate	2	293.0	0.00	1.00	14.13
+rrb (free list)	concatenate	2	321.0	0.00	0.00	18.79
+rrb	concatenate	2	444.0	0.00	1.00	24.31
+trie	concatenate	2	621.0	0.00	1.00	35.19
+cons (free list)	concatenate	3	909.0	0.00	3.00	43.11
+cons (intrusive)	concatenate	3	1336.0	0.00	6.00	69.09
+cons (shared_ptr)	concatenate	3	1987.0	0.00	9.00	104.62
+flat array	concatenate	3	327.0	0.00	1.00	16.33
+rrb (free list)	concatenate	3	355.0	0.00	0.00	19.33
+rrb	concatenate	3	478.0	0.00	1.00	26.59
+trie	concatenate	3	703.0	0.00	1.00	37.90
+cons (free list)	concatenate	4	985.0	0.00	3.00	54.36
+cons (intrusive)	concatenate	4	1558.0	0.00	7.00	97.00
+cons (shared_ptr)	concatenate	4	2521.1	0.00	11.00	130.40
+flat array	concatenate	4	361.0	0.00	1.00	18.33
+rrb (free list)	concatenate	4	389.0	0.00	0.00	21.27
+rrb	concatenate	4	512.0	0.00	1.00	29.30
+trie	concatenate	4	785.0	0.00	1.00	43.87
+cons (free list)	concatenate	8	1510.2	0.00	4.00	78.20
+cons (intrusive)	concatenate	8	2767.1	0.00	12.00	168.43
+cons (shared_ptr)	concatenate	8	4879.3	0.00	20.00	229.27
+flat array	concatenate	8	497.0	0.00	1.00	23.06
+rrb (free list)	concatenate	8	525.0	0.00	0.00	28.27
+rrb	concatenate	8	648.0	0.00	1.00	32.50
+trie	concatenate	8	1113.0	0.00	1.00	56.80
+cons (free list)	concatenate	16	2371.8	0.00	5.00	124.92
+cons (intrusive)	concatenate	16	5203.5	0.00	21.00	324.84
+cons (shared_ptr)	concatenate	16	9409.0	0.01	37.00	458.66
+flat array	concatenate	16	769.1	0.00	1.00	37.84
+rrb (free list)	concatenate	16	797.0	0.00	0.00	43.25
+rrb	concatenate	16	920.0	0.00	1.00	46.94
+trie	concatenate	16	1769.0	0.00	1.00	95.35
+cons (free list)	concatenate	32	3907.2	0.01	6.02	274.58
+cons (intrusive)	concatenate	32	9887.8	0.01	38.00	607.36
+cons (shared_ptr)	concatenate	32	18282.5	0.02	70.00	928.74
+flat array	concatenate	32	1313.2	0.01	1.00	67.68
+rrb (free list)	concatenate	32	350.0	0.00	0.00	19.06
+rrb	concatenate	32	475.2	0.00	1.00	25.97
+trie	concatenate	32	2762.2	0.01	2.00	134.39
+cons (free list)	concatenate	33	4395.4	0.02	7.00	257.20
+cons (intrusive)	concatenate	33	10568.9	0.01	40.00	623.98
+cons (shared_ptr)	concatenate	33	19215.7	0.02	73.00	934.93
+flat array	concatenate	33	1347.1	0.01	1.00	76.07
+rrb (free list)	concatenate	33	939.0	0.00	0.00	61.02
+rrb	concatenate	33	1044.0	0.00	1.00	69.74
+trie	concatenate	33	3402.2	0.01	3.00	223.42
+cons (free list)	concatenate	1000	90871.8	5602.82	26.38	14224.69
+cons (intrusive)	concatenate	1000	478621.0	5504.23	1011.00	29204.48
+cons (shared_ptr)	concatenate	1000	920832.0	7821.75	2011.00	47788.71
+flat array	concatenate	1000	34634.4	4686.45	1.00	5056.09
+rrb (free list)	concatenate	1000	6240.4	1.55	0.09	413.25
+rrb	concatenate	1000	6717.3	1.58	3.00	397.57
+trie	concatenate	1000	85213.4	2506.69	35.00	6322.29
+cons (free list)	concatenate	1000000	294360552.0	6134683.00	1000021.00	78608669.00
+cons (intrusive)	concatenate	1000000	395360638.0	6134671.00	1000021.00	78714092.00
+cons (shared_ptr)	concatenate	1000000	772377285.0	7635726.00	2000021.00	131056039.00
+flat array	concatenate	1000000	34000595.0	4747529.00	1.00	33663218.00
+rrb (free list)	concatenate	1000000	22564.0	267.00	14.00	10380.00
+rrb	concatenate	1000000	20738.0	270.00	7.00	12293.00
+trie	concatenate	1000000	85650574.0	2423659.00	32263.00	25122332.00
+cons (free list)	slice	4	646.0	0.00	2.00	31.60
+cons (intrusive)	slice	4	921.0	0.00	4.00	52.94
+cons (shared_ptr)	slice	4	1389.0	0.00	6.00	71.93
+flat array	slice	4	21.0	0.00	0.00	2.41
+rrb (free list)	slice	4	328.0	0.00	0.00	17.66
+rrb	slice	4	441.0	0.00	1.00	26.53
+trie	slice	4	712.0	0.00	1.00	40.81
+cons (free list)	slice	8	1011.0	0.00	3.00	49.24
+cons (intrusive)	slice	8	1572.0	0.00	7.00	94.34
+cons (shared_ptr)	slice	8	2901.0	0.00	11.00	132.94
+flat array	slice	8	21.0	0.00	0.00	2.00
+rrb (free list)	slice	8	381.0	0.00	0.00	23.38
+rrb	slice	8	494.0	0.00	1.00	28.77
+trie	slice	8	892.0	0.00	1.00	47.49
+cons (free list)	slice	16	1551.0	0.00	4.00	76.20
+cons (intrusive)	slice	16	3093.0	0.00	12.00	195.34
+cons (shared_ptr)	slice	16	5326.0	0.00	20.00	234.72
+flat array	slice	16	21.0	0.00	0.00	1.90
+rrb (free list)	slice	16	487.0	0.00	0.00	26.82
+rrb	slice	16	600.0	0.00	1.00	31.31
+trie	slice	16	1252.0	0.00	1.00	69.75
+cons (free list)	slice	32	2441.0	0.00	5.00	129.01
+cons (intrusive)	slice	32	5540.0	0.00	21.00	326.23
+cons (shared_ptr)	slice	32	9984.0	0.00	37.00	513.49
+flat array	slice	32	21.0	0.00	0.00	1.76
+rrb (free list)	slice	32	699.0	0.00	0.00	40.16
+rrb	slice	32	812.0	0.00	1.00	49.23
+trie	slice	32	1972.0	0.00	1.00	123.02
+cons (free list)	slice	33	2441.0	0.00	5.00	127.81
+cons (intrusive)	slice	33	5540.0	0.00	21.00	325.92
+cons (shared_ptr)	slice	33	9984.0	0.00	37.00	503.29
+flat array	slice	33	21.0	0.00	0.00	1.90
+rrb (free list)	slice	33	1003.0	0.00	0.00	54.37
+rrb	slice	33	1229.0	0.00	2.00	63.41
+trie	slice	33	1985.0	0.00	1.00	127.17
+cons (free list)	slice	1000	46643.9	2692.12	10.00	9159.11
+cons (intrusive)	slice	1000	244364.0	1950.28	510.00	16671.25
+cons (shared_ptr)	slice	1000	474453.0	3458.86	1010.00	24651.22
+flat array	slice	1000	21.3	0.05	0.00	2.69
+rrb (free list)	slice	1000	1673.7	0.62	0.00	117.45
+rrb	slice	1000	2091.9	0.71	3.00	141.88
+trie	slice	1000	52176.5	339.71	17.00	3826.69
+cons (free list)	slice	1000000	43929928.0	3193189.00	20.00	29837066.00
+cons (intrusive)	slice	1000000	371429190.0	4192091.00	500020.00	44455073.00
+cons (shared_ptr)	slice	1000000	709438166.0	6067685.00	1000020.00	61406432.00
+flat array	slice	1000000	38.0	3.00	0.00	49.00
+rrb (free list)	slice	1000000	7438.0	207.00	10.00	4362.00
+rrb	slice	1000000	6880.0	215.00	7.00	6158.00
+trie	slice	1000000	54834684.0	1210845.00	16131.00	12953417.00
+cons (free list)	code: parse	0	199.5	9.00	0.00	70.33
+cons (intrusive)	code: parse	0	1255.0	10.37	2.76	188.37
+cons (shared_ptr)	code: parse	0	2459.0	14.75	5.52	323.87
+flat array	code: parse	0	488.3	10.15	1.00	93.13
+rrb (free list)	code: parse	0	699.2	9.99	0.91	124.21
+rrb	code: parse	0	710.3	10.04	1.00	124.33
+trie	code: parse	0	793.6	10.03	1.00	120.65
+cons (free list)	code: evaluate	0	18.8	4.26	0.00	16.43
+cons (intrusive)	code: evaluate	0	18.8	4.27	0.00	16.96
+cons (shared_ptr)	code: evaluate	0	18.8	5.77	0.00	17.91
+flat array	code: evaluate	0	26.7	4.07	0.00	18.32
+rrb (free list)	code: evaluate	0	62.3	4.58	0.00	22.47
+rrb	code: evaluate	0	62.3	4.52	0.00	20.30
+trie	code: evaluate	0	48.3	4.52	0.00	18.10
+cons (free list)	code: expand	0	111.6	3.55	0.00	12.65
+cons (intrusive)	code: expand	0	480.7	4.15	1.00	29.72
+cons (shared_ptr)	code: expand	0	1026.8	6.32	2.00	53.70
+flat array	code: expand	0	505.2	8.99	1.00	100.06
+rrb (free list)	code: expand	0	1018.8	8.96	1.00	182.77
+rrb	code: expand	0	1118.4	9.04	1.95	201.67
+trie	code: expand	0	1764.3	9.04	1.95	282.82
+cons (free list)	text: concatenate	0	97.3	1.50	0.26	12.09
+cons (intrusive)	text: concatenate	0	401.1	1.50	1.26	24.33
+cons (shared_ptr)	text: concatenate	0	785.6	3.01	2.26	46.43
+flat array	text: concatenate	0	4.0	0.12	0.00	0.50
+rrb (free list)	text: concatenate	0	7.9	0.10	0.00	0.93
+rrb	text: concatenate	0	8.7	0.10	0.00	0.97
+trie	text: concatenate	0	54.9	0.11	0.00	3.31
+cons (free list)	text: slice	0	567644.0	25697.70	7.04	250814.93
+cons (intrusive)	text: slice	0	578116.0	25704.80	60.35	104175.12
+cons (shared_ptr)	text: slice	0	1617350.0	51397.50	113.66	157966.73
+flat array	text: slice	0	284.7	1.53	0.00	23.36
+rrb (free list)	text: slice	0	1716.6	4.24	0.00	177.15
+rrb	text: slice	0	2105.1	4.56	3.17	175.06
+trie	text: slice	0	3605.8	2.00	1.00	198.81
+baseline	value allocation	0	351.0	0.00	2.00	18.59
+cons (shared_ptr)	memory	1				48.00
+cons (intrusive)	memory	1				24.00
+cons (free list)	memory	1				24.00
+flat array	memory	1				40.00
+trie	memory	1				264.01
+rrb	memory	1				264.00
+rrb (free list)	memory	1				280.00
+cons (shared_ptr)	memory	2				48.00
+cons (intrusive)	memory	2				24.00
+cons (free list)	memory	2				24.00
+flat array	memory	2				20.00
+trie	memory	2				132.00
+rrb	memory	2				132.00
+rrb (free list)	memory	2				140.00
+cons (shared_ptr)	memory	3				48.00
+cons (intrusive)	memory	3				24.00
+cons (free list)	memory	3				24.00
+flat array	memory	3				18.67
+trie	memory	3				88.00
+rrb	memory	3				88.00
+rrb (free list)	memory	3				93.33
+cons (shared_ptr)	memory	4				48.00
+cons (intrusive)	memory	4				24.00
+cons (free list)	memory	4				24.00
+flat array	memory	4				14.00
+trie	memory	4				66.00
+rrb	memory	4				66.00
+rrb (free list)	memory	4				70.00
+cons (shared_ptr)	memory	8				48.00
+cons (intrusive)	memory	8				24.00
+cons (free list)	memory	8				24.00
+flat array	memory	8				11.00
+trie	memory	8				33.00
+rrb	memory	8				33.00
+rrb (free list)	memory	8				35.00
+cons (shared_ptr)	memory	32				48.00
+cons (intrusive)	memory	32				24.00
+cons (free list)	memory	32				24.00
+flat array	memory	32				8.75
+trie	memory	32				8.25
+rrb	memory	32				8.25
+rrb (free list)	memory	32				8.75
+cons (shared_ptr)	memory	33				48.00
+cons (intrusive)	memory	33				24.00
+cons (free list)	memory	33				24.00
+flat array	memory	33				8.97
+trie	memory	33				24.48
+rrb	memory	33				24.48
+rrb (free list)	memory	33				25.45
+cons (shared_ptr)	memory	1000				48.00
+cons (intrusive)	memory	1000				24.00
+cons (free list)	memory	1000				24.00
+flat array	memory	1000				8.02
+trie	memory	1000				8.73
+rrb	memory	1000				8.73
+rrb (free list)	memory	1000				9.24
+cons (shared_ptr)	memory	1000000				48.00
+cons (intrusive)	memory	1000000				24.00
+cons (free list)	memory	1000000				24.00
+flat array	memory	1000000				8.00
+trie	memory	1000000				8.53
+rrb	memory	1000000				8.53
+rrb (free list)	memory	1000000				9.03
